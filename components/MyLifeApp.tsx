@@ -27,6 +27,7 @@ import AccountsWorkspace from './AccountsWorkspace'
 import LoansWorkspace from './LoansWorkspace'
 import TransactionDetails from './TransactionDetails'
 import TransactionsList from './TransactionsList'
+import DailyTransactionSummary from './DailyTransactionSummary'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
 
@@ -308,7 +309,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
       ) : tab === 'transactions' ? (
         <>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay}/>
-          <div className="sectionTitle"><h2>{selectedDayLabel}</h2><span>{dailyTransactions.length} tranzacții</span></div>
+          <DailyTransactionSummary dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>
           {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
