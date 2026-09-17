@@ -1,0 +1,37 @@
+.splash, .configScreen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.splash { color: var(--muted); }
+.loginCard { width: min(430px,100%); background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 28px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 14px; }
+.brandMark.large { width: 52px; height: 52px; border-radius: 17px; }
+.loginCard p { margin: 0 0 8px; color: var(--muted); line-height: 1.55; }
+.loginCard label { display: flex; flex-direction: column; gap: 7px; font-size: 12px; color: var(--muted); }
+.loginCard input { width: 100%; border: 1px solid var(--line); background: rgba(255,255,255,.035); color: var(--text); border-radius: 13px; padding: 12px 13px; outline: none; }
+.loginCard input:focus { border-color: rgba(118,168,255,.4); }
+.loginCard code { border: 1px solid var(--line); border-radius: 10px; padding: 9px; color: #bdd4ff; overflow-wrap: anywhere; }
+.primaryButton { margin-top: 4px; border: 0; border-radius: 13px; padding: 12px 14px; display: flex; gap: 8px; align-items: center; justify-content: center; font-weight: 800; background: linear-gradient(145deg,#74adff,#71e0c6); color: #07101c; }
+.primaryButton:disabled { opacity: .6; cursor: default; }
+.errorText { color: #ff9ab1; font-size: 12px; }
+.profileButton { width: 100%; border: 0; background: transparent; text-align: left; }
+.profileButton > div:nth-child(2) { min-width: 0; flex: 1; }
+.profileButton span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quickStats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+.statCard, .accountCard { border: 1px solid var(--line); background: rgba(255,255,255,.03); border-radius: 16px; padding: 15px; }
+.statCard span, .accountCard span, .accountCard small { display: block; color: var(--muted); font-size: 11px; }
+.statCard strong { display: block; margin-top: 8px; font-size: 18px; }
+.sectionTitle { display: flex; align-items: baseline; justify-content: space-between; margin: 24px 0 12px; }
+.sectionTitle h2 { font-size: 20px; }
+.sectionTitle span { color: var(--muted); font-size: 12px; }
+.accountGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.accountCard strong { display: block; margin: 9px 0 6px; font-size: 19px; }
+.listPanel { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--panel); }
+.listRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.listRow:last-child { border-bottom: 0; }
+.listRow > div { min-width: 0; }
+.listRow strong, .listRow span { display: block; }
+.listRow > div > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listRow > div > span { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.positive { color: var(--mint); }
+.fileStatus { font-size: 11px; color: var(--muted); padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.fileStatus.ok { color: var(--mint); background: rgba(119,220,198,.08); }
+.emptyState { color: var(--muted); padding: 28px; text-align: center; }
+@media (max-width: 980px) { .quickStats { grid-template-columns: repeat(2,minmax(0,1fr)); } .accountGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 720px) { .quickStats, .accountGrid { grid-template-columns: 1fr 1fr; } .listRow { align-items: flex-start; } }
