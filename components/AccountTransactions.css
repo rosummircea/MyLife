@@ -1,0 +1,17 @@
+.accountTransactions { min-width:0; }
+.accountTransactionsBack { display:flex; align-items:center; gap:8px; min-height:44px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.04); color:var(--text); font:inherit; font-size:12px; cursor:pointer; }
+.accountTransactionsHeader { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; padding:20px 0; border-bottom:1px solid var(--line); }
+.accountTransactionsHeader h2 { margin:0; font-size:21px; overflow-wrap:anywhere; }
+.accountTransactionsHeader p,.accountTransactionsHeader span { font-size:11px; color:var(--muted); line-height:1.5; }
+.accountTransactionsHeader p { margin:6px 0 0; }
+.accountTransactionsHeader strong { display:block; font-size:23px; margin-top:4px; overflow-wrap:anywhere; }
+.accountTransactionsBalance-red { color:#ff8797; }.accountTransactionsBalance-green { color:#6bddad; }.accountTransactionsBalance-orange { color:#ffbd6c; }.accountTransactionsBalance-neutral { color:var(--text); }
+.accountTransactionsMonth { margin-top:22px; }
+.accountTransactionsMonth>header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.accountTransactionsMonth h3 { margin:0; font-size:17px; text-transform:capitalize; }
+.accountTransactionsMonth>header span { font-size:11px; color:var(--muted); }
+.accountsWorkspace button.accountsBalanceCard { width:100%; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+.accountsWorkspace button.accountsBalanceCard:hover,.accountCard.accountOpenButton:hover { background:rgba(118,168,255,.08); }
+.accountCard.accountOpenButton { color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+.accountTransactionsBack:focus-visible,.accountsWorkspace button.accountsBalanceCard:focus-visible,.accountCard.accountOpenButton:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+@media(max-width:600px) { .accountTransactionsHeader h2 { font-size:18px; }.accountTransactionsHeader strong { font-size:21px; } }

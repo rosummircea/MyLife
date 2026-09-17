@@ -24,6 +24,7 @@ import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
 import AccountsWorkspace from './AccountsWorkspace'
+import AccountTransactions from './AccountTransactions'
 import LoansWorkspace from './LoansWorkspace'
 import TransactionDetails from './TransactionDetails'
 import TransactionsList from './TransactionsList'
@@ -283,6 +284,9 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
 function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved }: { onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
+  const [accountId,setAccountId]=useState<string|null>(null)
+  const selectedAccount=accounts.find(account=>account.id===accountId)
+  const openAccount=(account:Account)=>{setAccountId(account.id);setTab('accounts')}
   const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans'>(target ? 'transactions' : 'reports')
   const [selectedDay, setSelectedDay] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
@@ -303,7 +307,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
 
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
-        <AccountsWorkspace accounts={accounts} loading={loading}/>
+        selectedAccount ? <AccountTransactions account={selectedAccount} data={data} loading={loading} onBack={()=>setAccountId(null)} onSelect={tx=>setDetailId(tx.id)}/> : <AccountsWorkspace accounts={accounts} loading={loading} onSelectAccount={openAccount}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
         <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
@@ -313,7 +317,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
           {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.current_balance ?? account.opening_balance, account.currency.trim())}</strong><small>Sold · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <button type="button" className="accountCard accountOpenButton" key={account.id} onClick={()=>openAccount(account)} aria-label={`Vezi tranzacțiile ${account.name}`}><span>{account.name}</span><strong>{money(account.current_balance ?? account.opening_balance, account.currency.trim())}</strong><small>Sold · {account.account_type.replace('_',' ')}</small></button>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
       )}
     </section>
   )

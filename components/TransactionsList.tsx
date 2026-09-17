@@ -7,7 +7,7 @@ import { accountBank, accountOwner } from '@/lib/account-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId }: {
+export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
@@ -15,6 +15,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
   emptyMessage?: string
   onSelect: (transaction: Transaction) => void
   focusedId?: string
+  contextAccountId?: string
 }) {
   const categoriesById = new Map(categories.map(category => [category.id, category]))
   const allocations = new Map<string, SplitRow[]>()
@@ -53,8 +54,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
           if (!paths.includes('Fără categorie')) paths.push('Fără categorie')
         }
       }
-      const incoming = tx.transaction_type === 'income' || tx.transaction_type === 'adjustment'
-      const outgoing = tx.transaction_type === 'expense'
+      const incoming = tx.transaction_type === 'income' || tx.transaction_type === 'adjustment' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.transfer_account_id === contextAccountId)
+      const outgoing = tx.transaction_type === 'expense' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.account_id === contextAccountId)
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       return <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} onClick={() => onSelect(tx)}>
