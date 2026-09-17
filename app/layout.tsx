@@ -4,14 +4,14 @@ import './connected.css'
 import './home-apple.css'
 
 export const metadata: Metadata = {
-  title: 'MyLife',
+  title: 'One',
   description: 'Viața ta. Organizată simplu.',
   applicationName: 'One',
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'One', statusBarStyle: 'default' },
   icons: {
-    icon: [{ url: '/icons/one-192.png', sizes: '192x192', type: 'image/png' }],
-    apple: [{ url: '/icons/one-apple-180.png', sizes: '180x180', type: 'image/png' }],
+    icon: [{ url: '/icons/one-192-v2.png', sizes: '192x192', type: 'image/png' }],
+    apple: [{ url: '/icons/one-apple-180-v2.png', sizes: '180x180', type: 'image/png' }],
   },
 }
 
