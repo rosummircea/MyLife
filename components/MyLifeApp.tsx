@@ -22,6 +22,7 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
+import AutoModule from './AutoModule'
 import TransactionDetails from './TransactionDetails'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
@@ -214,6 +215,8 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
           <FinanceModule key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
+        ) : active === 'auto' ? (
+          <AutoModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} onHome={() => setActive('home')} onOpenDocument={openDocument}/>
         ) : (
           <section className="modulePage">
             <ModuleHeader title={activeArea?.label ?? 'MyLife'} onHome={() => setActive('home')} />
