@@ -41,3 +41,9 @@
 .documentsUploadButton { display:inline-flex; align-items:center; justify-content:center; position:relative; padding:12px 16px; min-height:44px; border:1px solid var(--line); border-radius:10px; color:var(--text); background:rgba(118,168,255,.12); cursor:pointer; }
 .documentsUploadButton input { position:absolute; inset:0; opacity:0; width:100%; cursor:pointer; }
 .documentsUploadButton:focus-within { outline:2px solid var(--blue); outline-offset:2px; }
+.documentsLinkedTransactions button { width:100%; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px; padding:14px; min-height:48px; color:var(--text); text-align:left; background:rgba(118,168,255,.08); border:1px solid var(--line); border-radius:12px; }
+.documentsLinkedTransactions span { font-size:12px; color:var(--muted); }.documentsLinkedTransactions strong { font-size:14px; }
+.documentsAmountLink { padding:10px 0; min-height:44px; border:0; background:transparent; color:var(--blue); text-align:left; font:inherit; text-decoration:underline; text-underline-offset:4px; }
+.transactionList button.listRow { width:100%; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--text); font:inherit; text-align:left; }
+.transactionList button.listRow:hover,.transactionList .listRow.transactionFocused { background:rgba(118,168,255,.12); }
+.transactionList button.listRow:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }

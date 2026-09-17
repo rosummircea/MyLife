@@ -67,6 +67,10 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<string>('home')
+  const [documentTarget, setDocumentTarget] = useState<string | null>(null)
+  const [transactionTarget, setTransactionTarget] = useState<Transaction | null>(null)
+  const openDocument = (id: string) => { setDocumentTarget(id); setActive('documents') }
+  const openTransaction = (transaction: Transaction) => { setTransactionTarget(transaction); setActive('finance') }
   const [authReady, setAuthReady] = useState(developmentAccess)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [data, setData] = useState<MyLifeData | null>(initialData)
@@ -206,9 +210,9 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+          <FinanceModule key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
-          <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
+          <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
         ) : (
           <section className="modulePage">
             <ModuleHeader title={activeArea?.label ?? 'MyLife'} onHome={() => setActive('home')} />
@@ -268,9 +272,10 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
   return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1><p className="subtitle">Date reale din MyLife.</p></div><button className="iconBtn" onClick={onHome}><Home size={19}/></button></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, onHome }: { data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
-  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports'>('reports')
-  const [selectedDay, setSelectedDay] = useState(() => bucharestDay(new Date()))
+function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument }: { target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports'>(target ? 'transactions' : 'reports')
+  const [selectedDay, setSelectedDay] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
+  useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
   const selectedDayLabel = new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 
@@ -290,15 +295,18 @@ function FinanceModule({ data, loading, accounts, transactions, onHome }: { data
         <>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay}/>
           <div className="sectionTitle"><h2>{selectedDayLabel}</h2><span>{dailyTransactions.length} tranzacții</span></div>
-          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList transactions={dailyTransactions} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList transactions={dailyTransactions} onOpenDocument={onOpenDocument} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions.slice(0, 8)}/></>
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions.slice(0, 8)} onOpenDocument={onOpenDocument}/></>
       )}
     </section>
   )
 }
 
-function TransactionsList({ transactions, emptyMessage = 'Nu există tranzacții disponibile.' }: { transactions: Transaction[]; emptyMessage?: string }) {
-  return <div className="listPanel">{transactions.length === 0 && <div className="emptyState">{emptyMessage}</div>}{transactions.map((tx) => <div className="listRow" key={tx.id}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></div>)}</div>
+function TransactionsList({ transactions, emptyMessage = 'Nu există tranzacții disponibile.', onOpenDocument, focusedId }: { transactions: Transaction[]; emptyMessage?: string; onOpenDocument?: (id: string) => void; focusedId?: string }) {
+  return <div className="listPanel transactionList">{transactions.length === 0 && <div className="emptyState">{emptyMessage}</div>}{transactions.map((tx) => {
+    const Row = tx.attachment_document_id && onOpenDocument ? 'button' : 'div'
+    return <Row className={`listRow ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} {...(Row === 'button' ? { type: 'button' as const, onClick: () => onOpenDocument?.(tx.attachment_document_id!) } : {})}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}{tx.attachment_document_id && ' · Deschide documentul'}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></Row>
+  })}</div>
 }

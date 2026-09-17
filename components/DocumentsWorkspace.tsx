@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { FileText, ExternalLink, Expand, X } from 'lucide-react'
-import type { DocumentRow } from '@/lib/mylife-data'
+import type { DocumentRow, Transaction } from '@/lib/mylife-data'
 import { getSupabaseClient } from '@/lib/supabase'
 import './DocumentsWorkspace.css'
 
@@ -18,8 +18,8 @@ function expiry(value: string | null) {
 }
 function readable(value: string) { return value.replace(/_/g, ' ') }
 
-export default function DocumentsWorkspace({ documents, loading, onUpdated }: { documents: DocumentRow[]; loading: boolean; onUpdated: (document: DocumentRow) => void }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+export default function DocumentsWorkspace({ documents, loading, onUpdated, initialSelectedId, transactions, onOpenTransaction }: { initialSelectedId: string | null; transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; documents: DocumentRow[]; loading: boolean; onUpdated: (document: DocumentRow) => void }) {
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId)
   const selected = documents.find(doc => doc.id === selectedId) ?? documents[0]
   return <div className="documentsWorkspace">
     <div className="sectionTitle"><h2>Documentele mele</h2><span>{documents.length} documente</span></div>
@@ -27,12 +27,12 @@ export default function DocumentsWorkspace({ documents, loading, onUpdated }: { 
       <nav className="documentsList" aria-label="Lista documentelor">{documents.map(doc => <button type="button" key={doc.id} aria-pressed={selected.id === doc.id} onClick={() => setSelectedId(doc.id)}>
         <FileText size={20} aria-hidden="true"/><div><strong>{doc.source_filename || readable(doc.document_type)}</strong><span>{readable(doc.document_type)}</span>{doc.issuer && <span>{doc.issuer}</span>}{doc.expires_at && <span>Expiră {date(doc.expires_at)}</span>}<small>{doc.storage_path ? 'Fișier asociat · acces verificat la deschidere' : 'Doar metadata'}</small></div>
       </button>)}</nav>
-      <DocumentDetail key={selected.id + (selected.storage_path ?? '')} document={selected} onUpdated={onUpdated}/>
+      <DocumentDetail key={selected.id + (selected.storage_path ?? '')} document={selected} transactions={transactions.filter(tx => tx.attachment_document_id === selected.id)} onOpenTransaction={onOpenTransaction} onUpdated={onUpdated}/>
     </div>}
   </div>
 }
 
-function DocumentDetail({ document: initialDoc, onUpdated }: { document: DocumentRow; onUpdated: (document: DocumentRow) => void }) {
+function DocumentDetail({ document: initialDoc, onUpdated, transactions, onOpenTransaction }: { transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; document: DocumentRow; onUpdated: (document: DocumentRow) => void }) {
   const [doc, setDoc] = useState(initialDoc)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -98,7 +98,8 @@ function DocumentDetail({ document: initialDoc, onUpdated }: { document: Documen
     <section className="documentsMetadata" aria-label="Detalii document">
       <div className="documentsDetailHeading"><h2>{doc.source_filename || readable(doc.document_type)}</h2><span className={`documentsBadge ${status === 'Expirat' ? 'expired' : status === 'Expiră curând' ? 'soon' : ''}`}>{status}</span></div>
       <dl>{fields.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-      {extra.length > 0 && <><h3>Alte date</h3><dl>{extra.map(([key,value]) => <div key={key}><dt>{readable(key)}</dt><dd>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></>}
+      {transactions.length > 0 && <div className="documentsLinkedTransactions"><h3>Tranzacții asociate</h3>{transactions.map(tx => <button type="button" key={tx.id} onClick={() => onOpenTransaction(tx)}><span>{tx.description || tx.merchant || 'Tranzacție'} · {date(tx.transaction_date)}</span><strong>{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(Number(tx.amount))} →</strong></button>)}</div>}
+      {extra.length > 0 && <><h3>Alte date</h3><dl>{extra.map(([key,value]) => <div key={key}><dt>{readable(key)}</dt><dd>{key === 'Prima RCA (RON)' && transactions.length ? <button type="button" className="documentsAmountLink" onClick={() => onOpenTransaction(transactions[0])}>{Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2 })} RON · Vezi tranzacția</button> : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></>}
     </section>
     <section className="documentsViewer" aria-label="Preview document">
       <div className="documentsViewerToolbar"><span><FileText size={18} aria-hidden="true"/> Preview document</span>{url && <a href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} aria-hidden="true"/> Deschide documentul</a>}</div>
