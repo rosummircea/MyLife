@@ -7,6 +7,9 @@ export type Account = {
   opening_balance: number | string
   currency: string
   credit_limit: number | string | null
+  owner_person_id?: string | null
+  institution?: string | null
+  owner?: { display_name: string | null } | null
 }
 export type Transaction = {
   id: string
@@ -86,7 +89,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
   const hid: string = membership.household_id
   const [accounts, transactions, categories, splits, documents] = await Promise.all([
     allRows<Account>((from, to) => client.from('finance_accounts')
-      .select('id,name,account_type,opening_balance,currency,credit_limit').eq('household_id', hid)
+      .select('id,name,account_type,opening_balance,currency,credit_limit,owner_person_id,institution,owner:people!owner_person_id(display_name)').eq('household_id', hid)
       .eq('is_active', true).order('name').order('id').range(from, to)),
     allRows<Transaction>((from, to) => client.from('finance_transactions')
       .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision').eq('household_id', hid)

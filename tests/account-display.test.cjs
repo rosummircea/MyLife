@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript')
+const mod={exports:{}}
+new Function('exports','require','module',ts.transpileModule(fs.readFileSync(require('node:path').join(__dirname,'../lib/account-display.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(mod.exports,require,mod)
+const {accountAmounts,accountOwner,accountBank}=mod.exports
+const account={name:'BT Mircea RON',opening_balance:0,credit_limit:null,currency:'RON',account_type:'checking'}
+test('RON colors include exact thresholds and neutral zero',()=>{for(const [balance,color] of [[0,'neutral'],[-1,'red'],[67.88,'red'],[199.99,'red'],[200,'orange'],[999.99,'orange'],[1000,'green']])assert.equal(accountAmounts({...account,opening_balance:balance}).color,color)})
+test('credit available is limit plus signed balance and debt stays red',()=>{const result=accountAmounts({...account,account_type:'credit_card',credit_limit:23000,opening_balance:-19041.34});assert.equal(result.available,3958.66);assert.equal(result.balance,-19041.34);assert.equal(result.color,'red');assert.equal(accountAmounts({...account,account_type:'credit_card',opening_balance:-100}).available,null)})
+test('owner relationship takes priority over names and missing owner stays separate',()=>{assert.equal(accountOwner({...account,owner_person_id:'9ed62f2a-7787-42d1-8bc7-4f9eaaca2417',owner:{display_name:'Andreea'}}).name,'Andreea');assert.equal(accountOwner({...account,owner_person_id:null}).id,'unassigned');assert.equal(accountOwner(account).name,'Mircea')})
+test('institution field takes priority and cash has no bank logo',()=>{assert.equal(accountBank({...account,institution:'Revolut'}).name,'Revolut');assert.equal(accountBank({...account,account_type:'cash',institution:null}).icon,null)})
+test('RON thresholds are not applied to foreign currency balances',()=>assert.equal(accountAmounts({...account,currency:'EUR',opening_balance:50}).color,'green'))

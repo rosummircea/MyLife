@@ -23,6 +23,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
+import AccountsWorkspace from './AccountsWorkspace'
 import TransactionDetails from './TransactionDetails'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
@@ -297,7 +298,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
 
       {detail && <TransactionDetails transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
-        <><div className="sectionTitle"><h2>Conturi</h2><span>{accounts.length} active</span></div><div className="accountGrid">{accounts.map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div></>
+        <AccountsWorkspace accounts={accounts} loading={loading}/>
       ) : tab === 'transactions' ? (
         <>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay}/>
