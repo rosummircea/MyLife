@@ -1,6 +1,36 @@
-/* iOS-inspired icon treatment only. Keep the original MyLife home cards unchanged. */
+/* Keep original MyLife home cards exactly as before; only the icons are restyled. */
+.lifeGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 15px; }
+.lifeCard {
+  min-height: 138px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: .18s ease;
+  text-align: left;
+}
+.lifeCard:hover { transform: translateY(-3px); border-color: rgba(118,168,255,.22); }
+.lifeCard::after {
+  content: "";
+  position: absolute;
+  right: -25px;
+  bottom: -35px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle,rgba(255,255,255,.055),transparent 65%);
+}
+.cardTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.lifeCard strong { display: block; font-size: 17px; font-weight: 850; margin-top: 17px; }
+.arrow { color: var(--muted); font-size: 18px; }
 
+/* iOS-inspired icon treatment only. */
 .domainIcon {
+  position: relative;
   width: 72px;
   height: 72px;
   border-radius: 18px;
@@ -12,7 +42,6 @@
     0 7px 18px rgba(0,0,0,.20),
     0 1px 3px rgba(0,0,0,.14);
 }
-
 .domainIcon::before {
   content: "";
   position: absolute;
@@ -21,11 +50,7 @@
   pointer-events: none;
   background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0) 35%);
 }
-
-.domainIcon::after {
-  display: none;
-}
-
+.domainIcon::after { display: none; }
 .domainIcon svg {
   position: relative;
   z-index: 1;
@@ -34,60 +59,32 @@
   stroke-width: 2.65;
   filter: none;
 }
-
 .domainIcon.blue,
-.domainIcon.blue svg {
-  color: #0a84ff;
-  stroke: #0a84ff;
-}
-
+.domainIcon.blue svg { color: #0a84ff; stroke: #0a84ff; }
 .domainIcon.mint,
-.domainIcon.mint svg {
-  color: #22b573;
-  stroke: #22b573;
-}
-
+.domainIcon.mint svg { color: #22b573; stroke: #22b573; }
 .domainIcon.pink,
-.domainIcon.pink svg {
-  color: #ff2d55;
-  stroke: #ff2d55;
-}
-
+.domainIcon.pink svg { color: #ff2d55; stroke: #ff2d55; }
 .domainIcon.cyan,
-.domainIcon.cyan svg {
-  color: #00a7d9;
-  stroke: #00a7d9;
-}
-
+.domainIcon.cyan svg { color: #00a7d9; stroke: #00a7d9; }
 .domainIcon.purple,
-.domainIcon.purple svg {
-  color: #af52de;
-  stroke: #af52de;
-}
-
+.domainIcon.purple svg { color: #af52de; stroke: #af52de; }
 .domainIcon.amber,
-.domainIcon.amber svg {
-  color: #ff9500;
-  stroke: #ff9500;
+.domainIcon.amber svg { color: #ff9500; stroke: #ff9500; }
+
+@media (max-width: 980px) {
+  .lifeGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 720px) {
-  .domainIcon {
-    width: 66px;
-    height: 66px;
-    border-radius: 17px;
-  }
-
-  .domainIcon svg {
-    width: 35px;
-    height: 35px;
-  }
+  .lifeGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .lifeCard { min-height: 128px; padding: 16px; border-radius: 18px; }
+  .domainIcon { width: 66px; height: 66px; border-radius: 17px; }
+  .domainIcon svg { width: 35px; height: 35px; }
 }
 
 @media (max-width: 430px) {
-  .domainIcon {
-    width: 62px;
-    height: 62px;
-    border-radius: 16px;
-  }
+  .lifeGrid { gap: 10px; }
+  .lifeCard { min-height: 118px; }
+  .domainIcon { width: 62px; height: 62px; border-radius: 16px; }
 }
