@@ -1,26 +1,37 @@
 .accountsWorkspace { min-width:0; }
-.accountsOwnerSection { margin-bottom:32px; }
-.accountsOwnerHeader { display:flex; align-items:center; gap:16px; padding:18px 0; margin-bottom:10px; border-bottom:1px solid var(--line); }
-.accountsPortrait { width:64px; height:64px; flex-shrink:0; border-radius:50%; object-fit:cover; object-position:center 30%; border:2px solid #7ebcc845; }
+.accountsWorkspace>.sectionTitle { margin:18px 0 8px; }
+.accountsOwnersLayout { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
+.accountsOwnerSection { min-width:0; }
+.accountsOwnerHeader { display:flex; align-items:center; gap:10px; padding:10px 0; margin-bottom:10px; border-bottom:1px solid var(--line); }
+.accountsPortrait { width:42px; height:42px; flex-shrink:0; border-radius:50%; object-fit:cover; object-position:center 30%; border:2px solid #7ebcc845; }
 .accountsAvatarFallback { display:grid; place-items:center; background:#1c2d41; color:var(--muted); }
-.accountsOwnerHeader p { margin:0 0 5px; font-size:10px; letter-spacing:.13em; color:var(--muted); }
-.accountsOwnerHeader h3 { margin:0; font-size:25px; }
-.accountsOwnerHeader>span { margin-left:auto; color:var(--muted); font-size:12px; }
-.accountsOwnerGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
-.accountsBalanceCard { min-width:0; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.03); padding:20px; }
-.accountsBalanceCard header { display:flex; align-items:center; gap:12px; }
+.accountsOwnerHeader p { display:none; }
+.accountsOwnerHeader h3 { margin:0; font-size:20px; }
+.accountsOwnerHeader>span { margin-left:auto; color:var(--muted); font-size:11px; }
+.accountsOwnerGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.accountsBalanceCard { min-width:0; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.03); padding:14px; }
+.accountsBalanceCard header { display:flex; align-items:center; gap:9px; }
 .accountsBalanceCard header>div:last-child { min-width:0; }
-.accountsBankIcon { width:48px; height:48px; flex-shrink:0; display:grid; place-items:center; background:#fff; color:#23334d; border-radius:13px; }
-.accountsBankIcon img { object-fit:contain; }
-.accountsBalanceCard h4 { margin:0 0 6px; font-size:14px; font-weight:600; overflow-wrap:anywhere; line-height:1.4; }
-.accountsBalanceCard header span { font-size:11px; color:var(--muted); }
-.accountsAmountArea { margin:24px 0 14px; }
-.accountsAmountArea>span { display:block; font-size:11px; color:var(--muted); margin-bottom:7px; }
-.accountsAmount { display:block; font-size:27px; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.accountsBankIcon { width:32px; height:32px; flex-shrink:0; display:grid; place-items:center; background:#fff; color:#23334d; border-radius:9px; }
+.accountsBankIcon img { width:24px; height:24px; object-fit:contain; }
+.accountsBalanceCard h4 { margin:0 0 3px; font-size:13px; font-weight:600; overflow-wrap:anywhere; line-height:1.3; }
+.accountsBalanceCard header span { font-size:10px; color:var(--muted); }
+.accountsAmountArea { margin:12px 0 0; }
+.accountsAmountArea>span { display:block; font-size:10px; color:var(--muted); margin-bottom:4px; }
+.accountsAmount { display:block; font-size:22px; letter-spacing:-.025em; overflow-wrap:anywhere; }
 .accountsAmount-green { color:#6bddad; }.accountsAmount-orange { color:#ffbd6c; }.accountsAmount-red { color:#ff7e91; }.accountsAmount-neutral { color:var(--text); }
-.accountsBalanceSource { display:block; color:var(--muted); font-size:10px; line-height:1.5; margin-top:16px; }
-.accountsCreditDetails { border-top:1px solid var(--line); padding-top:10px; }
-.accountsCreditDetails p { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; margin:9px 0; font-size:12px; }
+.accountsBalanceSource { color:var(--muted); font-size:10px; line-height:1.5; margin:12px 0 0; }
+.accountsCreditDetails { border-top:1px solid var(--line); padding-top:5px; margin-top:8px; }
+.accountsCreditDetails p { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px; margin:4px 0; font-size:10px; }
 .accountsCreditDetails p>span,.accountsCreditDetails small { color:var(--muted); }
-@media(max-width:1100px) { .accountsOwnerGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:600px) { .accountsOwnerGrid { grid-template-columns:minmax(0,1fr); gap:12px; }.accountsBalanceCard { padding:20px; }.accountsOwnerHeader h3 { font-size:23px; }.accountsPortrait { width:56px; height:56px; } }
+@media(max-width:1100px) { .accountsOwnersLayout { grid-template-columns:minmax(0,1fr); gap:14px; }.accountsOwnerGrid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:720px) { .accountsOwnerGrid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.accountsBalanceCard { padding:8px; }.accountsOwnerHeader { padding:6px 0; margin-bottom:8px; }.accountsPortrait { width:32px; height:32px; }.accountsOwnerHeader h3 { font-size:18px; }.accountsBalanceCard header { gap:6px; }.accountsBalanceCard header span { display:none; }.accountsBankIcon { width:26px; height:26px; border-radius:7px; }.accountsBankIcon img { width:20px; height:20px; }.accountsAmount { font-size:19px; }.accountsAmountArea { margin-top:7px; }.accountsAmountArea>span { font-size:9px; }.accountsOwnersLayout { gap:8px; } }
+.accountsWorkspace>.sectionTitle h2 { margin:0; }
+@media(max-width:720px) {
+  .modulePage:has(>.accountsWorkspace)>.topbar { margin-bottom:10px; }
+  .modulePage:has(>.accountsWorkspace)>.topbar .eyebrow,
+  .modulePage:has(>.accountsWorkspace)>.topbar .subtitle { display:none; }
+  .modulePage:has(>.accountsWorkspace)>.subnav { margin-bottom:10px; }
+  .accountsWorkspace>.sectionTitle { margin-top:10px; }
+}
+@media(max-width:360px) { .accountsAmount { font-size:16px; }.accountsBalanceCard { padding:8px; }.accountsBalanceCard h4 { font-size:12px; } }
