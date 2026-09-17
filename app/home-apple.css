@@ -1,4 +1,4 @@
-/* iOS-inspired home treatment: large, bright app icons with soft depth and simple white glyphs. */
+/* iOS-inspired home treatment: white app tiles with clean colored symbols. */
 .lifeGrid {
   gap: 18px;
 }
@@ -32,81 +32,89 @@
   align-items: flex-start;
 }
 
-/* Rounded-square app icon, closer to iOS than a regular UI badge. */
+/* White rounded-square icons, visually close to classic Apple system app tiles. */
 .domainIcon {
-  position: relative;
   width: 72px;
   height: 72px;
-  border-radius: 22px;
+  border-radius: 18px;
   overflow: hidden;
-  border: 0;
-  color: #fff;
-  isolation: isolate;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f7f9 100%) !important;
+  border: 1px solid rgba(0,0,0,.08);
   box-shadow:
-    0 1px 0 rgba(255,255,255,.30) inset,
-    0 -1px 0 rgba(0,0,0,.14) inset,
-    0 12px 24px rgba(0,0,0,.26),
-    0 2px 6px rgba(0,0,0,.18);
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 7px 18px rgba(0,0,0,.20),
+    0 1px 3px rgba(0,0,0,.14);
 }
 
-/* glossy highlight */
 .domainIcon::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 28% 16%, rgba(255,255,255,.34), transparent 32%),
-    linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,0) 44%);
+  border-radius: inherit;
   pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,0) 35%);
 }
 
-/* subtle lower vignette for the 'glass + enamel' iOS feel */
 .domainIcon::after {
-  content: "";
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 5%;
-  height: 35%;
-  z-index: -1;
-  border-radius: 50%;
-  background: rgba(0,0,0,.10);
-  filter: blur(10px);
-  pointer-events: none;
+  display: none;
 }
 
 .domainIcon svg {
-  width: 36px;
-  height: 36px;
-  stroke: #fff;
-  stroke-width: 2.55;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+  position: relative;
+  z-index: 1;
+  width: 38px;
+  height: 38px;
+  stroke-width: 2.65;
+  filter: none;
 }
 
-/* Apple-like palette: vivid, clean, high-contrast gradients. */
+/* Simple Apple-like accent colors on white. */
 .domainIcon.blue {
-  background: linear-gradient(160deg, #63c7ff 0%, #1389ff 52%, #0064d8 100%);
+  color: #0a84ff;
+}
+
+.domainIcon.blue svg {
+  stroke: #0a84ff;
 }
 
 .domainIcon.mint {
-  background: linear-gradient(160deg, #59e7c6 0%, #15c69b 54%, #0a9d77 100%);
+  color: #22b573;
+}
+
+.domainIcon.mint svg {
+  stroke: #22b573;
 }
 
 .domainIcon.pink {
-  background: linear-gradient(160deg, #ff8cb9 0%, #ff4f8e 52%, #d92d72 100%);
+  color: #ff2d55;
+}
+
+.domainIcon.pink svg {
+  stroke: #ff2d55;
 }
 
 .domainIcon.cyan {
-  background: linear-gradient(160deg, #63dcff 0%, #23b3f4 54%, #0b8ed6 100%);
+  color: #00a7d9;
+}
+
+.domainIcon.cyan svg {
+  stroke: #00a7d9;
 }
 
 .domainIcon.purple {
-  background: linear-gradient(160deg, #c69bff 0%, #9b67f6 54%, #7348d8 100%);
+  color: #af52de;
+}
+
+.domainIcon.purple svg {
+  stroke: #af52de;
 }
 
 .domainIcon.amber {
-  background: linear-gradient(160deg, #ffe07b 0%, #ffc23f 54%, #ed9b17 100%);
+  color: #ff9500;
+}
+
+.domainIcon.amber svg {
+  stroke: #ff9500;
 }
 
 .lifeCard strong {
@@ -134,12 +142,12 @@
   .domainIcon {
     width: 66px;
     height: 66px;
-    border-radius: 20px;
+    border-radius: 17px;
   }
 
   .domainIcon svg {
-    width: 33px;
-    height: 33px;
+    width: 35px;
+    height: 35px;
   }
 
   .lifeCard strong {
@@ -156,6 +164,6 @@
   .domainIcon {
     width: 62px;
     height: 62px;
-    border-radius: 19px;
+    border-radius: 16px;
   }
 }
