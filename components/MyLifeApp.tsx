@@ -63,6 +63,7 @@ function money(value: number | string, currency = 'RON') {
 }
 
 export default function MyLifeApp({ developmentAccess = false, initialData = null }: { developmentAccess?: boolean; initialData?: MyLifeData | null }) {
+  const openMyLifeChat = () => window.open('https://chatgpt.com/c/6aaa7be2-2820-83eb-a8c5-d90d5b9d9cc7', '_blank', 'noopener,noreferrer')
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<string>('home')
@@ -185,7 +186,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
           <>
             <div className="topbar">
               <div><p className="eyebrow">MYLIFE</p><h1>Bun venit, {displayName}</h1><p className="subtitle">Tot ce contează, într-un singur loc.</p></div>
-              <button className="iconBtn" aria-label="MyLife AI"><Sparkles size={19}/></button>
+              <button type="button" className="iconBtn" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={19}/></button>
             </div>
 
             <label className="searchBar"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Caută în MyLife"/></label>
@@ -219,7 +220,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
       <nav className="mobileNav" aria-label="Navigație mobilă">
         <button className={active === 'home' ? 'active' : ''} onClick={() => setActive('home')}><Home size={20}/><span>Acasă</span></button>
         <button className={active === 'documents' ? 'active' : ''} onClick={() => setActive('documents')}><FileText size={20}/><span>Documente</span></button>
-        <button className="aiMobile"><Sparkles size={21}/></button>
+        <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
         <button className={active === 'notes' ? 'active' : ''} onClick={() => setActive('notes')}><NotebookPen size={20}/><span>Notițe</span></button>
         <button onClick={() => { if (!developmentAccess) void supabase?.auth.signOut() }}><Users size={20}/><span>Profil</span></button>
       </nav>
