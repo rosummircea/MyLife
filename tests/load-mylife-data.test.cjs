@@ -15,6 +15,7 @@ function clientFixture({ user = { id:'user-one' }, documentError = null } = {}) 
   const tables = { finance_accounts:[{id:'account'}], finance_transactions:transactions, finance_categories:[], finance_transaction_splits:[], documents:[] }
   return {
     requests,
+    rpc: async()=>({data:0,error:null}),
     auth: { getUser: async () => ({data:{user}, error:null}) },
     from(table) {
       const filters = []

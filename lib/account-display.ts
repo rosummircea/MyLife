@@ -19,7 +19,7 @@ export function accountBank(account: Account) {
   return {name:account.account_type==='cash'?'Numerar':institution || 'Alt cont',icon:null}
 }
 export function accountAmounts(account: Account) {
-  const balance = Number(account.opening_balance)
+  const balance = Number(account.current_balance ?? account.opening_balance)
   const limit = account.credit_limit === null ? null : Number(account.credit_limit)
   const credit = account.account_type === 'credit_card'
   const available = credit && limit !== null && Number.isFinite(limit) && limit >= 0 ? (Math.round(limit*100)+Math.round(balance*100))/100 : null

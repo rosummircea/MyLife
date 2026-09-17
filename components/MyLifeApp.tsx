@@ -139,7 +139,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
 
   const activeArea = areas.find((area) => area.key === active)
   const ActiveIcon = activeArea?.icon
-  const totalAssets = accounts.filter((a) => a.currency.trim() === 'RON' && Number(a.opening_balance) > 0).reduce((sum, a) => sum + Number(a.opening_balance), 0)
+  const totalAssets = accounts.filter((a) => a.currency.trim() === 'RON' && Number(a.current_balance ?? a.opening_balance) > 0).reduce((sum, a) => sum + Number(a.current_balance ?? a.opening_balance), 0)
 
   if (!authReady) return <div className="splash">Se încarcă MyLife…</div>
 
@@ -209,13 +209,13 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
 
             <section className="quickStats">
               <div className="statCard"><span>Conturi active</span><strong>{loadingData ? '…' : accounts.length}</strong></div>
-              <div className="statCard"><span>Solduri inițiale pozitive · RON</span><strong>{loadingData ? '…' : money(totalAssets)}</strong></div>
+              <div className="statCard"><span>Solduri pozitive · RON</span><strong>{loadingData ? '…' : money(totalAssets)}</strong></div>
               <div className="statCard"><span>Documente</span><strong>{loadingData ? '…' : documents.length}</strong></div>
               <div className="statCard"><span>Household</span><strong>{householdId ? 'Conectat' : '—'}</strong></div>
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+          <FinanceModule onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
         ) : active === 'auto' ? (
@@ -279,7 +279,7 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
   return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1><p className="subtitle">Date reale din MyLife.</p></div><button className="iconBtn" onClick={onHome}><Home size={19}/></button></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument }: { target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved }: { onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
   const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans'>(target ? 'transactions' : 'reports')
@@ -300,7 +300,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
-      {detail && <TransactionDetails transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
+      {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} loading={loading}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
@@ -312,7 +312,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
           {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.current_balance ?? account.opening_balance, account.currency.trim())}</strong><small>Sold · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
       )}
     </section>
   )

@@ -18,7 +18,7 @@ export default function AccountsWorkspace({accounts,loading}:{accounts:Account[]
   const sorted=Array.from(groups.values()).sort((a,b)=>({Mircea:0,Andreea:1}[a.owner.name]??2)-({Mircea:0,Andreea:1}[b.owner.name]??2)||a.owner.name.localeCompare(b.owner.name))
   return <section className="accountsWorkspace"><div className="sectionTitle"><h2>Conturi</h2><span>{loading?'Se încarcă…':`${accounts.length} active`}</span></div>
     {loading ? <div className="emptyState" role="status">Se încarcă conturile…</div> : !accounts.length ? <div className="emptyState">Nu există conturi active.</div> : <div className="accountsOwnersLayout">{sorted.map(group=><section className="accountsOwnerSection" key={group.owner.id} aria-label={`Conturile ${group.owner.name}`}><header className="accountsOwnerHeader">{group.owner.photo ? <Image className="accountsPortrait" src={group.owner.photo} alt={group.owner.name} width={64} height={64}/> : <div className="accountsPortrait accountsAvatarFallback"><UserRound size={26}/></div>}<div><p>CONTURI PERSONALE</p><h3>{group.owner.name}</h3></div><span>{group.accounts.length} conturi</span></header><div className="accountsOwnerGrid">{group.accounts.map(account=><AccountCard key={account.id} account={account} ownerName={group.owner.name}/>)}</div></section>)}</div>}
-    <p className="accountsBalanceSource">Valori bazate pe soldurile inițiale salvate și limitele de credit.</p>
+    <p className="accountsBalanceSource">Solduri actualizate pe baza tranzacțiilor și a soldurilor de referință salvate.</p>
   </section>
 }
 function AccountCard({account,ownerName}:{account:Account;ownerName:string}) {
