@@ -35,3 +35,21 @@
   .accountsWorkspace>.sectionTitle { margin-top:10px; }
 }
 @media(max-width:360px) { .accountsAmount { font-size:16px; }.accountsBalanceCard { padding:8px; }.accountsBalanceCard h4 { font-size:12px; } }
+
+/* Shared grid rows make every account match the tallest card across owners. */
+.accountsOwnersLayout { align-items:stretch; grid-auto-rows:1fr; }
+.accountsOwnerSection { display:grid; grid-template-rows:auto minmax(0,1fr); }
+.accountsOwnerGrid { grid-auto-rows:1fr; }
+
+.accountsBalanceCard header .accountsAvailableLabel { display:none; }
+@media(max-width:720px) {
+  .accountsBalanceCard { padding:6px; }
+  .accountsAmountArea { margin-top:5px; }
+  .accountsAmountArea>span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .accountsCreditDetails { margin-top:5px; }
+  .accountsBalanceCard header .accountsAvailableLabel { display:block; font-size:9px; }
+}
+@media(max-width:720px) {
+  .accountsBalanceCard header:has(.accountsAvailableLabel) h4 { font-size:12px; line-height:1.2; margin-bottom:0; }
+  .accountsBalanceCard header .accountsAvailableLabel { line-height:1.2; }
+}
