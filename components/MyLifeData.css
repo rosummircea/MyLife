@@ -1,0 +1,4 @@
+.mylifeDataStatus { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.mylifeDataStatus button, .mylifeLoginCancel { border: 1px solid var(--line); background: rgba(255,255,255,.035); color: var(--text); border-radius: 10px; padding: 8px 10px; white-space: nowrap; }
+.mylifeDataStatus button:disabled { opacity: .5; cursor: default; }
+.mylifeDataError { margin-bottom: 18px; border: 1px solid rgba(240,127,160,.3); border-radius: 12px; padding: 12px; color: #ff9ab1; font-size: 12px; overflow-wrap: anywhere; }

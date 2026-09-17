@@ -1,0 +1,26 @@
+.transactionsCalendar { margin-top: 20px; border: 1px solid var(--line); border-radius: 20px; padding: 20px; background: var(--panel); }
+.transactionsCalendarHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+.transactionsCalendarHeader p { margin: 0 0 7px; color: var(--muted); letter-spacing: .1em; font-size: 10px; font-weight: 800; }
+.transactionsCalendarHeader h2 { margin: 0; font-size: 20px; text-transform: capitalize; }
+.transactionsCalendarNavigation { display: flex; gap: 6px; }
+.transactionsCalendarNavigation button { display: grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 10px; color: var(--text); }
+.transactionsCalendarNavigation .transactionsCalendarToday { color: var(--muted); font-size: 12px; padding: 8px 12px; }
+.transactionsCalendarWeekdays, .transactionsCalendarDays { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 6px; }
+.transactionsCalendarWeekdays { margin-bottom: 8px; color: var(--muted); font-size: 11px; text-align: center; }
+.transactionsCalendarDay { min-width: 0; min-height: 58px; padding: 8px 2px; border: 1px solid transparent; border-radius: 11px; background: rgba(255,255,255,.015); color: var(--muted); }
+.transactionsCalendarDay span, .transactionsCalendarDay small { display: block; }
+.transactionsCalendarDay span { font-size: 14px; }
+.transactionsCalendarDay small { min-height: 12px; margin-top: 4px; font-size: 10px; color: var(--mint); }
+.transactionsCalendarDay.hasTransactions { color: var(--text); background: rgba(119,220,198,.055); }
+.transactionsCalendarDay[aria-current="date"] { border-color: rgba(118,168,255,.35); }
+.transactionsCalendarDay:hover { background: rgba(118,168,255,.09); }
+.transactionsCalendarDay[aria-pressed="true"] { border-color: var(--blue); color: var(--text); background: rgba(118,168,255,.17); }
+.transactionsCalendar button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.transactionsCalendarHint { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+@media (max-width: 720px) {
+  .transactionsCalendar { padding: 14px 10px; }
+  .transactionsCalendarHeader { flex-wrap: wrap; }
+  .transactionsCalendarHeader h2 { font-size: 18px; }
+  .transactionsCalendarDay { min-height: 52px; }
+  .transactionsCalendarDays, .transactionsCalendarWeekdays { gap: 4px; }
+}

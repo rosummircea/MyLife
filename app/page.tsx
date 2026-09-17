@@ -1,11 +1,10 @@
-import DemoApp from '@/components/DemoApp'
+import { headers } from 'next/headers'
 import MyLifeApp from '@/components/MyLifeApp'
+import { loadLocalSnapshot } from '@/lib/local-snapshot'
 
-export default function Page() {
-  const hasSupabaseConfig = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  )
+export const dynamic = 'force-dynamic'
 
-  return hasSupabaseConfig ? <MyLifeApp /> : <DemoApp />
+export default async function Page() {
+  const initialData = await loadLocalSnapshot((await headers()).get('host'))
+  return <MyLifeApp developmentAccess={process.env.MYLIFE_DEV_ACCESS === 'true'} initialData={initialData} />
 }
