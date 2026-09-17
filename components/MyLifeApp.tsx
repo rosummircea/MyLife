@@ -22,6 +22,7 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
+import TransactionDetails from './TransactionDetails'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
 
@@ -273,6 +274,8 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
 }
 
 function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument }: { target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+  const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
+  const detail = transactions.find(item => item.id === detailId)
   const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports'>(target ? 'transactions' : 'reports')
   const [selectedDay, setSelectedDay] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
@@ -289,24 +292,25 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
+      {detail && <TransactionDetails transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
         <><div className="sectionTitle"><h2>Conturi</h2><span>{accounts.length} active</span></div><div className="accountGrid">{accounts.map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div></>
       ) : tab === 'transactions' ? (
         <>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay}/>
           <div className="sectionTitle"><h2>{selectedDayLabel}</h2><span>{dailyTransactions.length} tranzacții</span></div>
-          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList transactions={dailyTransactions} onOpenDocument={onOpenDocument} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions.slice(0, 8)} onOpenDocument={onOpenDocument}/></>
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
       )}
     </section>
   )
 }
 
-function TransactionsList({ transactions, emptyMessage = 'Nu există tranzacții disponibile.', onOpenDocument, focusedId }: { transactions: Transaction[]; emptyMessage?: string; onOpenDocument?: (id: string) => void; focusedId?: string }) {
+function TransactionsList({ transactions, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId }: { transactions: Transaction[]; emptyMessage?: string; onSelect: (transaction: Transaction) => void; focusedId?: string }) {
   return <div className="listPanel transactionList">{transactions.length === 0 && <div className="emptyState">{emptyMessage}</div>}{transactions.map((tx) => {
-    const Row = tx.attachment_document_id && onOpenDocument ? 'button' : 'div'
-    return <Row className={`listRow ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} {...(Row === 'button' ? { type: 'button' as const, onClick: () => onOpenDocument?.(tx.attachment_document_id!) } : {})}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}{tx.attachment_document_id && ' · Deschide documentul'}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></Row>
+    const Row = 'button'
+    return <Row className={`listRow ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} {...(Row === 'button' ? { type: 'button' as const, onClick: () => onSelect(tx) } : {})}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}{' · Vezi detaliile'}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></Row>
   })}</div>
 }
