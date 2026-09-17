@@ -19,8 +19,8 @@ export type Transaction = {
   currency: string
   transaction_date: string
   transfer_account_id?: string | null
-  source_account?: {name:string} | null
-  destination_account?: {name:string} | null
+  source_account?: {name:string} & Partial<Account> | null
+  destination_account?: {name:string} & Partial<Account> | null
   account_id?: string
   title?: string | null
   updated_at?: string
@@ -98,7 +98,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .select('id,name,account_type,opening_balance,currency,credit_limit,owner_person_id,institution,owner:people!owner_person_id(display_name)').eq('household_id', hid)
       .eq('is_active', true).order('name').order('id').range(from, to)),
     allRows<Transaction>((from, to) => client.from('finance_transactions')
-      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,updated_at,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(name),destination_account:finance_accounts!transfer_account_id(name)').eq('household_id', hid)
+      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,updated_at,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name)),destination_account:finance_accounts!transfer_account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name))').eq('household_id', hid)
       .eq('status', 'posted').order('transaction_date', { ascending: false }).order('id').range(from, to)),
     allRows<CategoryRow>((from, to) => client.from('finance_categories')
       .select('id,parent_id,name,kind,is_active').or(`household_id.eq.${hid},household_id.is.null`)
@@ -106,7 +106,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
     allRows<SplitRow>((from, to) => client.from('finance_transaction_splits')
       .select('id,transaction_id,category_id,amount,finance_transactions!inner(household_id,status,transaction_type)')
       .eq('finance_transactions.household_id', hid).eq('finance_transactions.status', 'posted')
-      .eq('finance_transactions.transaction_type', 'expense').order('id').range(from, to)),
+      .order('id').range(from, to)),
     allRows<DocumentRow>((from, to) => client.from('documents')
       .select('id,document_type,source_filename,mime_type,storage_path,issued_at,expires_at,issuing_country,issuing_authority,document_date,issuer,notes,extra').eq('user_id', auth.user.id)
       .order('created_at', { ascending: false }).order('id').range(from, to)),
