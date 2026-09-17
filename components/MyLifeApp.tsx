@@ -1,7 +1,9 @@
 'use client'
 
 import {
+  CalendarRange,
   Car,
+  ChevronRight,
   FileText,
   HeartPulse,
   Home,
@@ -56,6 +58,15 @@ type DocumentRow = {
   storage_path: string | null
 }
 
+type ReportPeriod = 'Zi' | 'Săptămână' | 'Lună' | 'An' | 'Custom'
+
+type ExpenseCategory = {
+  name: string
+  amount: number
+  percent: number
+  color: string
+}
+
 const areas: LifeArea[] = [
   { key: 'documents', label: 'Documente', icon: FileText, accent: 'blue', meta: 'Acte, polițe, contracte' },
   { key: 'finance', label: 'Finanțe', icon: WalletCards, accent: 'mint', meta: 'Conturi și tranzacții' },
@@ -78,6 +89,17 @@ const nav = [
   ['family', 'Familie', Users],
   ['notes', 'Notițe', NotebookPen],
 ] as const
+
+const mockExpenses: ExpenseCategory[] = [
+  { name: 'Mâncare și băuturi', amount: 2860, percent: 28, color: '#6ea8fe' },
+  { name: 'Utilități', amount: 1960, percent: 19, color: '#67d8c1' },
+  { name: 'Casă', amount: 1540, percent: 15, color: '#a889f4' },
+  { name: 'Transport', amount: 1230, percent: 12, color: '#f5bd63' },
+  { name: 'Cumpărături', amount: 1020, percent: 10, color: '#f07fa0' },
+  { name: 'Sănătate', amount: 720, percent: 7, color: '#75c8ff' },
+  { name: 'Patrick', amount: 510, percent: 5, color: '#9fda7d' },
+  { name: 'Altele', amount: 410, percent: 4, color: '#8d98a8' },
+]
 
 function money(value: number | string, currency = 'RON') {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value))
@@ -203,9 +225,7 @@ export default function MyLifeApp() {
     )
   }
 
-  if (!userEmail) {
-    return <LoginCard onError={setLoginError} error={loginError} />
-  }
+  if (!userEmail) return <LoginCard onError={setLoginError} error={loginError} />
 
   return (
     <div className="shell">
@@ -258,9 +278,9 @@ export default function MyLifeApp() {
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule accounts={accounts} transactions={transactions} />
+          <FinanceModule accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
-          <DocumentsModule documents={documents} />
+          <DocumentsModule documents={documents} onHome={() => setActive('home')} />
         ) : (
           <section className="modulePage">
             <ModuleHeader title={activeArea?.label ?? 'MyLife'} onHome={() => setActive('home')} />
@@ -314,10 +334,91 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
   return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1><p className="subtitle">Date reale din MyLife.</p></div><button className="iconBtn" onClick={onHome}><Home size={19}/></button></div>
 }
 
-function FinanceModule({ accounts, transactions }: { accounts: Account[]; transactions: Transaction[] }) {
-  return <section className="modulePage"><ModuleHeader title="Finanțe" onHome={() => location.reload()}/><div className="sectionTitle"><h2>Conturi</h2><span>{accounts.length} active</span></div><div className="accountGrid">{accounts.map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>{account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><div className="listPanel">{transactions.map((tx) => <div className="listRow" key={tx.id}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO')}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></div>)}</div></section>
+function FinanceModule({ accounts, transactions, onHome }: { accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports'>('reports')
+
+  return (
+    <section className="modulePage">
+      <ModuleHeader title="Finanțe" onHome={onHome}/>
+      <div className="subnav" aria-label="Submeniu Finanțe">
+        <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
+        <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
+        <button className={tab === 'transactions' ? 'active' : ''} onClick={() => setTab('transactions')}>Tranzacții</button>
+        <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
+      </div>
+
+      {tab === 'reports' ? <ExpenseReport /> : tab === 'accounts' ? (
+        <><div className="sectionTitle"><h2>Conturi</h2><span>{accounts.length} active</span></div><div className="accountGrid">{accounts.map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>{account.account_type.replace('_',' ')}</small></div>)}</div></>
+      ) : tab === 'transactions' ? (
+        <><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions}/></>
+      ) : (
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>{account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions}/></>
+      )}
+    </section>
+  )
 }
 
-function DocumentsModule({ documents }: { documents: DocumentRow[] }) {
-  return <section className="modulePage"><ModuleHeader title="Documente" onHome={() => location.reload()}/><div className="sectionTitle"><h2>Documentele mele</h2><span>{documents.length} documente</span></div><div className="listPanel">{documents.length === 0 ? <div className="emptyState">Nu există documente vizibile pentru acest cont.</div> : documents.map((doc) => <div className="listRow" key={doc.id}><div><strong>{doc.source_filename || doc.document_type}</strong><span>{doc.issuer || doc.document_type}{doc.expires_at ? ` · expiră ${new Date(doc.expires_at).toLocaleDateString('ro-RO')}` : ''}</span></div><span className={`fileStatus ${doc.storage_path ? 'ok' : ''}`}>{doc.storage_path ? 'Fișier ✓' : 'Doar date'}</span></div>)}</div></section>
+function ExpenseReport() {
+  const [period, setPeriod] = useState<ReportPeriod>('Lună')
+  const [selected, setSelected] = useState<ExpenseCategory | null>(null)
+  const total = mockExpenses.reduce((sum, item) => sum + item.amount, 0)
+  let cursor = 0
+  const gradient = mockExpenses.map((item) => {
+    const start = cursor
+    cursor += item.percent
+    return `${item.color} ${start}% ${cursor}%`
+  }).join(', ')
+
+  return (
+    <div className="reportWrap">
+      <div className="reportToolbar">
+        <div>
+          <p className="eyebrow">RAPORT CHELTUIELI</p>
+          <h2>Unde s-au dus banii</h2>
+          <p className="subtitle">Mockup vizual. Datele reale le conectăm după ce stabilim raportul.</p>
+        </div>
+        <div className="periodSwitch">
+          {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button key={item} className={period === item ? 'active' : ''} onClick={() => setPeriod(item)}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+        </div>
+      </div>
+
+      <div className="reportHero">
+        <div className="pieStage">
+          <div className="pieChart" style={{ background: `conic-gradient(${gradient})` }} aria-label="Distribuția cheltuielilor">
+            <div className="pieHole"><span>Total cheltuieli</span><strong>{money(total)}</strong><small>{period}</small></div>
+          </div>
+        </div>
+
+        <div className="reportSummary">
+          <span className="summaryLabel">Perioadă selectată</span>
+          <strong>{period === 'Lună' ? 'Septembrie 2026' : period}</strong>
+          <p>Fiecare culoare reprezintă o categorie principală. Procentul arată ponderea ei din total.</p>
+          <div className="summaryMini"><span>Categorii</span><strong>{mockExpenses.length}</strong></div>
+          <div className="summaryMini"><span>Cea mai mare categorie</span><strong>{mockExpenses[0].percent}%</strong></div>
+        </div>
+      </div>
+
+      <div className="sectionTitle reportListTitle"><h2>Cheltuieli pe categorii</h2><span>click pentru detalii</span></div>
+      <div className="expenseList">
+        {mockExpenses.map((item) => (
+          <button key={item.name} className={`expenseRow ${selected?.name === item.name ? 'selected' : ''}`} onClick={() => setSelected(item)}>
+            <span className="expenseDot" style={{ background: item.color }}/>
+            <div className="expenseName"><strong>{item.name}</strong><span>{item.percent}% din total</span></div>
+            <div className="expenseValue"><strong>{money(item.amount)}</strong><span>{item.percent}%</span></div>
+            <ChevronRight size={18}/>
+          </button>
+        ))}
+      </div>
+
+      {selected && <div className="categoryPeek"><div><span>Categoria selectată</span><strong>{selected.name}</strong><p>{money(selected.amount)} · {selected.percent}% din total</p></div><button onClick={() => setSelected(null)}>Închide</button></div>}
+    </div>
+  )
+}
+
+function TransactionsList({ transactions }: { transactions: Transaction[] }) {
+  return <div className="listPanel">{transactions.map((tx) => <div className="listRow" key={tx.id}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO')}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></div>)}</div>
+}
+
+function DocumentsModule({ documents, onHome }: { documents: DocumentRow[]; onHome: () => void }) {
+  return <section className="modulePage"><ModuleHeader title="Documente" onHome={onHome}/><div className="sectionTitle"><h2>Documentele mele</h2><span>{documents.length} documente</span></div><div className="listPanel">{documents.length === 0 ? <div className="emptyState">Nu există documente vizibile pentru acest cont.</div> : documents.map((doc) => <div className="listRow" key={doc.id}><div><strong>{doc.source_filename || doc.document_type}</strong><span>{doc.issuer || doc.document_type}{doc.expires_at ? ` · expiră ${new Date(doc.expires_at).toLocaleDateString('ro-RO')}` : ''}</span></div><span className={`fileStatus ${doc.storage_path ? 'ok' : ''}`}>{doc.storage_path ? 'Fișier ✓' : 'Doar date'}</span></div>)}</div></section>
 }
