@@ -82,9 +82,11 @@ function AccountIdentity({ account, direction }: { account: Account | null; dire
   const bank = account ? accountBank(account) : null
   const label = `${direction ? direction + ': ' : ''}${account ? owner?.name + ' · ' + account.name : 'Cont indisponibil'}`
   return <span className="transactionAccountIdentity" role="img" aria-label={label} title={label}>
-    {owner?.photo ? <Image className="transactionAccountPortrait" src={owner.photo} alt="" width={44} height={44}/> : <span className="transactionAccountFallback"><UserRound size={23}/></span>}
     <span className="transactionAccountBank">
-      {bank?.icon ? <Image src={bank.icon} alt="" width={20} height={20}/> : account?.account_type === 'cash' ? <Banknote size={15}/> : <Landmark size={15}/>}
+      {bank?.icon ? <Image src={bank.icon} alt="" width={36} height={36}/> : account?.account_type === 'cash' ? <Banknote size={26}/> : <Landmark size={26}/>}
+    </span>
+    <span className="transactionAccountOwnerBadge">
+      {owner?.photo ? <Image className="transactionAccountPortrait" src={owner.photo} alt="" width={24} height={24}/> : <UserRound size={14}/>}
     </span>
   </span>
 }
