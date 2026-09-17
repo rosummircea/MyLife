@@ -24,6 +24,8 @@ import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
 import AccountsWorkspace from './AccountsWorkspace'
+import LoansWorkspace from './LoansWorkspace'
+import { transferLabel } from '@/lib/transfers'
 import TransactionDetails from './TransactionDetails'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
@@ -280,7 +282,7 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
 function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument }: { target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
-  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports'>(target ? 'transactions' : 'reports')
+  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans'>(target ? 'transactions' : 'reports')
   const [selectedDay, setSelectedDay] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
@@ -293,28 +295,32 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
         <button className={tab === 'transactions' ? 'active' : ''} onClick={() => setTab('transactions')}>Tranzacții</button>
+        <button className={tab === 'transfers' ? 'active' : ''} onClick={() => setTab('transfers')}>Transferuri</button>
+        <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Împrumuturi</button>
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
       {detail && <TransactionDetails transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} loading={loading}/>
+      ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
+        <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay}/>
           <div className="sectionTitle"><h2>{selectedDayLabel}</h2><span>{dailyTransactions.length} tranzacții</span></div>
-          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
+        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <div className="accountCard" key={account.id}><span>{account.name}</span><strong>{money(account.opening_balance, account.currency.trim())}</strong><small>Sold inițial · {account.account_type.replace('_',' ')}</small></div>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
       )}
     </section>
   )
 }
 
-function TransactionsList({ transactions, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId }: { transactions: Transaction[]; emptyMessage?: string; onSelect: (transaction: Transaction) => void; focusedId?: string }) {
+function TransactionsList({ accounts, transactions, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId }: { accounts: Account[]; transactions: Transaction[]; emptyMessage?: string; onSelect: (transaction: Transaction) => void; focusedId?: string }) {
   return <div className="listPanel transactionList">{transactions.length === 0 && <div className="emptyState">{emptyMessage}</div>}{transactions.map((tx) => {
     const Row = 'button'
-    return <Row className={`listRow ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} {...(Row === 'button' ? { type: 'button' as const, onClick: () => onSelect(tx) } : {})}><div><strong>{tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}{' · Vezi detaliile'}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></Row>
+    return <Row className={`listRow ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} {...(Row === 'button' ? { type: 'button' as const, onClick: () => onSelect(tx) } : {})}><div><strong>{tx.transaction_type==='transfer' ? transferLabel(tx,accounts) : tx.merchant || tx.description || 'Tranzacție'}</strong><span>{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}{' · Vezi detaliile'}</span></div><strong className={tx.transaction_type === 'income' ? 'positive' : ''}>{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount, tx.currency.trim())}</strong></Row>
   })}</div>
 }
