@@ -17,3 +17,5 @@ After saving, shared application data reloads, including account balances, repor
 42 automated tests and build passed. SQL scenarios executed inside a rolled-back transaction: account reassignment, amount changes, expense/income conversion, transfer reversal, repeated editing, stale versions, unauthorized users, mismatched currencies, allocations, preserved split metadata and date changes. Tests do not modify real payments or balances.
 
 Browser verification passed at 1280, 390 and 320 px: saving, account reassignment, allocation totals, conversion to transfer, shared refresh, and no horizontal overflow. Browser uses intercepted test responses; the authenticated editing RPC is now active in Supabase.
+
+Explicit titles are stored in existing import_metadata.title and read through a JSON text projection. The backward-compatible finance_edit_transaction_with_title RPC saves title and all other edits atomically through the existing validated RPC. Empty titles revert to the original merchant/description or transfer-route fallback. No new columns were introduced. SQL title save/clear verification was rolled back and confirmed unchanged balances and merchant.

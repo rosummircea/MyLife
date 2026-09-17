@@ -22,6 +22,7 @@ export type Transaction = {
   source_account?: {name:string} | null
   destination_account?: {name:string} | null
   account_id?: string
+  title?: string | null
   updated_at?: string
   date_precision?: string
   attachment_document_id?: string | null
@@ -97,7 +98,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .select('id,name,account_type,opening_balance,currency,credit_limit,owner_person_id,institution,owner:people!owner_person_id(display_name)').eq('household_id', hid)
       .eq('is_active', true).order('name').order('id').range(from, to)),
     allRows<Transaction>((from, to) => client.from('finance_transactions')
-      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,updated_at,transfer_account_id,source_account:finance_accounts!account_id(name),destination_account:finance_accounts!transfer_account_id(name)').eq('household_id', hid)
+      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,updated_at,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(name),destination_account:finance_accounts!transfer_account_id(name)').eq('household_id', hid)
       .eq('status', 'posted').order('transaction_date', { ascending: false }).order('id').range(from, to)),
     allRows<CategoryRow>((from, to) => client.from('finance_categories')
       .select('id,parent_id,name,kind,is_active').or(`household_id.eq.${hid},household_id.is.null`)
