@@ -1,38 +1,5 @@
-/* iOS-inspired home treatment: white app tiles with clean colored symbols. */
-.lifeGrid {
-  gap: 18px;
-}
+/* iOS-inspired icon treatment only. Keep the original MyLife home cards unchanged. */
 
-.lifeCard {
-  min-height: 168px;
-  padding: 20px;
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(255,255,255,.055), transparent 36%),
-    linear-gradient(180deg, rgba(22,38,60,.96), rgba(15,28,46,.96));
-  border-color: rgba(255,255,255,.09);
-  box-shadow: 0 22px 55px rgba(0,0,0,.22);
-}
-
-.lifeCard:hover {
-  transform: translateY(-4px) scale(1.01);
-  border-color: rgba(255,255,255,.16);
-  box-shadow: 0 28px 70px rgba(0,0,0,.29);
-}
-
-.lifeCard::after {
-  width: 150px;
-  height: 150px;
-  right: -48px;
-  bottom: -62px;
-  background: radial-gradient(circle, rgba(255,255,255,.06), transparent 64%);
-}
-
-.cardTop {
-  align-items: flex-start;
-}
-
-/* White rounded-square icons, visually close to classic Apple system app tiles. */
 .domainIcon {
   width: 72px;
   height: 72px;
@@ -68,77 +35,43 @@
   filter: none;
 }
 
-/* Simple Apple-like accent colors on white. */
-.domainIcon.blue {
-  color: #0a84ff;
-}
-
+.domainIcon.blue,
 .domainIcon.blue svg {
+  color: #0a84ff;
   stroke: #0a84ff;
 }
 
-.domainIcon.mint {
-  color: #22b573;
-}
-
+.domainIcon.mint,
 .domainIcon.mint svg {
+  color: #22b573;
   stroke: #22b573;
 }
 
-.domainIcon.pink {
-  color: #ff2d55;
-}
-
+.domainIcon.pink,
 .domainIcon.pink svg {
+  color: #ff2d55;
   stroke: #ff2d55;
 }
 
-.domainIcon.cyan {
-  color: #00a7d9;
-}
-
+.domainIcon.cyan,
 .domainIcon.cyan svg {
+  color: #00a7d9;
   stroke: #00a7d9;
 }
 
-.domainIcon.purple {
-  color: #af52de;
-}
-
+.domainIcon.purple,
 .domainIcon.purple svg {
+  color: #af52de;
   stroke: #af52de;
 }
 
-.domainIcon.amber {
-  color: #ff9500;
-}
-
+.domainIcon.amber,
 .domainIcon.amber svg {
+  color: #ff9500;
   stroke: #ff9500;
 }
 
-.lifeCard strong {
-  margin-top: 22px;
-  font-size: 19px;
-  letter-spacing: -.015em;
-}
-
-.arrow {
-  color: rgba(235,243,255,.72);
-  font-size: 20px;
-}
-
 @media (max-width: 720px) {
-  .lifeGrid {
-    gap: 14px;
-  }
-
-  .lifeCard {
-    min-height: 152px;
-    padding: 17px;
-    border-radius: 22px;
-  }
-
   .domainIcon {
     width: 66px;
     height: 66px;
@@ -149,18 +82,9 @@
     width: 35px;
     height: 35px;
   }
-
-  .lifeCard strong {
-    margin-top: 18px;
-    font-size: 17px;
-  }
 }
 
 @media (max-width: 430px) {
-  .lifeCard {
-    min-height: 145px;
-  }
-
   .domainIcon {
     width: 62px;
     height: 62px;
