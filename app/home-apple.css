@@ -1,0 +1,130 @@
+/* Apple-inspired home treatment: brighter, larger app-like icons while keeping MyLife's dark shell. */
+.lifeGrid {
+  gap: 18px;
+}
+
+.lifeCard {
+  min-height: 168px;
+  padding: 20px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,.07), transparent 38%),
+    linear-gradient(180deg, rgba(23,39,62,.96), rgba(16,29,47,.96));
+  border-color: rgba(255,255,255,.10);
+  box-shadow: 0 22px 55px rgba(0,0,0,.22);
+}
+
+.lifeCard:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(255,255,255,.17);
+  box-shadow: 0 28px 70px rgba(0,0,0,.28);
+}
+
+.lifeCard::after {
+  width: 150px;
+  height: 150px;
+  right: -48px;
+  bottom: -62px;
+  background: radial-gradient(circle, rgba(255,255,255,.085), transparent 64%);
+}
+
+.cardTop {
+  align-items: flex-start;
+}
+
+.domainIcon {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 14px 28px rgba(0,0,0,.24);
+}
+
+.domainIcon svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 2.15;
+}
+
+.domainIcon.blue {
+  background: linear-gradient(145deg, #67b2ff, #4b7dff);
+  color: #f8fbff;
+}
+
+.domainIcon.mint {
+  background: linear-gradient(145deg, #69e3ce, #2eb59c);
+  color: #f7fffd;
+}
+
+.domainIcon.pink {
+  background: linear-gradient(145deg, #ff8caf, #e85f91);
+  color: #fff9fb;
+}
+
+.domainIcon.cyan {
+  background: linear-gradient(145deg, #6dd8ff, #3d9fe8);
+  color: #f8fdff;
+}
+
+.domainIcon.purple {
+  background: linear-gradient(145deg, #c694ff, #8b64e8);
+  color: #fffaff;
+}
+
+.domainIcon.amber {
+  background: linear-gradient(145deg, #ffd77a, #eaa534);
+  color: #fffaf0;
+}
+
+.lifeCard strong {
+  margin-top: 22px;
+  font-size: 19px;
+  letter-spacing: -.015em;
+}
+
+.arrow {
+  color: rgba(235,243,255,.72);
+  font-size: 20px;
+}
+
+@media (max-width: 720px) {
+  .lifeGrid {
+    gap: 14px;
+  }
+
+  .lifeCard {
+    min-height: 152px;
+    padding: 17px;
+    border-radius: 22px;
+  }
+
+  .domainIcon {
+    width: 62px;
+    height: 62px;
+    border-radius: 19px;
+  }
+
+  .domainIcon svg {
+    width: 31px;
+    height: 31px;
+  }
+
+  .lifeCard strong {
+    margin-top: 18px;
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 430px) {
+  .lifeCard {
+    min-height: 145px;
+  }
+
+  .domainIcon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+}
