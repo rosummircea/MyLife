@@ -67,3 +67,5 @@
 .reportWrap .expenseRow{grid-template-columns:30px minmax(0,1fr) auto 20px}
 
 .expenseSubcategorySwatch{display:inline-block;width:30px;height:30px;border-radius:9px;flex-shrink:0}
+
+.expenseTotalButton{display:inline-block;background:transparent;border:0;color:inherit;font:inherit;padding:4px;border-radius:8px;cursor:pointer;text-align:inherit}.expenseTotalButton:hover{background:#76a8ff14}.expenseTotalButton:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#expense-all-transactions{margin:24px 0;scroll-margin-top:24px}.expenseContributionList{scroll-margin-top:24px}

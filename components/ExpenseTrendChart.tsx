@@ -7,7 +7,8 @@ import './ExpenseTrendChart.css'
 
 const money = (amount: number) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(amount)
 
-export default function ExpenseTrendChart({ data, range, period, target, name, color }: {
+export default function ExpenseTrendChart({ data, range, period, target, name, color, onSelectPoint, onSelectTotal }: {
+  onSelectPoint?:(key:string,unit:string,label:string)=>void;onSelectTotal?:()=>void
   data: MyLifeData; range: DateRange; period: ReportPeriod; target: ExpenseTrendTarget; name: string; color: string
 }) {
   const [activeKey, setActiveKey] = useState<string | null>(null)
@@ -24,11 +25,11 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
     <section className="expenseTrend" aria-label={`Evoluția cheltuielilor pentru ${name}`}>
       <div className="expenseTrendHeader">
         <div><p className="expenseTrendEyebrow">EVOLUȚIA CHELTUIELILOR</p><h3>{name}</h3><p>{range.from} – {range.to} · pe {unitLabel}</p></div>
-        <div className="expenseTrendTotal"><span>Total în perioadă</span><strong>{money(total)}</strong></div>
+        <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong>{money(total)}</strong></button></div>
       </div>
       {result.error ? <p role="alert" className="expenseTrendHint">{result.error}</p> : <>
         <div className="expenseTrendReadout" aria-live="polite">
-          {active ? <><span>{active.fullLabel}</span><strong>{money(active.amount)}</strong></> : <span>Apasă pe o bară pentru suma exactă.</span>}
+          {active ? <><span>{active.fullLabel}</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${active.fullLabel}`} onClick={()=>onSelectPoint?.(active.key,result.unit,active.fullLabel)}><strong>{money(active.amount)}</strong></button></> : <span>Apasă pe o bară pentru sumă și tranzacțiile care o compun.</span>}
         </div>
         {maximum === 0 && <p className="expenseTrendHint">Nu există cheltuieli în această perioadă.</p>}
         <div className="expenseTrendPlot">
@@ -36,7 +37,7 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
           <div className="expenseTrendScroll" tabIndex={0} role="group" aria-label="Grafic de cheltuieli; derulează orizontal pentru toate valorile">
             <div className="expenseTrendBars" style={{ minWidth: `${points.length * 30}px` }}>
               {points.map((point) => (
-                <button type="button" key={point.key} className={`expenseTrendBar ${active?.key === point.key ? 'active' : ''}`} aria-label={`${point.fullLabel}: ${money(point.amount)}`} aria-pressed={active?.key === point.key} onClick={() => setActiveKey(point.key)} onFocus={() => setActiveKey(point.key)} onPointerEnter={(event) => { if (event.pointerType === 'mouse') setActiveKey(point.key) }}>
+                <button type="button" key={point.key} className={`expenseTrendBar ${active?.key === point.key ? 'active' : ''}`} aria-label={`${point.fullLabel}: ${money(point.amount)}`} aria-pressed={active?.key === point.key} onClick={() => {setActiveKey(point.key);onSelectPoint?.(point.key,result.unit,point.fullLabel)}} onFocus={() => setActiveKey(point.key)} onPointerEnter={(event) => { if (event.pointerType === 'mouse') setActiveKey(point.key) }}>
                   <span className="expenseTrendBarTrack"><span className={`expenseTrendBarFill ${point.amount === 0 ? 'zero' : ''}`} style={{ height: `${maximum > 0 ? point.amount / maximum * 100 : 0}%`, background: color }}/></span>
                   <span className="expenseTrendBarLabel">{point.label}</span>
                 </button>

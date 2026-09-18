@@ -7,7 +7,7 @@ import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, su
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
-import { expenseContributionTransactions } from '@/lib/expense-transactions'
+import { expenseContributionTransactions,contributionBucketKey } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
 function money(value: number) {
@@ -15,6 +15,8 @@ function money(value: number) {
 }
 
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
+  const [showAllTransactions,setShowAllTransactions]=useState(false)
+  const allTransactionsRef=useRef<HTMLDivElement>(null)
   const [period, setPeriod] = useState<ReportPeriod>('Lună')
   const [selected, setSelected] = useState<string | null>(null)
   const [anchor, setAnchor] = useState(() => bucharestDay(new Date()))
@@ -29,6 +31,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       return { categories: [], total: 0, transactionCount: 0, excludedCurrencies: 0, error: error instanceof Error ? error.message : 'Raportul nu poate fi calculat.' }
     }
   }, [data, range.from, range.to])
+  const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range):[],[showAllTransactions,data,range.from,range.to,report.error])
   const { categories, total } = report
   const gradient = distributionGradient(categories)
   const fromDate = new Date(`${range.from}T12:00:00Z`)
@@ -60,7 +63,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       <div className="reportHero">
         <div className="pieStage">
           {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }} aria-label="Distribuția cheltuielilor">
-            <div className="pieHole"><span>Total cheltuieli</span><strong>{money(total)}</strong><small>{period}</small></div>
+            <div className="pieHole"><span>Total cheltuieli</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label="Vezi tranzacțiile din totalul cheltuielilor" onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong>{money(total)}</strong></button><small>{period}</small></div>
           </div>}
         </div>
         <div className="reportSummary">
@@ -88,6 +91,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       </div>
 
       {!loading && data && !invalidRange && !report.error && <>
+      {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total cheltuieli</h3><p>{range.from} – {range.to} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>setShowAllTransactions(false)}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
       <div className="sectionTitle reportListTitle"><h2>Cheltuieli pe categorii</h2><span>click pentru detalii</span></div>
       <div className="expenseList">
         {categories.length === 0 && <div className="emptyState">Nu există cheltuieli în RON în perioada selectată.</div>}
@@ -116,22 +120,24 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
 
 function SubcategoryDetails({ category, data, range, period, onSelectTransaction }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; period: ReportPeriod; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null)
+  const [selectedBucket,setSelectedBucket]=useState<{key:string;unit:string;label:string}|null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const distribution = subcategoryDistribution(category)
   const gradient = distributionGradient(distribution)
   const selectedItem = distribution.find((item) => item.id === selectedSubcategory)
-  const contributions = useMemo(()=>selectedItem ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id,subcategoryId:selectedItem.id}) : [],[data,range.from,range.to,category.id,selectedItem?.id])
+  const contributions = useMemo(()=>expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id,subcategoryId:selectedItem?.id}).filter(row=>!selectedBucket||contributionBucketKey(row.transaction,selectedBucket.unit)===selectedBucket.key),[data,range.from,range.to,category.id,selectedItem?.id,selectedBucket])
   const contributionTotal=contributions.reduce((sum,row)=>sum+Math.round(row.amount*100),0)/100
   const chartId = `expense-trend-${category.id}`
   const selectTrend = (id: string | null) => {
     setSelectedSubcategory(id)
+    setSelectedBucket(null)
     requestAnimationFrame(() => chartRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }))
   }
 
   return (
     <section className="expenseDetails" aria-labelledby={`expense-trigger-${category.id}`}>
       <div className="expenseSubchart" role="img" aria-label={`Distribuția subcategoriilor pentru ${category.name}: ${distribution.map((item) => `${item.name} ${item.percent.toLocaleString('ro-RO')}%`).join(', ')}`} style={{ background: `conic-gradient(${gradient})` }}>
-        <div className="expenseSubchartHole"><span>Total categorie</span><strong>{money(category.amount)}</strong></div>
+        <div className="expenseSubchartHole"><span>Total categorie</span><button type="button" className="expenseTotalButton" aria-label={`Vezi toate tranzacțiile categoriei ${category.name}`} onClick={()=>selectTrend(null)}><strong>{money(category.amount)}</strong></button></div>
       </div>
       <div className="expenseSubcategories">
         <div className="expenseSubcategoryToolbar">
@@ -152,13 +158,13 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
         </ul>
       </div>
       <div className="expenseTrendContainer" id={chartId} ref={chartRef}>
-        {selectedItem && <section className="expenseContributionList" aria-label={`Tranzacțiile subcategoriei ${selectedItem.name}`}>
-          <header><div><h3>Tranzacții · {selectedItem.name}</h3><p>{range.from} – {range.to} · {contributions.length} tranzacții</p></div><strong>{money(contributionTotal)}</strong></header>
-          <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={contributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(contributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții în această subcategorie pentru perioada selectată."/>
+        <section className="expenseContributionList" aria-label={`Tranzacțiile ${selectedItem?.name??category.name}`}>
+          <header><div><h3>Tranzacții · {selectedItem?.name??category.name}</h3><p>{range.from} – {range.to} · {contributions.length} tranzacții · Apasă pentru detalii și editare.{selectedBucket&&` · ${selectedBucket.label}`}</p>{selectedBucket&&<button className="expenseCategoryTrendButton" onClick={()=>setSelectedBucket(null)}>Toată perioada</button>}</div><strong>{money(contributionTotal)}</strong></header>
+          <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={contributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(contributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
           {contributions.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele afișate reprezintă partea repartizată în această subcategorie; suma integrală este indicată separat.</p>}
-        </section>}
+        </section>
 
-        <ExpenseTrendChart key={selectedItem?.id ?? category.id} data={data} range={range} period={period} target={{ categoryId: category.id, subcategoryId: selectedItem?.id }} name={selectedItem ? `${category.name} · ${selectedItem.name}` : category.name} color={selectedItem?.color ?? category.color}/>
+        <ExpenseTrendChart onSelectPoint={(key,unit,label)=>{setSelectedBucket({key,unit,label});requestAnimationFrame(()=>chartRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}} onSelectTotal={()=>{setSelectedBucket(null);requestAnimationFrame(()=>chartRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}} key={`${selectedItem?.id??category.id}-${range.from}-${range.to}`} data={data} range={range} period={period} target={{ categoryId: category.id, subcategoryId: selectedItem?.id }} name={selectedItem ? `${category.name} · ${selectedItem.name}` : category.name} color={selectedItem?.color ?? category.color}/>
       </div>
     </section>
   )
