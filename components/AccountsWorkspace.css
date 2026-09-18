@@ -56,7 +56,7 @@
 
 .accountsManagedCard {display:flex;flex-direction:column;min-width:0}
 .accountsManagedCard>.accountsBalanceCard {flex:1;width:100%}
-.accountsCrudActions,.accountsToolbar {display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.accountsCrudActions,.accountsToolbar {display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
 .accountsCrudActions button,.accountsToolbar button,.accountsEditor button {border:1px solid var(--line);border-radius:8px;background:#17263a;color:var(--text);padding:8px;min-height:36px;font-size:11px}
 .accountsEditor {padding:18px;border:1px solid var(--line);border-radius:14px;background:#101d2e;margin:12px 0}
 .accountsEditor fieldset {border:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0}
@@ -65,3 +65,5 @@
 .accountsEditor p,.accountsEditor fieldset>div {grid-column:1/-1}
 .accountsEditor p {font-size:12px;color:var(--muted);line-height:1.5}
 @media(max-width:480px){.accountsEditor fieldset{grid-template-columns:1fr}.accountsCrudActions{gap:3px}.accountsCrudActions button{padding:5px;min-height:40px;font-size:10px}}
+
+.accountsToolbar{align-items:center;justify-content:space-between;margin:12px 0 16px}.accountsToolbar .financeCreateAction{margin:0;margin-left:auto}.accountsToolbar button,.accountsToolbar .financeCreateAction button{min-height:44px;padding:12px 16px;border-radius:12px;font:inherit;font-size:13px;cursor:pointer}.accountsToolbar .financeCreateAction button{background:#21364b}.accountTransactionsTitle{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.accountTransactionsTitle .accountsCrudActions{margin:0}.accountTransactionsTitle .accountsCrudActions button{min-height:44px;padding:10px 12px;font-size:12px;border-radius:10px;cursor:pointer}.accountsDeleteAction{color:#ff8797!important}.accountsConfirm{border-color:#ff879760}.accountsConfirm h3{color:#ff8797}@media(max-width:480px){.accountsToolbar button,.accountsToolbar .financeCreateAction button{padding:10px;font-size:12px}.accountTransactionsTitle .accountsCrudActions{gap:6px}}

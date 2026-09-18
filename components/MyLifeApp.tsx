@@ -27,7 +27,6 @@ import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
 import AccountsWorkspace from './AccountsWorkspace'
-import AccountTransactions from './AccountTransactions'
 import LoansWorkspace from './LoansWorkspace'
 import TransactionDetails from './TransactionDetails'
 import TransactionsList from './TransactionsList'
@@ -289,9 +288,9 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const [creating,setCreating]=useState(false)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
-  const [accountId,setAccountId]=useState<string|null>(null)
-  const selectedAccount=accounts.find(account=>account.id===accountId)
-  const openAccount=(account:Account)=>{setAccountId(account.id);setTab('accounts')}
+  const [accountRecord,setAccountRecord]=useState<Account|null>(null)
+  const selectedAccount=accounts.find(account=>account.id===accountRecord?.id)??accountRecord??undefined
+  const openAccount=(account:Account)=>{setAccountRecord(account);setTab('accounts')}
   const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'>(target ? 'transactions' : 'reports')
   const [selectedDay, setSelectedDay] = useState<string | null>(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   const [calendarMonth, setCalendarMonth] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()).slice(0,7))
@@ -300,6 +299,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
   const selectedDayLabel = new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'} onClick={()=>setCreating(true)}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
 
   return (
     <section className="modulePage">
@@ -317,19 +317,19 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
       {creating&&data&&<NewTransaction data={data} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
-        selectedAccount ? <AccountTransactions account={selectedAccount} data={data} loading={loading} onBack={()=>setAccountId(null)} onSelect={tx=>setDetailId(tx.id)}/> : <AccountsWorkspace accounts={accounts} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
+        <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
         <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay} month={calendarMonth} onMonthChange={month=>{setCalendarMonth(month);setSelectedDay(null)}}/>
-          {selectedDay && <DailyTransactionSummary dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
-          <div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating(true)}>+ Adaugă tranzacție</button></div>
-          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {selectedDay && <DailyTransactionSummary action={addTransactionAction} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
+          {!selectedDay && addTransactionAction}
+          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountId(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>
+        <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountRecord(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>
       )}
     </section>
   )

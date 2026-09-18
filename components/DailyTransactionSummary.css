@@ -18,3 +18,5 @@
   .dailyTransactionSummary dt { font-size:10px; }
 }
 @media(max-width:360px) { .dailyTransactionSummary strong { font-size:12px; } }
+
+.dailyTransactionHeaderWithAction .dailyTransactionHeading{min-width:0}.dailyTransactionHeading>span{display:block;font-size:11px;color:var(--muted);margin-top:4px}.dailyTransactionSummary .dailyTransactionHeaderWithAction{flex-wrap:nowrap;gap:12px}.dailyTransactionHeaderWithAction .financeCreateAction{margin:0;flex-shrink:0}.transactionAddLabelMobile{display:none}@media(max-width:600px){.transactionAddLabelDesktop{display:none}.transactionAddLabelMobile{display:inline}.dailyTransactionHeaderWithAction .financeCreateAction button{min-height:44px;padding:10px 12px}}

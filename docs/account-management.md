@@ -20,3 +20,12 @@ Changed files:
 - lib/mylife-data.ts
 - sql/account-management.sql
 - docs/account-management.md
+
+
+## Account list and details
+
+The active/archived toggle stays on the left (`Arată Conturi Arhivate` / `Arată Conturi Active`); Add account sits on the right with the shared finance action style. Cards open the account history without showing CRUD controls. Edit, Archive/Reactivate and Delete are next to the account title in that history. Editing uses the existing form and authenticated RPC. Archived accounts remain selectable and load their current balances through the same balance RPC as active accounts. Successful archive/restore/delete returns to the list; edit keeps the detail view and reloads the saved account.
+
+Delete opens an explicit irreversible-action warning with Confirm deletion and Cancel. No delete request is sent until confirmation; the existing server guard refuses deletion of accounts with financial history. Transaction and category deletion warnings remain explicit too. Storage cleanup on failed document uploads is automatic rollback, not a user deletion action.
+
+Validation: build and TypeScript; intercepted browser scenarios at 1280/390/320 px cover clean cards, right-aligned Add, detail actions, edit/save, delete warning/cancel and confirmed deletion, archived selection and restore. No real account data is modified by browser tests.

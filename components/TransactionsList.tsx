@@ -9,7 +9,7 @@ import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts }: {
+export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
@@ -17,6 +17,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
   emptyMessage?: string
   onSelect: (transaction: Transaction) => void
   focusedId?: string
+  showDate?: boolean
   contextAccountId?: string
   contributionAmounts?: Record<string,number>
 }) {
@@ -63,7 +64,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
-          <span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>
+          {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}
         </div>
         <strong className={`transactionRowAmount ${outgoing ? 'transactionRowAmount-outgoing' : incoming ? 'transactionRowAmount-incoming' : ''}`}>
           {outgoing ? '−' : incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(contributionAmounts?.[tx.id] ?? Number(tx.amount))}
