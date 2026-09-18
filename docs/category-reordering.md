@@ -27,3 +27,5 @@ Files changed:
 ## Expand/collapse
 
 Roots with children have a toggle on their name and chevron, with `aria-expanded` and `aria-controls`. Each branch opens independently; all start expanded. Collapsed state survives reordering and switching category kinds while the workspace is mounted. Hidden children retain their hierarchy and stored order. Roots without children show their name normally. Enter/Space and mouse/tap work on the native toggle button. Verified at 1280/390/320 px, including collapsed-root reordering and keyboard expansion. Implementation changed only `components/CategoriesWorkspace.tsx` and its CSS, plus this documentation.
+
+The “Restrânge toate” button closes every root branch in the displayed category kind. It becomes disabled when no expanded branches remain and becomes available again after an individual expansion. Other category kinds keep their state. Desktop/mobile browser fixtures verify both closed branches and the button state.
