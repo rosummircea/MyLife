@@ -314,7 +314,6 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
-      <div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating(true)}>+ Adaugă tranzacție</button></div>
       {creating&&data&&<NewTransaction data={data} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
@@ -326,6 +325,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay} month={calendarMonth} onMonthChange={month=>{setCalendarMonth(month);setSelectedDay(null)}}/>
           {selectedDay && <DailyTransactionSummary dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
+          <div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating(true)}>+ Adaugă tranzacție</button></div>
           {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
