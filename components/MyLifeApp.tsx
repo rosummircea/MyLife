@@ -1,4 +1,5 @@
 'use client'
+import FinanceOverview from './FinanceOverview'
 import CategoriesWorkspace from './CategoriesWorkspace'
 import NewTransaction from './NewTransaction'
 
@@ -324,7 +325,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
           {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
-        <><div className="sectionTitle"><h2>Overview</h2><span>rezumat financiar</span></div><div className="accountGrid">{accounts.slice(0,3).map((account) => <button type="button" className="accountCard accountOpenButton" key={account.id} onClick={()=>openAccount(account)} aria-label={`Vezi tranzacțiile ${account.name}`}><span>{account.name}</span><strong>{money(account.current_balance ?? account.opening_balance, account.currency.trim())}</strong><small>Sold · {account.account_type.replace('_',' ')}</small></button>)}</div><div className="sectionTitle"><h2>Tranzacții recente</h2></div><TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.slice(0, 8)} onSelect={transaction => setDetailId(transaction.id)}/></>
+        <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountId(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>
       )}
     </section>
   )
