@@ -23,3 +23,7 @@ Files changed:
 - lib/category-reorder.ts
 - tests/category-reorder.test.cjs
 - docs/category-reordering.md
+
+## Expand/collapse
+
+Roots with children have a toggle on their name and chevron, with `aria-expanded` and `aria-controls`. Each branch opens independently; all start expanded. Collapsed state survives reordering and switching category kinds while the workspace is mounted. Hidden children retain their hierarchy and stored order. Roots without children show their name normally. Enter/Space and mouse/tap work on the native toggle button. Verified at 1280/390/320 px, including collapsed-root reordering and keyboard expansion. Implementation changed only `components/CategoriesWorkspace.tsx` and its CSS, plus this documentation.
