@@ -69,7 +69,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
         <div className="transactionRowInfo">
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
-          <span className="transactionRowCategories">{rows.filter(s=>s.category_id).map(s=><CategoryIcon key={s.id} category={categoriesById.get(s.category_id!)}/>)}{paths.length ? paths.join(' · ') : tx.transaction_type === 'transfer' ? 'Transfer între conturi' : 'Ajustare de sold'}</span>
+          <span className="transactionRowCategories">{rows.filter(s=>s.category_id).map(s=><CategoryIcon key={s.id} category={categoriesById.get(s.category_id!)} categories={categories}/>)}{paths.length ? paths.join(' · ') : tx.transaction_type === 'transfer' ? 'Transfer între conturi' : 'Ajustare de sold'}</span>
           <span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>
         </div>
         <strong className={`transactionRowAmount ${outgoing ? 'transactionRowAmount-outgoing' : incoming ? 'transactionRowAmount-incoming' : ''}`}>

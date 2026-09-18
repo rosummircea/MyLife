@@ -8,3 +8,9 @@ export function categoryAppearance(row?:Pick<CategoryRow,'id'|'name'|'icon'|'col
 }
 export function sortedCategories(rows:CategoryRow[]){return [...rows].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)||a.name.localeCompare(b.name,'ro')||a.id.localeCompare(b.id))}
 export function categoryRoot(id:string|null,rows:CategoryRow[]){let row=rows.find(c=>c.id===id);const seen=new Set<string>();while(row?.parent_id&&!seen.has(row.id)){seen.add(row.id);const parent=rows.find(c=>c.id===row!.parent_id);if(!parent)break;row=parent}return row}
+
+/** Subcategories inherit their root color even if an older record has its own color. */
+export function categoryPresentation(row:CategoryRow|undefined,rows:CategoryRow[]){
+ const root=categoryRoot(row?.id??null,rows)??row
+ return {...categoryAppearance(root),subcategory:!!row?.parent_id}
+}
