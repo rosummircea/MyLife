@@ -34,7 +34,7 @@
 
 .transactionRowCategories{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.transactionRowCategories .categoryIcon{width:22px!important;height:22px!important}.transactionRowCategories .categoryIcon svg{width:13px;height:13px}
 
-.transactionList .transactionCategoryBadge {display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0}
+.transactionList .transactionCategoryBadge {display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:100%;min-width:0}
 .transactionList .transactionCategorySymbol {display:inline-flex;flex-shrink:0}
 .transactionList .transactionSubcategoryChip {display:inline-block;min-width:0;max-width:100%;padding:4px 8px;border-radius:999px;color:#101b2c;font-size:10px;font-weight:600;line-height:1.35;overflow-wrap:anywhere;text-align:left}
 
