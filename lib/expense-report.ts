@@ -1,4 +1,4 @@
-import {categoryAppearance} from './category-display'
+import {categoryAppearance,categoryColors} from './category-display'
 import type { CategoryRow, SplitRow, Transaction } from './mylife-data'
 
 export type ExpenseSubcategory = { id: string; name: string; amount: number; color: string; icon?: string }
@@ -39,7 +39,20 @@ function percentages(amounts: number[]) {
 }
 export function subcategoryDistribution(category: ExpenseCategory) {
   const shares = percentages(category.subcategories.map((item) => item.amount))
-  return category.subcategories.map((item, index) => ({ ...item, percent: shares[index] }))
+  // Chart colors are local to the report; inherited category colors stay unchanged.
+  const colors = new Map<string,string>(), used = new Set<string>()
+  const ordered = [...category.subcategories].sort((a,b)=>a.id.localeCompare(b.id))
+  for (const item of ordered) {
+    if (item.color.toLowerCase()!==category.color.toLowerCase()&&!used.has(item.color.toLowerCase())) {
+      colors.set(item.id,item.color);used.add(item.color.toLowerCase())
+    }
+  }
+  for (const [index,item] of ordered.entries()) {
+    if(colors.has(item.id))continue
+    const color=categoryColors.find(color=>!used.has(color.toLowerCase())&&color.toLowerCase()!==category.color.toLowerCase())??`hsl(${(index*137.508)%360} 70% 65%)`
+    colors.set(item.id,color);used.add(color.toLowerCase())
+  }
+  return category.subcategories.map((item, index) => ({ ...item, color:colors.get(item.id)!, percent: shares[index] }))
 }
 export function distributionGradient(items: { color: string; percent: number }[]) {
   let cursor = 0

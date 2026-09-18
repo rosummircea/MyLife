@@ -142,7 +142,7 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
           {distribution.map((item) => (
             <li key={item.id} className="expenseSubcategory">
               <button type="button" className="expenseSubcategoryButton" aria-pressed={selectedItem?.id === item.id} aria-controls={chartId} onClick={() => selectTrend(item.id)}>
-                <CategoryIcon category={{...item,color:category.color}} subcategory/>
+                <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
                 <span className="expenseSubcategoryName">{item.name}</span>
                 <strong>{money(item.amount)}</strong>
                 <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
