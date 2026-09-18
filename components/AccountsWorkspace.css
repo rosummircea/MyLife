@@ -53,3 +53,15 @@
   .accountsBalanceCard header:has(.accountsAvailableLabel) h4 { font-size:12px; line-height:1.2; margin-bottom:0; }
   .accountsBalanceCard header .accountsAvailableLabel { line-height:1.2; }
 }
+
+.accountsManagedCard {display:flex;flex-direction:column;min-width:0}
+.accountsManagedCard>.accountsBalanceCard {flex:1;width:100%}
+.accountsCrudActions,.accountsToolbar {display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.accountsCrudActions button,.accountsToolbar button,.accountsEditor button {border:1px solid var(--line);border-radius:8px;background:#17263a;color:var(--text);padding:8px;min-height:36px;font-size:11px}
+.accountsEditor {padding:18px;border:1px solid var(--line);border-radius:14px;background:#101d2e;margin:12px 0}
+.accountsEditor fieldset {border:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0}
+.accountsEditor label {display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:12px}
+.accountsEditor input,.accountsEditor select {width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:#17263a;color:var(--text);font-size:16px}
+.accountsEditor p,.accountsEditor fieldset>div {grid-column:1/-1}
+.accountsEditor p {font-size:12px;color:var(--muted);line-height:1.5}
+@media(max-width:480px){.accountsEditor fieldset{grid-template-columns:1fr}.accountsCrudActions{gap:3px}.accountsCrudActions button{padding:5px;min-height:40px;font-size:10px}}

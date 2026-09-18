@@ -24,3 +24,7 @@
   .transactionsCalendarDay { min-height: 52px; }
   .transactionsCalendarDays, .transactionsCalendarWeekdays { gap: 4px; }
 }
+
+.transactionsCalendarDay .transactionsCalendarMarkers { display:flex; justify-content:center; align-items:center; gap:4px; height:14px; }
+.transactionDayDot { width:6px; height:6px; border-radius:50%; background:#6bddad; }
+.transactionDayDot.outgoing { background:#ff7e91; }
