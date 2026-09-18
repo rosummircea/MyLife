@@ -69,3 +69,29 @@
 .expenseSubcategorySwatch{display:inline-block;width:30px;height:30px;border-radius:9px;flex-shrink:0}
 
 .expenseTotalButton{display:inline-block;background:transparent;border:0;color:inherit;font:inherit;padding:4px;border-radius:8px;cursor:pointer;text-align:inherit}.expenseTotalButton:hover{background:#76a8ff14}.expenseTotalButton:focus-visible{outline:2px solid var(--blue);outline-offset:3px}#expense-all-transactions{margin:24px 0;scroll-margin-top:24px}.expenseContributionList{scroll-margin-top:24px}
+
+/* Transaction contributions belong to their expandable subcategory row. */
+.expenseDetails { align-items:start; }
+.expenseSubchart { margin-top:40px; }
+.expenseSubcategoryButton { grid-template-columns:30px minmax(0,1fr) auto auto 14px; }
+.expenseSubcategoryButton[aria-expanded="true"] { background:rgba(118,168,255,.07); border-radius:7px; }
+.expenseSubcategoryButton[aria-expanded="true"] .expenseChevron { transform:rotate(90deg); }
+.expenseSubcategoryTransactions { margin:0 0 14px 42px; padding:0 0 0 12px; border-left:2px solid; scroll-margin-top:24px; }
+.expenseSubcategoryTransactions[hidden] { display:none; }
+.expenseInlineCaption { margin:4px 0 10px; color:var(--muted); font-size:10px; line-height:1.5; }
+.expenseInlineFilter { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:11px; }
+.expenseSubcategoryTransactions .transactionList .transactionRow { padding:10px; gap:10px; border-radius:10px; }
+.expenseSubcategoryTransactions .transactionList .transactionRowInfo>.transactionRowTitle { font-size:12px; text-align:left; white-space:normal; }
+.expenseSubcategoryTransactions .transactionList .transactionRowInfo>span { font-size:10px; }
+.expenseSubcategoryTransactions .transactionList .transactionRowAmount { font-size:12px; text-align:left; }
+.expenseSubcategoryTransactions .transactionList .transactionAccountIdentity,.expenseSubcategoryTransactions .transactionList .transactionAccountBank { width:32px; height:32px; }
+.expenseSubcategoryTransactions .transactionList .transactionAccountBank img { width:26px; height:26px; }
+.expenseSubcategoryTransactions .transactionList .transactionAccountOwnerBadge { width:18px; height:18px; }
+.expenseSubcategoryTransactions .transactionList .transactionRow { grid-template-columns:34px minmax(0,1fr) auto; }
+@media(max-width:720px) { .expenseSubchart { margin-top:0; } }
+@media(max-width:600px) {
+  .expenseSubcategoryTransactions { margin-left:18px; padding-left:8px; }
+  .expenseSubcategoryTransactions .transactionList .transactionRow { grid-template-columns:34px minmax(0,1fr); gap:6px 8px; }
+  .expenseSubcategoryButton { column-gap:6px; }
+  .expenseSubcategoryButton>strong,.expenseSubcategoryPercent { font-size:11px; }
+}

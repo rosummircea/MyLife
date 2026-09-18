@@ -120,19 +120,40 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
 
 function SubcategoryDetails({ category, data, range, period, onSelectTransaction }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; period: ReportPeriod; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null)
+  const [showCategoryTransactions, setShowCategoryTransactions] = useState(false)
+  const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(() => new Set())
   const [selectedBucket,setSelectedBucket]=useState<{key:string;unit:string;label:string}|null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const distribution = subcategoryDistribution(category)
   const gradient = distributionGradient(distribution)
   const selectedItem = distribution.find((item) => item.id === selectedSubcategory)
   const contributions = useMemo(()=>expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id,subcategoryId:selectedItem?.id}).filter(row=>!selectedBucket||contributionBucketKey(row.transaction,selectedBucket.unit)===selectedBucket.key),[data,range.from,range.to,category.id,selectedItem?.id,selectedBucket])
+  const subcategoryContributions = useMemo(() => new Map(distribution.filter(item => expandedSubcategories.has(item.id)).map(item => [item.id, expenseContributionTransactions(data.transactions, data.categories, data.splits, range, { categoryId: category.id, subcategoryId: item.id })])), [data, range.from, range.to, category, expandedSubcategories])
   const contributionTotal=contributions.reduce((sum,row)=>sum+Math.round(row.amount*100),0)/100
   const chartId = `expense-trend-${category.id}`
   const selectTrend = (id: string | null) => {
     setSelectedSubcategory(id)
+    setShowCategoryTransactions(id === null)
     setSelectedBucket(null)
     requestAnimationFrame(() => chartRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }))
   }
+
+  const toggleSubcategory = (id: string) => {
+    const closing = expandedSubcategories.has(id)
+    setExpandedSubcategories(current => {
+      const next = new Set(current)
+      if (closing) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setShowCategoryTransactions(false)
+    setSelectedSubcategory(closing ? null : id)
+    setSelectedBucket(null)
+  }
+  const scrollToContributions = () => requestAnimationFrame(() => {
+    const element = selectedItem ? document.getElementById(`expense-transactions-${selectedItem.id}`) : chartRef.current
+    element?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
+  })
 
   return (
     <section className="expenseDetails" aria-labelledby={`expense-trigger-${category.id}`}>
@@ -145,26 +166,39 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
           <button type="button" className="expenseCategoryTrendButton" aria-pressed={!selectedItem} aria-controls={chartId} onClick={() => selectTrend(null)}>Toată categoria</button>
         </div>
         <ul>
-          {distribution.map((item) => (
+          {distribution.map((item) => {
+            const expanded = expandedSubcategories.has(item.id)
+            const rows = selectedItem?.id === item.id ? contributions : subcategoryContributions.get(item.id) ?? []
+            return (
             <li key={item.id} className="expenseSubcategory">
-              <button type="button" className="expenseSubcategoryButton" aria-pressed={selectedItem?.id === item.id} aria-controls={chartId} onClick={() => selectTrend(item.id)}>
+              <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
                 <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
                 <span className="expenseSubcategoryName">{item.name}</span>
                 <strong>{money(item.amount)}</strong>
                 <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
               </button>
+              <div id={`expense-transactions-${item.id}`} hidden={!expanded} className="expenseSubcategoryTransactions" role="region" aria-labelledby={`expense-subcategory-${item.id}`} style={{borderLeftColor:item.color}}>
+                {expanded && <>
+                  <p className="expenseInlineCaption">{rows.length} tranzacții · {range.from} – {range.to} · Apasă pentru detalii și editare.</p>
+                  {selectedItem?.id === item.id && selectedBucket && <div className="expenseInlineFilter"><span>{selectedBucket.label} · {money(contributionTotal)}</span><button className="expenseCategoryTrendButton" onClick={()=>setSelectedBucket(null)}>Toată perioada</button></div>}
+                  <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={rows.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(rows.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
+                  {rows.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele reprezintă partea repartizată aici; suma integrală este indicată separat.</p>}
+                </>}
+              </div>
             </li>
-          ))}
+            )
+          })}
         </ul>
       </div>
       <div className="expenseTrendContainer" id={chartId} ref={chartRef}>
-        <section className="expenseContributionList" aria-label={`Tranzacțiile ${selectedItem?.name??category.name}`}>
-          <header><div><h3>Tranzacții · {selectedItem?.name??category.name}</h3><p>{range.from} – {range.to} · {contributions.length} tranzacții · Apasă pentru detalii și editare.{selectedBucket&&` · ${selectedBucket.label}`}</p>{selectedBucket&&<button className="expenseCategoryTrendButton" onClick={()=>setSelectedBucket(null)}>Toată perioada</button>}</div><strong>{money(contributionTotal)}</strong></header>
+        {showCategoryTransactions && !selectedItem && <section className="expenseContributionList" aria-label={`Tranzacțiile ${category.name}`}>
+          <header><div><h3>Tranzacții · {category.name}</h3><p>{range.from} – {range.to} · {contributions.length} tranzacții · Apasă pentru detalii și editare.{selectedBucket&&` · ${selectedBucket.label}`}</p>{selectedBucket&&<button className="expenseCategoryTrendButton" onClick={()=>setSelectedBucket(null)}>Toată perioada</button>}</div><strong>{money(contributionTotal)}</strong></header>
           <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={contributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(contributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
           {contributions.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele afișate reprezintă partea repartizată în această subcategorie; suma integrală este indicată separat.</p>}
-        </section>
+        </section>}
 
-        <ExpenseTrendChart onSelectPoint={(key,unit,label)=>{setSelectedBucket({key,unit,label});requestAnimationFrame(()=>chartRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}} onSelectTotal={()=>{setSelectedBucket(null);requestAnimationFrame(()=>chartRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}} key={`${selectedItem?.id??category.id}-${range.from}-${range.to}`} data={data} range={range} period={period} target={{ categoryId: category.id, subcategoryId: selectedItem?.id }} name={selectedItem ? `${category.name} · ${selectedItem.name}` : category.name} color={selectedItem?.color ?? category.color}/>
+        <ExpenseTrendChart onSelectPoint={(key,unit,label)=>{setSelectedBucket({key,unit,label});if(!selectedItem)setShowCategoryTransactions(true);scrollToContributions()}} onSelectTotal={()=>{setSelectedBucket(null);if(!selectedItem)setShowCategoryTransactions(true);scrollToContributions()}} key={`${selectedItem?.id??category.id}-${range.from}-${range.to}`} data={data} range={range} period={period} target={{ categoryId: category.id, subcategoryId: selectedItem?.id }} name={selectedItem ? `${category.name} · ${selectedItem.name}` : category.name} color={selectedItem?.color ?? category.color}/>
       </div>
     </section>
   )
