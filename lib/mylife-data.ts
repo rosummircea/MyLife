@@ -51,6 +51,10 @@ export type CategoryRow = {
   name: string
   kind: string
   is_active: boolean
+  household_id?: string | null
+  icon?: string | null
+  color?: string | null
+  sort_order?: number
 }
 export type SplitRow = {
   id: string
@@ -101,7 +105,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,updated_at,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name)),destination_account:finance_accounts!transfer_account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name))').eq('household_id', hid)
       .eq('status', 'posted').order('transaction_date', { ascending: false }).order('id').range(from, to)),
     allRows<CategoryRow>((from, to) => client.from('finance_categories')
-      .select('id,parent_id,name,kind,is_active').or(`household_id.eq.${hid},household_id.is.null`)
+      .select('id,parent_id,name,kind,is_active,household_id,icon,color,sort_order').or(`household_id.eq.${hid},household_id.is.null`)
       .order('name').order('id').range(from, to)),
     allRows<SplitRow>((from, to) => client.from('finance_transaction_splits')
       .select('id,transaction_id,category_id,amount,finance_transactions!inner(household_id,status,transaction_type)')

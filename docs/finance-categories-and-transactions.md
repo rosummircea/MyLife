@@ -1,0 +1,13 @@
+# Finance categories and transaction CRUD
+
+Finance → Categorii reads the actual household categories. Categories are nested, editable (name, parent, icon, color, active flag), creatable and deletable when unused. Drag/drop reorders siblings; arrow buttons provide the same persistent operation on touch devices and keyboards. Expense/income/transfer tabs keep types separate. Used categories can be archived without losing report history. Moving a category changes classification of its descendants, not monetary amounts.
+
+The public Supabase client uses the signed-in user's session and existing finance RLS. New `color` and `sort_order` columns supplement the existing `icon`. Presentation defaults infer descriptive icons and distinct main-category colors for the existing category names. User choices override defaults and are shared in reports, transaction rows and category selectors. Global categories are protected from edits; existing household categories remain editable.
+
+Transaction details support edit/delete; the Finance action creates new posted transactions. The editor first selects a main category, then a descendant within that category. Multiple allocations preserve existing split IDs and must reconcile exactly to the transaction amount. Source/destination accounts and currency are validated on the server. Cross-currency transfers remain unsupported.
+
+`finance_create_transaction` atomically inserts a transaction without a historical balance baseline and invokes the existing validated editing/title RPC. Transaction IDs are generated once per form. A uniqueness constraint prevents duplicate creation after a network retry. `finance_delete_transaction` marks the record void, hiding it from all posted lists/reports while retaining the historical balance baseline and attachment reference. This is necessary to reverse balances correctly; no opening balances are rewritten. Deleting a transfer reverses both sides. Version checks reject edits/deletes of stale records. Document records/storage files are never deleted with a transaction.
+
+Migration: `sql/finance-category-crud.sql`, applied to the configured Supabase project. Hierarchy triggers reject cycles, cross-household/kind parents and unsafe category deletion. Reordering is atomic and validates the complete sibling list under a household advisory lock. RPCs are security invoker, authenticated-only, and require finance management rights. No secret keys or service-role browser access.
+
+Verification: production build, TypeScript, unit tests; authenticated SQL tests rolled back after creation/deletion, account reconciliation and hierarchy checks; browser fixture flows on desktop and 390/320px phones. Tests never create real finance transactions or alter saved opening balances.

@@ -1,13 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import CategoryIcon from './CategoryIcon'
 import { ArrowRight, Banknote, Landmark, UserRound } from 'lucide-react'
 import type { Account, CategoryRow, SplitRow, Transaction } from '@/lib/mylife-data'
 import { accountBank, accountOwner } from '@/lib/account-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId }: {
+export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
@@ -16,6 +17,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
   onSelect: (transaction: Transaction) => void
   focusedId?: string
   contextAccountId?: string
+  contributionAmounts?: Record<string,number>
 }) {
   const categoriesById = new Map(categories.map(category => [category.id, category]))
   const allocations = new Map<string, SplitRow[]>()
@@ -67,11 +69,12 @@ export default function TransactionsList({ accounts, transactions, categories, s
         <div className="transactionRowInfo">
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
-          <span className="transactionRowCategories">{paths.length ? paths.join(' · ') : tx.transaction_type === 'transfer' ? 'Transfer între conturi' : 'Ajustare de sold'}</span>
+          <span className="transactionRowCategories">{rows.filter(s=>s.category_id).map(s=><CategoryIcon key={s.id} category={categoriesById.get(s.category_id!)}/>)}{paths.length ? paths.join(' · ') : tx.transaction_type === 'transfer' ? 'Transfer între conturi' : 'Ajustare de sold'}</span>
           <span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>
         </div>
         <strong className={`transactionRowAmount ${outgoing ? 'transactionRowAmount-outgoing' : incoming ? 'transactionRowAmount-incoming' : ''}`}>
-          {outgoing ? '−' : incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(Number(tx.amount))}
+          {outgoing ? '−' : incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(contributionAmounts?.[tx.id] ?? Number(tx.amount))}
+          {contributionAmounts?.[tx.id] !== undefined && Math.round(contributionAmounts[tx.id]*100)!==Math.round(Number(tx.amount)*100) && <small className="transactionContributionTotal">din {new Intl.NumberFormat('ro-RO',{style:'currency',currency:tx.currency.trim()}).format(Number(tx.amount))}</small>}
         </strong>
       </button>
     })}

@@ -1,16 +1,11 @@
+import {categoryAppearance} from './category-display'
 import type { CategoryRow, SplitRow, Transaction } from './mylife-data'
 
-export type ExpenseSubcategory = { id: string; name: string; amount: number; color: string }
+export type ExpenseSubcategory = { id: string; name: string; amount: number; color: string; icon?: string }
 export type ExpenseCategory = ExpenseSubcategory & { percent: number; subcategories: ExpenseSubcategory[] }
 export type ReportPeriod = 'Zi' | 'Săptămână' | 'Lună' | 'An' | 'Custom'
 export type DateRange = { from: string; to: string }
 
-const palette = ['#6ea8fe', '#67d8c1', '#a889f4', '#f5bd63', '#f07fa0', '#75c8ff', '#9fda7d', '#8d98a8']
-function colorFor(id: string) {
-  let hash = 0
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
-  return palette[hash % palette.length]
-}
 const dayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Bucharest', year: 'numeric', month: '2-digit', day: '2-digit' })
 export function bucharestDay(date: Date) {
   const parts = dayFormatter.formatToParts(date)
@@ -98,12 +93,12 @@ export function buildExpenseReport(transactions: Transaction[], categories: Cate
     roots.set(row.id, root)
   }
   const result: ExpenseCategory[] = [...roots.values()].map(({ row, direct, branches }) => {
-    const subcategories = expenseRows.filter((child) => child.parent_id === row.id && (child.is_active || branches.has(child.id)))
-      .map((child) => ({ id: child.id, name: child.name, amount: (branches.get(child.id) ?? 0) / 100, color: colorFor(child.id) }))
+    const subcategories: ExpenseSubcategory[] = expenseRows.filter((child) => child.parent_id === row.id && (child.is_active || branches.has(child.id)))
+      .map((child) => ({ id: child.id, name: child.name, amount: (branches.get(child.id) ?? 0) / 100, ...categoryAppearance(child) }))
     if (direct) subcategories.push({ id: `${row.id}-direct`, name: 'Fără subcategorie', amount: direct / 100, color: '#8d98a8' })
     subcategories.sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, 'ro'))
     const total = direct + [...branches.values()].reduce((sum, cents) => sum + cents, 0)
-    return { id: row.id, name: row.name, color: colorFor(row.id), amount: total / 100, percent: 0, subcategories }
+    return { id: row.id, name: row.name, ...categoryAppearance(row), amount: total / 100, percent: 0, subcategories }
   })
   const unknown = centsByCategory.get(uncategorized) ?? 0
   if (unknown) result.push({ id: uncategorized, name: 'Necategorizat', amount: unknown / 100, percent: 0, color: '#8d98a8', subcategories: [{ id: `${uncategorized}-direct`, name: 'Fără categorie', amount: unknown / 100, color: '#8d98a8' }] })

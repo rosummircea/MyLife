@@ -31,3 +31,5 @@
   .transactionList .transactionTransferArrow { width:14px; }
   .transactionList .transactionTransferAccounts .transactionAccountIdentity { grid-row:auto; }
 }
+
+.transactionRowCategories{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.transactionRowCategories .categoryIcon{width:22px!important;height:22px!important}.transactionRowCategories .categoryIcon svg{width:13px;height:13px}

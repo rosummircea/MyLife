@@ -1,4 +1,6 @@
 'use client'
+import CategoriesWorkspace from './CategoriesWorkspace'
+import NewTransaction from './NewTransaction'
 
 import ExpenseReport from '@/components/ExpenseReport'
 import TransactionsCalendar from '@/components/TransactionsCalendar'
@@ -282,12 +284,14 @@ function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) 
 }
 
 function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved }: { onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+  const [categoryKind,setCategoryKind]=useState('expense')
+  const [creating,setCreating]=useState(false)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
   const [accountId,setAccountId]=useState<string|null>(null)
   const selectedAccount=accounts.find(account=>account.id===accountId)
   const openAccount=(account:Account)=>{setAccountId(account.id);setTab('accounts')}
-  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans'>(target ? 'transactions' : 'reports')
+  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'>(target ? 'transactions' : 'reports')
   const [selectedDay, setSelectedDay] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
@@ -302,11 +306,14 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'transactions' ? 'active' : ''} onClick={() => setTab('transactions')}>Tranzacții</button>
         <button className={tab === 'transfers' ? 'active' : ''} onClick={() => setTab('transfers')}>Transferuri</button>
         <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Împrumuturi</button>
+        <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>Categorii</button>
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
+      <div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating(true)}>+ Adaugă tranzacție</button></div>
+      {creating&&data&&<NewTransaction data={data} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
-      {tab === 'reports' ? <ExpenseReport data={data} loading={loading} /> : tab === 'accounts' ? (
+      {tab === 'categories' ? data ? <CategoriesWorkspace kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         selectedAccount ? <AccountTransactions account={selectedAccount} data={data} loading={loading} onBack={()=>setAccountId(null)} onSelect={tx=>setDetailId(tx.id)}/> : <AccountsWorkspace accounts={accounts} loading={loading} onSelectAccount={openAccount}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
         <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>

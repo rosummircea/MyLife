@@ -8,7 +8,7 @@ const ts = require('typescript')
 const source = readFileSync(join(__dirname, '../lib/expense-report.ts'), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2017 } })
 const reportModule = { exports: {} }
-new Function('exports', 'require', 'module', compiled.outputText)(reportModule.exports, require, reportModule)
+new Function('exports', 'require', 'module', compiled.outputText)(reportModule.exports, name=>{if(name==='./category-display'){const m={exports:{}};new Function('exports','require','module',ts.transpileModule(readFileSync(join(__dirname,'../lib/category-display.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(m.exports,require,m);return m.exports}return require(name)}, reportModule)
 const { buildExpenseReport, reportRange, bucharestDay, subcategoryDistribution } = reportModule.exports
 const range = { from: '2026-09-01', to: '2026-09-30' }
 const root = { id: 'transport', parent_id: null, name: 'Transport', kind: 'expense', is_active: true }

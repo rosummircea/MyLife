@@ -1,17 +1,20 @@
 'use client'
 
+import CategoryIcon from './CategoryIcon'
 import { CalendarRange, ChevronRight } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange } from '@/lib/expense-report'
-import type { MyLifeData } from '@/lib/mylife-data'
+import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
+import TransactionsList from './TransactionsList'
+import { expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
 function money(value: number) {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(value)
 }
 
-export default function ExpenseReport({ data, loading }: { data: MyLifeData | null; loading: boolean }) {
+export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [period, setPeriod] = useState<ReportPeriod>('Lună')
   const [selected, setSelected] = useState<string | null>(null)
   const [anchor, setAnchor] = useState(() => bucharestDay(new Date()))
@@ -93,13 +96,13 @@ export default function ExpenseReport({ data, loading }: { data: MyLifeData | nu
           return (
             <div className="expenseCategory" key={item.id}>
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
-                <span className="expenseDot" style={{ background: item.color }}/>
+                <CategoryIcon category={item}/>
                 <div className="expenseName"><strong>{item.name}</strong><span>{percent(item.percent)} din total</span></div>
                 <div className="expenseValue"><strong>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-details-${item.id}`} hidden={!expanded}>
-                {expanded && <SubcategoryDetails category={item} data={data} range={range} period={period}/>}
+                {expanded && <SubcategoryDetails onSelectTransaction={onSelectTransaction} category={item} data={data} range={range} period={period}/>}
               </div>
             </div>
           )
@@ -111,12 +114,14 @@ export default function ExpenseReport({ data, loading }: { data: MyLifeData | nu
   )
 }
 
-function SubcategoryDetails({ category, data, range, period }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; period: ReportPeriod }) {
+function SubcategoryDetails({ category, data, range, period, onSelectTransaction }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; period: ReportPeriod; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const distribution = subcategoryDistribution(category)
   const gradient = distributionGradient(distribution)
   const selectedItem = distribution.find((item) => item.id === selectedSubcategory)
+  const contributions = useMemo(()=>selectedItem ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id,subcategoryId:selectedItem.id}) : [],[data,range.from,range.to,category.id,selectedItem?.id])
+  const contributionTotal=contributions.reduce((sum,row)=>sum+Math.round(row.amount*100),0)/100
   const chartId = `expense-trend-${category.id}`
   const selectTrend = (id: string | null) => {
     setSelectedSubcategory(id)
@@ -130,14 +135,14 @@ function SubcategoryDetails({ category, data, range, period }: { category: Expen
       </div>
       <div className="expenseSubcategories">
         <div className="expenseSubcategoryToolbar">
-          <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru evoluția cheltuielilor.</p>
+          <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru tranzacții și evoluția cheltuielilor.</p>
           <button type="button" className="expenseCategoryTrendButton" aria-pressed={!selectedItem} aria-controls={chartId} onClick={() => selectTrend(null)}>Toată categoria</button>
         </div>
         <ul>
           {distribution.map((item) => (
             <li key={item.id} className="expenseSubcategory">
               <button type="button" className="expenseSubcategoryButton" aria-pressed={selectedItem?.id === item.id} aria-controls={chartId} onClick={() => selectTrend(item.id)}>
-                <span className="expenseDot" style={{ background: item.color }} aria-hidden="true"/>
+                <CategoryIcon category={item}/>
                 <span className="expenseSubcategoryName">{item.name}</span>
                 <strong>{money(item.amount)}</strong>
                 <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
@@ -147,6 +152,12 @@ function SubcategoryDetails({ category, data, range, period }: { category: Expen
         </ul>
       </div>
       <div className="expenseTrendContainer" id={chartId} ref={chartRef}>
+        {selectedItem && <section className="expenseContributionList" aria-label={`Tranzacțiile subcategoriei ${selectedItem.name}`}>
+          <header><div><h3>Tranzacții · {selectedItem.name}</h3><p>{range.from} – {range.to} · {contributions.length} tranzacții</p></div><strong>{money(contributionTotal)}</strong></header>
+          <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={contributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(contributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții în această subcategorie pentru perioada selectată."/>
+          {contributions.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele afișate reprezintă partea repartizată în această subcategorie; suma integrală este indicată separat.</p>}
+        </section>}
+
         <ExpenseTrendChart key={selectedItem?.id ?? category.id} data={data} range={range} period={period} target={{ categoryId: category.id, subcategoryId: selectedItem?.id }} name={selectedItem ? `${category.name} · ${selectedItem.name}` : category.name} color={selectedItem?.color ?? category.color}/>
       </div>
     </section>

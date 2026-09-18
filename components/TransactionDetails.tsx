@@ -5,9 +5,13 @@ import { X, FileText, ChevronRight } from 'lucide-react'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import './TransactionDetails.css'
 import TransactionEditor from './TransactionEditor'
+import {getSupabaseClient} from '@/lib/supabase'
+import {effects} from '@/lib/transaction-edit'
 import { transferLabel } from '@/lib/transfers'
 
 export default function TransactionDetails({ transaction: tx, data, onClose, onOpenDocument, onSaved }: { transaction: Transaction; data: MyLifeData | null; onSaved: () => void; onClose: () => void; onOpenDocument: (id: string) => void }) {
+  const [deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('')
+  async function remove(){const client=getSupabaseClient();if(!client||saving)return;setSaving(true);setDeleteError('');try{const {error}=await client.rpc('finance_delete_transaction',{p_id:tx.id,p_expected_updated_at:tx.updated_at});if(error)throw Error(error.message);onClose();onSaved()}catch(e){setDeleteError(e instanceof Error?e.message:'Ștergerea nu a reușit.')}finally{setSaving(false)}}
   const [editing,setEditing]=useState(false)
   const [saving,setSaving]=useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
@@ -22,6 +26,8 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
     <header><div><p>DETALII TRANZACȚIE</p><h2 id="transaction-details-title">{tx.title?.trim() || (tx.transaction_type==='transfer' ? transferLabel(tx,data?.accounts??[]) : tx.merchant || tx.description || 'Tranzacție')}</h2></div><button type="button" aria-label="Închide detaliile tranzacției" disabled={saving} onClick={() => dialog.current?.close()}><X size={20}/></button></header>
     {editing && data ? <TransactionEditor onSavingChange={setSaving} transaction={tx} data={data} onCancel={()=>setEditing(false)} onSaved={()=>{setEditing(false);onSaved()}}/> : <>
     <button type="button" className="transactionEditButton" disabled={data?.source!=='live'||!tx.updated_at} onClick={()=>setEditing(true)}>Editează tranzacția</button>
+    <button type="button" className="transactionEditButton transactionDeleteButton" disabled={data?.source!=='live'||!tx.updated_at||saving} onClick={()=>setDeleting(true)}>Șterge tranzacția</button>
+    {deleting&&<section className="transactionDeleteConfirm"><h3>Ștergi această tranzacție?</h3><p>Tranzacția va dispărea din liste și rapoarte. Soldurile se vor actualiza:</p>{Object.entries(effects(tx)).map(([id,cents])=><p key={id}>{data?.accounts.find(a=>a.id===id)?.name}: {money(-cents/100)}</p>)}<button disabled={saving} onClick={()=>void remove()}>{saving?'Se șterge…':'Confirmă ștergerea'}</button><button disabled={saving} onClick={()=>setDeleting(false)}>Renunță</button>{deleteError&&<p role="alert">{deleteError}</p>}</section>}
     {data?.source!=='live'&&<p className="transactionDetailsEmpty">Conectează live pentru editare.</p>}
     <strong className="transactionDetailsAmount">{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount)}</strong>
     <dl><div><dt>Tip</dt><dd>{type}</dd></div><div><dt>Data</dt><dd>{date}</dd></div>{account && <div><dt>{tx.transaction_type==='transfer'?'Din contul':'Cont'}</dt><dd>{account.name}</dd></div>}{tx.transaction_type==='transfer' && <div><dt>În contul</dt><dd>{tx.destination_account?.name ?? data?.accounts.find(item=>item.id===tx.transfer_account_id)?.name ?? 'Cont destinație indisponibil'}</dd></div>}{tx.merchant && <div><dt>Comerciant</dt><dd>{tx.merchant}</dd></div>}{tx.description && <div><dt>Descriere</dt><dd>{tx.description}</dd></div>}</dl>
