@@ -5,6 +5,7 @@ import CategoryIcon from './CategoryIcon'
 import { ArrowRight, Banknote, Landmark, UserRound } from 'lucide-react'
 import type { Account, CategoryRow, SplitRow, Transaction } from '@/lib/mylife-data'
 import { accountBank, accountOwner } from '@/lib/account-display'
+import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
@@ -26,18 +27,10 @@ export default function TransactionsList({ accounts, transactions, categories, s
     rows.push(split)
     allocations.set(split.transaction_id, rows)
   }
-  const categoryPath = (id: string | null) => {
-    if (!id) return 'Fără categorie'
-    const path: string[] = []
-    const seen = new Set<string>()
-    let category = categoriesById.get(id)
-    if (!category) return 'Categorie indisponibilă'
-    while (category && !seen.has(category.id)) {
-      seen.add(category.id)
-      path.unshift(category.name)
-      category = category.parent_id ? categoriesById.get(category.parent_id) : undefined
-    }
-    return path.join(' › ')
+  const categoryBadge = (id:string|null) => {
+    const category=id?categoriesById.get(id):undefined
+    const root=categoryRoot(id,categories)
+    return {id:id??'uncategorized',root,label:!id?'Fără categorie':!category?'Categorie indisponibilă':category.parent_id?category.name:null}
   }
   return <div className="listPanel transactionList">
     {!transactions.length && <div className="emptyState">{emptyMessage}</div>}
@@ -50,10 +43,10 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const account = resolveAccount(tx.account_id, tx.source_account)
       const destination = resolveAccount(tx.transfer_account_id, tx.destination_account)
       const rows = allocations.get(tx.id) ?? []
-      const paths = [...new Set(rows.map(split => categoryPath(split.category_id)))]
+      const badges = [...new Map(rows.map(split=>{const badge=categoryBadge(split.category_id);return [badge.id,badge] as const})).values()]
       if (tx.transaction_type === 'expense' || tx.transaction_type === 'income') {
         if (!rows.length || rows.reduce((sum, row) => sum + Math.round(Number(row.amount) * 100), 0) < Math.round(Number(tx.amount) * 100)) {
-          if (!paths.includes('Fără categorie')) paths.push('Fără categorie')
+          if (!badges.some(badge=>badge.id==='uncategorized')) badges.push(categoryBadge(null))
         }
       }
       const incoming = tx.transaction_type === 'income' || tx.transaction_type === 'adjustment' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.transfer_account_id === contextAccountId)
@@ -69,7 +62,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
         <div className="transactionRowInfo">
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
-          <span className="transactionRowCategories">{rows.filter(s=>s.category_id).map(s=><CategoryIcon key={s.id} category={categoriesById.get(s.category_id!)} categories={categories}/>)}{paths.length ? paths.join(' · ') : tx.transaction_type === 'transfer' ? 'Transfer între conturi' : 'Ajustare de sold'}</span>
+          <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} title={badge.root?`${badge.root.name}${badge.label?' › '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" role="img" aria-label={`Categorie: ${badge.root.name}`}><CategoryIcon category={badge.root}/></span>}{badge.label&&<span className="transactionSubcategoryChip" style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}}>{badge.label}</span>}</span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
           <span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>
         </div>
         <strong className={`transactionRowAmount ${outgoing ? 'transactionRowAmount-outgoing' : incoming ? 'transactionRowAmount-incoming' : ''}`}>
