@@ -1,4 +1,4 @@
-.accountTransactions { min-width:0; }
+.accountTransactions { min-width:0; padding-top:20px; }
 .accountTransactionsBack { display:flex; align-items:center; gap:8px; min-height:44px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.04); color:var(--text); font:inherit; font-size:12px; cursor:pointer; }
 .accountTransactionsHeader { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; padding:20px 0; border-bottom:1px solid var(--line); }
 .accountTransactionsHeader h2 { margin:0; font-size:21px; overflow-wrap:anywhere; }
@@ -15,3 +15,6 @@
 .accountCard.accountOpenButton { color:var(--text); font:inherit; text-align:left; cursor:pointer; }
 .accountTransactionsBack:focus-visible,.accountsWorkspace button.accountsBalanceCard:focus-visible,.accountCard.accountOpenButton:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 @media(max-width:600px) { .accountTransactionsHeader h2 { font-size:18px; }.accountTransactionsHeader strong { font-size:21px; } }
+
+.accountTransactionsHeader>div:first-child { min-width:0; flex:1 1 320px; }
+.accountTransactionsTitle .accountsCrudActions { display:flex; flex-wrap:wrap; gap:8px; }

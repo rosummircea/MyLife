@@ -1,16 +1,18 @@
 import type {Account,Transaction} from './mylife-data'
 import type {Loan} from './loans'
 import {remaining} from './loans'
-import {accountOwner} from './account-display'
+import {accountOwner,accountAmounts} from './account-display'
 import {bucharestDay} from './expense-report'
 const cents=(amount:number|string)=>Math.round(Number(amount)*100)
 export function financeOverview(accounts:Account[],transactions:Transaction[],loans:Loan[]|null,currency:string,today:string){
- const owners=new Map<string,{id:string;name:string;photo?:string;cash:number;creditBalance:number;net:number}>()
+ const owners=new Map<string,{id:string;name:string;photo?:string;cash:number;creditBalance:number;net:number;available:number}>()
  let cash=0,creditBalance=0
  for(const account of accounts.filter(a=>a.currency.trim()===currency)){
   const balance=cents(account.current_balance??account.opening_balance);if(!Number.isFinite(balance))continue
-  const owner=accountOwner(account),group=owners.get(owner.id)??{...owner,cash:0,creditBalance:0,net:0}
+  const owner=accountOwner(account),group=owners.get(owner.id)??{...owner,cash:0,creditBalance:0,net:0,available:0}
   if(account.account_type==='credit_card'){group.creditBalance+=balance;creditBalance+=balance}else{group.cash+=balance;cash+=balance}
+  const creditAvailable=accountAmounts(account).available
+  group.available+=account.account_type==='credit_card'?Math.max(0,creditAvailable===null?balance:cents(creditAvailable)):balance
   group.net+=balance;owners.set(owner.id,group)
  }
  const date=new Date(today+'T12:00:00Z'),month=today.slice(0,7),months=Array.from({length:6},(_,i)=>{const d=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()-5+i,1));return {key:d.toISOString().slice(0,7),label:d.toLocaleDateString('ro-RO',{month:'short',timeZone:'UTC'}),income:0,expenses:0}})
