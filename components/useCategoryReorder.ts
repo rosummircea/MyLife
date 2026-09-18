@@ -10,11 +10,12 @@ export default function useCategoryReorder(rows:CategoryRow[], onChange:(rows:Ca
   const current=useRef(rows);current.current=rows
   const change=useRef(onChange);change.current=onChange
   const error=useRef(onError);error.current=onError
-  const active=useRef<{id:string;pointer:number;startY:number;moved:boolean;original:CategoryRow[];cleanup:()=>void}|null>(null)
+  const active=useRef<{id:string;pointer:number;startY:number;startX:number;offsetX:number;offsetY:number;width:number;height:number;index:number;moved:boolean;original:CategoryRow[];cleanup:()=>void}|null>(null)
   const queue=useRef(Promise.resolve())
   const generations=useRef(new Map<string,number>())
   const confirmed=useRef(new Map<string,string[]>())
   const [dragging,setDragging]=useState<string|null>(null)
+  const [ghost,setGhost]=useState<{id:string;x:number;y:number;width:number;height:number;index:number;target:string|null;after:boolean}|null>(null)
   const [saving,setSaving]=useState(0)
   const [announcement,setAnnouncement]=useState('')
   const siblings=(source:CategoryRow,list=current.current)=>sortedCategories(list.filter(row=>row.kind===source.kind&&row.parent_id===source.parent_id))
@@ -38,32 +39,41 @@ export default function useCategoryReorder(rows:CategoryRow[], onChange:(rows:Ca
   function start(e:ReactPointerEvent<HTMLButtonElement>,source:CategoryRow){
     if(e.button!==0||active.current)return
     e.currentTarget.setPointerCapture(e.pointerId)
-    const onMove=(event:PointerEvent)=>move(event)
+    let frame=0
+    let point:PointerEvent|null=null
+    const onMove=(event:PointerEvent)=>{point=event;move(event)}
     const onUp=(event:PointerEvent)=>finish(event)
     const onCancel=(event:PointerEvent)=>finish(event,true)
-    const cleanup=()=>{window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);window.removeEventListener('pointercancel',onCancel)}
-    window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onCancel)
-    active.current={id:source.id,pointer:e.pointerId,startY:e.clientY,moved:false,original:current.current,cleanup}
-    setDragging(source.id)
+    const onEscape=(event:globalThis.KeyboardEvent)=>{if(event.key==='Escape')finish({pointerId:e.pointerId},true)}
+    const onBlur=()=>finish({pointerId:e.pointerId},true)
+    const cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);window.removeEventListener('pointercancel',onCancel);window.removeEventListener('keydown',onEscape);window.removeEventListener('blur',onBlur)}
+    window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);window.addEventListener('pointercancel',onCancel);window.addEventListener('keydown',onEscape);window.addEventListener('blur',onBlur)
+    const element=e.currentTarget.closest<HTMLElement>('[data-category-id]')
+    if(!element){cleanup();return}
+    const box=element.getBoundingClientRect()
+    active.current={id:source.id,pointer:e.pointerId,startY:e.clientY,startX:e.clientX,offsetX:e.clientX-box.left,offsetY:e.clientY-box.top,width:box.width,height:box.height,index:siblings(source).findIndex(row=>row.id===source.id),moved:false,original:current.current,cleanup}
+    const tick=()=>{if(point&&active.current?.moved&&(point.clientY<90||point.clientY>window.innerHeight-100))move(point);frame=requestAnimationFrame(tick)}
+    frame=requestAnimationFrame(tick)
   }
-  function move(e:Pick<ReactPointerEvent<HTMLButtonElement>,'pointerId'|'clientY'>){
+  function move(e:Pick<ReactPointerEvent<HTMLButtonElement>,'pointerId'|'clientY'|'clientX'>){
     const drag=active.current;if(!drag||drag.pointer!==e.pointerId)return
-    if(!drag.moved&&Math.abs(e.clientY-drag.startY)<5)return
+    if(!drag.moved&&Math.hypot(e.clientY-drag.startY,e.clientX-drag.startX)<5)return
     drag.moved=true
     const source=current.current.find(row=>row.id===drag.id);if(!source)return
     const others=siblings(source).filter(row=>row.id!==source.id)
     const elements=Array.from(document.querySelectorAll<HTMLElement>('[data-category-id]'))
     const index=others.filter(row=>{const element=elements.find(el=>el.dataset.categoryId===row.id);if(!element)return false;const box=element.getBoundingClientRect();return e.clientY>box.top+box.height/2}).length
-    const next=reorderCategory(current.current,source.id,index)
-    update(next)
+    drag.index=index
+    setDragging(source.id)
+    setGhost({id:source.id,x:Math.max(4,Math.min(window.innerWidth-drag.width-4,e.clientX-drag.offsetX)),y:e.clientY-drag.offsetY,width:drag.width,height:drag.height,index,target:others[index]?.id??others.at(-1)?.id??null,after:index===others.length})
     setAnnouncement(`${source.name}, poziția ${index+1} din ${others.length+1}.`)
     // Continue dragging long lists near the edges of the viewport.
     if(e.clientY<90)window.scrollBy(0,-18)
     else if(e.clientY>window.innerHeight-100)window.scrollBy(0,18)
   }
-  function finish(e:Pick<ReactPointerEvent<HTMLButtonElement>,'pointerId'>,cancel=false){const drag=active.current;if(!drag||drag.pointer!==e.pointerId)return;drag.cleanup();active.current=null;setDragging(null)
-    if(cancel){update(drag.original);setAnnouncement('Mutare anulată.');return}
-    const source=current.current.find(row=>row.id===drag.id);if(source&&drag.moved)persist(source,drag.original)
+  function finish(e:Pick<ReactPointerEvent<HTMLButtonElement>,'pointerId'>,cancel=false){const drag=active.current;if(!drag||drag.pointer!==e.pointerId)return;drag.cleanup();active.current=null;setDragging(null);setGhost(null)
+    if(cancel){setAnnouncement('Mutare anulată.');return}
+    const source=current.current.find(row=>row.id===drag.id);if(source&&drag.moved){const original=current.current;update(reorderCategory(original,source.id,drag.index));persist(source,original)}
   }
   function keyboard(e:KeyboardEvent<HTMLButtonElement>,source:CategoryRow){
     if(!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return
@@ -72,5 +82,5 @@ export default function useCategoryReorder(rows:CategoryRow[], onChange:(rows:Ca
     update(reorderCategory(original,source.id,next));persist(source,original);setAnnouncement(`${source.name}, poziția ${next+1} din ${list.length}.`)
   }
   useEffect(()=>()=>{active.current?.cleanup()},[])
-  return {dragging,saving,announcement,start,keyboard}
+  return {dragging,ghost,saving,announcement,start,keyboard}
 }
