@@ -93,3 +93,35 @@
   .accountTransactionsMonthToggle { min-height:44px; grid-template-columns:minmax(0,1fr) auto 18px; gap:8px; }
   .accountTransactionsMonthToggle h3 { font-size:16px; }
 }
+
+/* Interactive edge-swipe back: the account screen follows the finger, then snaps or completes. */
+.accountsWorkspace { overflow-x:clip; }
+
+.accountTransactions {
+  --swipe-back-x:0px;
+  transform:translate3d(var(--swipe-back-x),0,0);
+  touch-action:pan-y;
+  position:relative;
+}
+
+.accountTransactions.isSwipeBackDragging {
+  transition:none;
+  will-change:transform;
+  box-shadow:-18px 0 38px rgba(0,0,0,.22);
+}
+
+.accountTransactions.isSwipeBackSnapping {
+  transition:transform 230ms cubic-bezier(.22,.72,.18,1);
+  will-change:transform;
+}
+
+.accountTransactions.isSwipeBackCompleting {
+  transition:transform 185ms cubic-bezier(.2,.75,.2,1);
+  will-change:transform;
+  box-shadow:-22px 0 44px rgba(0,0,0,.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accountTransactions.isSwipeBackSnapping,
+  .accountTransactions.isSwipeBackCompleting { transition-duration:80ms; }
+}
