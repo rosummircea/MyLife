@@ -12,6 +12,7 @@ import {
   FileText,
   HeartPulse,
   Home,
+  ArrowLeft,
   House,
   LogIn,
   LogOut,
@@ -29,6 +30,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
@@ -79,6 +81,9 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<string>('home')
+  const swipePageRef = useRef<HTMLElement>(null)
+  const swipeBackdropRef = useRef<HTMLDivElement>(null)
+  const swipeDestinationRef = useRef<HTMLElement>(null)
   const mobileBackHandler = useRef<(() => boolean) | null>(null)
   const registerMobileBack = useCallback((handler: (() => boolean) | null) => { mobileBackHandler.current = handler }, [])
   const [financeTab, setFinanceTab] = useState<FinanceTab>('overview')
@@ -183,43 +188,103 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
 
   useEffect(() => {
     if (active === 'home') return
-    let startX = 0, startY = 0, tracking = false, horizontal = false
+    let startX = 0, startY = 0, tracking = false, horizontal = false, settling = false
+    let page: HTMLElement | null = null
+    let finishTimer: ReturnType<typeof setTimeout> | null = null
     const mobile = window.matchMedia('(max-width: 720px)')
+    const reset = () => {
+      if (finishTimer) clearTimeout(finishTimer)
+      finishTimer = null
+      if (page) {
+        page.style.transition = 'none'
+        page.style.transform = ''
+        page.style.boxShadow = ''
+        page.style.willChange = ''
+      }
+      swipeBackdropRef.current?.classList.remove('visible')
+      swipeBackdropRef.current?.style.removeProperty('opacity')
+      document.body.classList.remove('swipeBackInProgress')
+      page = null
+      tracking = false
+      horizontal = false
+      settling = false
+    }
     const start = (event: TouchEvent) => {
       const touch = event.touches[0]
-      tracking = mobile.matches && event.touches.length === 1 && touch.clientX <= 32
+      tracking = !settling && mobile.matches && event.touches.length === 1 && touch.clientX <= 32
       horizontal = false
-      if (tracking) { startX = touch.clientX; startY = touch.clientY }
+      if (!tracking) return
+      const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')
+      const closeButton = dialog?.querySelector<HTMLButtonElement>('header button[aria-label^="Închide"]')
+      if (closeButton?.disabled) { tracking = false; return }
+      page = dialog ?? swipePageRef.current
+      if (!page) { tracking = false; return }
+      startX = touch.clientX
+      startY = touch.clientY
+      if (swipeDestinationRef.current) swipeDestinationRef.current.textContent = dialog ? 'Închide' : document.querySelector('.accountTransactions') ? 'Conturi' : document.querySelector('.autoVehicleDetail') ? 'Vehicule' : 'Acasă'
     }
     const move = (event: TouchEvent) => {
-      if (!tracking || event.touches.length !== 1) return
+      if (!tracking || !page || event.touches.length !== 1) return
       const dx = event.touches[0].clientX - startX
       const dy = event.touches[0].clientY - startY
       if (!horizontal && Math.abs(dy) > Math.abs(dx)) { tracking = false; return }
-      if (dx > 16 && dx > Math.abs(dy) * 1.5) horizontal = true
-      if (horizontal) event.preventDefault()
+      if (!horizontal && dx > 16 && dx > Math.abs(dy) * 1.5) {
+        horizontal = true
+        page.style.transition = 'none'
+        page.style.willChange = 'transform'
+        if (page === swipePageRef.current) {
+          swipeBackdropRef.current?.classList.add('visible')
+          document.body.classList.add('swipeBackInProgress')
+        }
+      }
+      if (!horizontal) return
+      event.preventDefault()
+      const distance = Math.max(0, Math.min(window.innerWidth, dx))
+      page.style.transform = `translate3d(${distance}px, 0, 0)`
+      page.style.boxShadow = `-18px 0 42px rgba(0, 0, 0, ${Math.min(.32, distance / window.innerWidth * .32)})`
+      if (swipeBackdropRef.current) swipeBackdropRef.current.style.opacity = String(Math.min(1, distance / 90))
     }
     const end = (event: TouchEvent) => {
-      if (!tracking || !horizontal || !mobile.matches) return
+      if (!tracking || !horizontal || !mobile.matches || !page) { reset(); return }
       const touch = event.changedTouches[0]
       const dx = touch.clientX - startX
       const dy = touch.clientY - startY
       tracking = false
-      if (dx < 75 || Math.abs(dy) > dx * 0.5) return
-      const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')
-      if (dialog) {
-        const closeButton = dialog.querySelector<HTMLButtonElement>('header button[aria-label^="Închide"]')
-        if (!closeButton?.disabled) dialog.close()
-        return
+      settling = true
+      const completed = dx >= 75 && Math.abs(dy) <= dx * 0.5
+      const target = page
+      const finish = () => {
+        target.removeEventListener('transitionend', onTransitionEnd)
+        if (completed) {
+          flushSync(() => {
+            if (target instanceof HTMLDialogElement) target.close()
+            else if (!mobileBackHandler.current?.()) setActive('home')
+          })
+        }
+        reset()
       }
-      if (!mobileBackHandler.current?.()) setActive('home')
+      const onTransitionEnd = (transition: TransitionEvent) => {
+        if (transition.target === target && transition.propertyName === 'transform') finish()
+      }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return }
+      target.addEventListener('transitionend', onTransitionEnd)
+      target.style.transition = `transform ${completed ? 220 : 180}ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease`
+      target.style.transform = completed ? `translate3d(${window.innerWidth}px, 0, 0)` : 'translate3d(0, 0, 0)'
+      finishTimer = setTimeout(finish, 300)
     }
-    const cancel = () => { tracking = false; horizontal = false }
+    const cancel = () => {
+      if (!horizontal || !page) { reset(); return }
+      page.style.transition = 'transform 180ms cubic-bezier(.2,.8,.2,1)'
+      page.style.transform = 'translate3d(0, 0, 0)'
+      finishTimer = setTimeout(reset, 200)
+      tracking = false
+      settling = true
+    }
     window.addEventListener('touchstart', start, { passive: true })
     window.addEventListener('touchmove', move, { passive: false })
     window.addEventListener('touchend', end)
     window.addEventListener('touchcancel', cancel)
-    return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', cancel) }
+    return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', cancel); reset() }
   }, [active])
 
   const visibleAreas = useMemo(() => {
@@ -275,7 +340,8 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
         </div>
       </aside>
 
-      <main className="main">
+      <div className="swipeBackBackdrop" aria-hidden="true" ref={swipeBackdropRef}><span className="swipeBackHint"><ArrowLeft size={22}/><strong ref={swipeDestinationRef}>Acasă</strong></span></div>
+      <main className="main" ref={swipePageRef}>
         <div className={`pullRefreshIndicator ${pullDistance || pullRefreshing ? 'visible' : ''} ${pullRefreshing ? 'refreshing' : ''}`} style={{ transform: `translate(-50%, ${pullRefreshing ? 0 : Math.min(pullDistance, 60) - 60}px)` }} role="status" aria-live="polite"><span className="pullRefreshSpinner" aria-hidden="true"/><span>{pullRefreshing ? 'Se actualizează…' : pullDistance >= 72 ? 'Eliberează pentru actualizare' : 'Trage pentru actualizare'}</span></div>
         <div className="mylifeDataStatus" role="status">
           <span>{loadingData ? 'Se încarcă datele reale…' : data?.source === 'live' ? 'Supabase · date actualizate' : data?.source === 'snapshot' ? `Date reale · instantaneu local din ${new Date(data.capturedAt).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' })}` : 'Datele Supabase nu sunt conectate.'}</span>
