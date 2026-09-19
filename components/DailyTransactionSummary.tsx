@@ -23,6 +23,5 @@ export default function DailyTransactionSummary({ dateLabel, transactions, loadi
         })}</dd>
       </div>)}
     </dl>
-    {transactions.some(tx => tx.transaction_type === 'transfer') && <p>Transferurile între conturi nu influențează diferența perioadei.</p>}
   </section>
 }
