@@ -107,7 +107,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           )
         })}
       </div>
-      <p className="expenseReportNote">Raportul include tranzacțiile înregistrate, fără totalurile istorice importate separat.{report.excludedCurrencies > 0 && ` ${report.excludedCurrencies} cheltuieli în alte monede nu sunt incluse în totalul RON.`}</p>
       </>}
     </div>
   )
