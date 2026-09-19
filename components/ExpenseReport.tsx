@@ -34,8 +34,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range):[],[showAllTransactions,data,range.from,range.to,report.error])
   const { categories, total } = report
   const gradient = distributionGradient(categories)
-  const fromDate = new Date(`${range.from}T12:00:00Z`)
-  const label = period === 'Lună' ? fromDate.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : period === 'An' ? range.from.slice(0, 4) : `${range.from} – ${range.to}`
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
   const currentYear = Number(bucharestDay(new Date()).slice(0, 4))
   const years = [...new Set([Number(anchor.slice(0, 4)), ...Array.from({ length: 7 }, (_, index) => currentYear - 5 + index), ...(data?.transactions ?? []).map((tx) => Number(bucharestDay(new Date(tx.transaction_date)).slice(0, 4)))])].sort((a, b) => b - a)
@@ -50,10 +48,12 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   return (
     <div className="reportWrap">
       <div className="reportToolbar">
-        <div>
-          <p className="eyebrow">RAPORT CHELTUIELI</p>
-          <h2>Unde s-au dus banii</h2>
-          <p className="subtitle">Cheltuieli în RON din tranzacțiile înregistrate.</p>
+        <div className="reportHeadingRow">
+          <h2>Raport</h2>
+          <div className="reportTypeSwitch" role="group" aria-label="Tip raport">
+            <button type="button" className="active" aria-pressed="true">Cheltuieli</button>
+            <button type="button" disabled title="Raportul de venituri va fi disponibil ulterior">Venituri</button>
+          </div>
         </div>
         <div className="periodSwitch">
           {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
@@ -67,8 +67,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           </div>}
         </div>
         <div className="reportSummary">
-          <span className="summaryLabel">Perioadă selectată</span>
-          <strong>{label}</strong>
           <div className="expensePeriodControls">
             {(period === 'An' || period === 'Lună') ? <>
               <label>Anul<select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
