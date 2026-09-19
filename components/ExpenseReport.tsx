@@ -49,15 +49,16 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   return (
     <div className="reportWrap">
       <div className="reportToolbar">
-        <div className="reportHeadingRow">
-          <h2>Raport</h2>
+        <h2>Raport</h2>
+        <div className="reportControlsRow">
           <div className="reportTypeSwitch" role="group" aria-label="Tip raport">
             <button type="button" className="active" aria-pressed="true">Cheltuieli</button>
             <button type="button" disabled title="Raportul de venituri va fi disponibil ulterior">Venituri</button>
           </div>
-        </div>
-        <div className="periodSwitch">
-          {(['Lună','An','Custom'] as ReportPeriod[]).map((item) => <button key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+          <span className="reportControlsDivider" aria-hidden="true"/>
+          <div className="periodSwitch" role="group" aria-label="Perioadă raport">
+            {(['Lună','An','Custom'] as ReportPeriod[]).map((item) => <button key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+          </div>
         </div>
       </div>
 
