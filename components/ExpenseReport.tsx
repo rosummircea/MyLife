@@ -34,6 +34,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range):[],[showAllTransactions,data,range.from,range.to,report.error])
   const { categories, total } = report
   const gradient = distributionGradient(categories)
+  const periodDetail = period === 'Lună' ? new Date(`${anchor.slice(0,7)}-01T12:00:00Z`).toLocaleDateString('ro-RO', { month: 'long', timeZone: 'UTC' }) : period
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
   const currentYear = Number(bucharestDay(new Date()).slice(0, 4))
   const years = [...new Set([Number(anchor.slice(0, 4)), ...Array.from({ length: 7 }, (_, index) => currentYear - 5 + index), ...(data?.transactions ?? []).map((tx) => Number(bucharestDay(new Date(tx.transaction_date)).slice(0, 4)))])].sort((a, b) => b - a)
@@ -63,7 +64,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       <div className="reportHero">
         <div className="pieStage">
           {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }} aria-label="Distribuția cheltuielilor">
-            <div className="pieHole"><span>Total cheltuieli</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label="Vezi tranzacțiile din totalul cheltuielilor" onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong>{money(total)}</strong></button><small>{period}</small></div>
+            <div className="pieHole"><span>Total cheltuieli</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label="Vezi tranzacțiile din totalul cheltuielilor" onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong>{money(total)}</strong></button><small>{periodDetail}</small></div>
           </div>}
         </div>
         <div className="reportSummary">
