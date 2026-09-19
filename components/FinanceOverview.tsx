@@ -16,8 +16,8 @@ export default function FinanceOverview({data,loading,onAccounts,onLoans,onRepor
  const today=bucharestDay(new Date()),model=useMemo(()=>financeOverview(data?.accounts??[],data?.transactions??[],loans,currency,today),[data,loans,currency,today])
  const currencies=[...new Set(['RON',...(data?.accounts??[]).map(a=>a.currency.trim()),...(data?.transactions??[]).map(t=>t.currency.trim()),...(loans??[]).map(l=>l.currency.trim())])]
  const money=(value:number)=>new Intl.NumberFormat('ro-RO',{style:'currency',currency}).format(value/100),signed=(value:number)=>`${value>0?'+':''}${money(value)}`,ownerNumber=(value:number)=>`${value>0?'+':''}${new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(value/100)}`,tone=(value:number)=>value<0?'negative':value>0?'positive':'neutral'
- const profileFirstName=data.profile.displayName.trim().split(/\s+/)[0]?.toLocaleLowerCase('ro')??''
- const owners=useMemo(()=>[...model.owners].sort((a,b)=>{const aSelf=profileFirstName&&a.name.toLocaleLowerCase('ro').includes(profileFirstName)?0:1,bSelf=profileFirstName&&b.name.toLocaleLowerCase('ro').includes(profileFirstName)?0:1;return aSelf-bSelf}),[model.owners,profileFirstName])
+ const profileFirstName=data?.profile.displayName.trim().split(/\s+/)[0]?.toLocaleLowerCase('ro')??''
+ const owners=[...model.owners].sort((a,b)=>{const aSelf=profileFirstName&&a.name.toLocaleLowerCase('ro').includes(profileFirstName)?0:1,bSelf=profileFirstName&&b.name.toLocaleLowerCase('ro').includes(profileFirstName)?0:1;return aSelf-bSelf})
  const top=useMemo(()=>data&&currency==='RON'?buildExpenseReport(data.transactions,data.categories,data.splits,{from:today.slice(0,7)+'-01',to:today}).categories.slice(0,4):[],[data,currency,today])
  const priceNumber=Number(price.replace(',','.')),reserveNumber=Number(reserve.replace(',','.')),valid=price.trim()!==''&&Number.isFinite(priceNumber)&&priceNumber>=0&&Number.isFinite(reserveNumber)&&reserveNumber>=0
  const spendable=model.netBalance-(model.received??0),afterPurchase=spendable-Math.round((priceNumber+reserveNumber)*100)
