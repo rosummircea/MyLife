@@ -15,13 +15,20 @@ function date(value: string) { const parsed = new Date(value.slice(0,10)+'T12:00
 function title(vehicle: Vehicle) { return [vehicle.make,vehicle.model].filter(Boolean).join(' ') || 'Vehicul fără denumire' }
 function money(amount: number, currency: string) { return new Intl.NumberFormat('ro-RO',{style:'currency',currency}).format(amount) }
 
-export default function AutoModule({ connected, refreshVersion, documents, documentsLoading, onHome, onOpenDocument }: { connected: boolean; refreshVersion: number; documents: DocumentRow[]; documentsLoading: boolean; onHome: () => void; onOpenDocument: (id: string) => void }) {
+export default function AutoModule({ connected, refreshVersion, documents, documentsLoading, registerMobileBack, onHome, onOpenDocument }: { connected: boolean; refreshVersion: number; documents: DocumentRow[]; documentsLoading: boolean; registerMobileBack: (handler: (() => boolean) | null) => void; onHome: () => void; onOpenDocument: (id: string) => void }) {
   const [data,setData] = useState<AutoData>({vehicles:[],records:[]})
   const [loading,setLoading] = useState(connected)
   const [error,setError] = useState('')
   const [revision,setRevision] = useState(0)
   const [demo,setDemo] = useState(false)
   const [selectedId,setSelectedId] = useState<string | null>(null)
+  useEffect(() => {
+    registerMobileBack(() => {
+      if (selectedId) { setSelectedId(null); return true }
+      return false
+    })
+    return () => registerMobileBack(null)
+  }, [registerMobileBack, selectedId])
   useEffect(() => {
     let cancelled = false
     setDemo(false);setSelectedId(null);setData({vehicles:[],records:[]});setError('')
@@ -36,7 +43,7 @@ export default function AutoModule({ connected, refreshVersion, documents, docum
   const vehicle = current.vehicles.find(item => item.id === selectedId)
   const today = bucharestDay(new Date())
   return <section className="modulePage autoModule">
-    <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>Auto</h1><p className="subtitle">Mașini, motociclete și istoricul lor.</p></div><button type="button" className="iconBtn" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button></div>
+    <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>Auto</h1><p className="subtitle">Mașini, motociclete și istoricul lor.</p></div><button type="button" className="iconBtn moduleHomeButton" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button></div>
     {demo && <div className="autoDemoNotice"><span>DEMO · Exemple de structură, fără date personale. Nu sunt salvate în Supabase.</span><button type="button" onClick={() => {setDemo(false);setSelectedId(null)}}>Închide demo</button></div>}
     {!demo && error && <div className="autoNotice" role="alert">{error}<button type="button" onClick={() => setRevision(value => value+1)}>Reîncearcă</button></div>}
     {loading ? <div className="autoEmpty" role="status">Se încarcă vehiculele…</div> : vehicle ? <VehicleDetail key={vehicle.id} vehicle={vehicle} records={current.records.filter(item => item.vehicle_id === vehicle.id)} documents={demo ? [] : vehicleDocuments(vehicle.id,documents)} documentsLoading={documentsLoading && !demo} demo={demo} today={today} onBack={() => setSelectedId(null)} onOpenDocument={onOpenDocument}/> : <>

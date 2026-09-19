@@ -28,7 +28,7 @@ import {
   Users,
   WalletCards,
 } from 'lucide-react'
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
@@ -79,6 +79,8 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<string>('home')
+  const mobileBackHandler = useRef<(() => boolean) | null>(null)
+  const registerMobileBack = useCallback((handler: (() => boolean) | null) => { mobileBackHandler.current = handler }, [])
   const [financeTab, setFinanceTab] = useState<FinanceTab>('overview')
   const [financeNavVersion, setFinanceNavVersion] = useState(0)
   const navigateFinance = (tab: FinanceTab) => { setFinanceTab(tab); setFinanceNavVersion(value => value + 1) }
@@ -179,6 +181,47 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
     return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', cancel) }
   }, [userEmail, loadingData, pullRefreshing])
 
+  useEffect(() => {
+    if (active === 'home') return
+    let startX = 0, startY = 0, tracking = false, horizontal = false
+    const mobile = window.matchMedia('(max-width: 720px)')
+    const start = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      tracking = mobile.matches && event.touches.length === 1 && touch.clientX <= 32
+      horizontal = false
+      if (tracking) { startX = touch.clientX; startY = touch.clientY }
+    }
+    const move = (event: TouchEvent) => {
+      if (!tracking || event.touches.length !== 1) return
+      const dx = event.touches[0].clientX - startX
+      const dy = event.touches[0].clientY - startY
+      if (!horizontal && Math.abs(dy) > Math.abs(dx)) { tracking = false; return }
+      if (dx > 16 && dx > Math.abs(dy) * 1.5) horizontal = true
+      if (horizontal) event.preventDefault()
+    }
+    const end = (event: TouchEvent) => {
+      if (!tracking || !horizontal || !mobile.matches) return
+      const touch = event.changedTouches[0]
+      const dx = touch.clientX - startX
+      const dy = touch.clientY - startY
+      tracking = false
+      if (dx < 75 || Math.abs(dy) > dx * 0.5) return
+      const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')
+      if (dialog) {
+        const closeButton = dialog.querySelector<HTMLButtonElement>('header button[aria-label^="Închide"]')
+        if (!closeButton?.disabled) dialog.close()
+        return
+      }
+      if (!mobileBackHandler.current?.()) setActive('home')
+    }
+    const cancel = () => { tracking = false; horizontal = false }
+    window.addEventListener('touchstart', start, { passive: true })
+    window.addEventListener('touchmove', move, { passive: false })
+    window.addEventListener('touchend', end)
+    window.addEventListener('touchcancel', cancel)
+    return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', cancel) }
+  }, [active])
+
   const visibleAreas = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('ro')
     if (!q) return areas
@@ -256,11 +299,11 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
         ) : active === 'auto' ? (
-          <AutoModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} onHome={() => setActive('home')} onOpenDocument={openDocument}/>
+          <AutoModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} registerMobileBack={registerMobileBack} onHome={() => setActive('home')} onOpenDocument={openDocument}/>
         ) : (
           <section className="modulePage">
             <ModuleHeader title={activeArea?.label ?? 'MyLife'} onHome={() => setActive('home')} />
@@ -325,10 +368,10 @@ function LoginCard({ error, onError, onCancel }: { error: string; onError: (valu
 }
 
 function ModuleHeader({ title, onHome, actions }: { title: string; onHome: () => void; actions?: React.ReactNode }) {
-  return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1></div><div className="moduleHeaderActions"><button type="button" className="iconBtn" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button>{actions}</div></div>
+  return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1></div><div className="moduleHeaderActions"><button type="button" className="iconBtn moduleHomeButton" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button>{actions}</div></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number }) {
+function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
   const [categoryKind,setCategoryKind]=useState('expense')
   const [creating,setCreating]=useState(false)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
@@ -338,7 +381,6 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const openAccount=(account:Account)=>{setAccountRecord(account);setTab('accounts')}
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { setAccountRecord(null); setMobileMenuOpen(false) }, [mobileNavVersion])
   useEffect(() => {
     if (!mobileMenuOpen) return
     const closeOutside = (event: PointerEvent) => {
@@ -348,6 +390,15 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
     document.addEventListener('pointerdown', closeOutside)
     return () => document.removeEventListener('pointerdown', closeOutside)
   }, [mobileMenuOpen])
+  useEffect(() => {
+    registerMobileBack(() => {
+      if (mobileMenuOpen) { setMobileMenuOpen(false); return true }
+      if (tab === 'accounts' && accountRecord) { setAccountRecord(null); return true }
+      return false
+    })
+    return () => registerMobileBack(null)
+  }, [accountRecord, mobileMenuOpen, registerMobileBack, tab])
+  useEffect(() => { setAccountRecord(null); setMobileMenuOpen(false) }, [mobileNavVersion])
   const [selectedDay, setSelectedDay] = useState<string | null>(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   const [calendarMonth, setCalendarMonth] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()).slice(0,7))
   const monthlyTransactions = useMemo(() => transactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [transactions, calendarMonth])

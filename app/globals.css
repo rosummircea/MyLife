@@ -115,6 +115,8 @@ h2 { margin: 14px 0 0; font-size: 28px; letter-spacing: -.03em; }
 }
 
 @media (max-width: 720px) {
+  html, body { overscroll-behavior-x: none; }
+  .moduleHomeButton { display: none; }
   .shell { display: block; }
   .sidebar { display: none; }
   .main { padding: 24px 18px 110px; }
