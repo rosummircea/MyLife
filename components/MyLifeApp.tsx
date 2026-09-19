@@ -337,7 +337,17 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const selectedAccount=accounts.find(account=>account.id===accountRecord?.id)??accountRecord??undefined
   const openAccount=(account:Account)=>{setAccountRecord(account);setTab('accounts')}
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
   useEffect(() => { setAccountRecord(null); setMobileMenuOpen(false) }, [mobileNavVersion])
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (target && !mobileMenuRef.current?.contains(target)) setMobileMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    return () => document.removeEventListener('pointerdown', closeOutside)
+  }, [mobileMenuOpen])
   const [selectedDay, setSelectedDay] = useState<string | null>(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   const [calendarMonth, setCalendarMonth] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()).slice(0,7))
   const monthlyTransactions = useMemo(() => transactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [transactions, calendarMonth])
@@ -349,7 +359,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
 
   return (
     <section className="modulePage financeModule">
-      <ModuleHeader title="Finanțe" onHome={onHome} actions={<div className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Mai multe pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>}/>
+      <ModuleHeader title="Finanțe" onHome={onHome} actions={<div ref={mobileMenuRef} className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Mai multe pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>}/>
       <div className="subnav" aria-label="Submeniu Finanțe">
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
