@@ -59,7 +59,6 @@ export default function TransactionsCalendar({ transactions, selectedDay, onSele
           </button>
         })}
       </div>
-      <p className="transactionsCalendarHint">Verde: intrări · Roșu: ieșiri. Transferurile au ambele puncte. Alege o zi pentru a vedea lista.</p>
     </section>
   )
 }
