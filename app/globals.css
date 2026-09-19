@@ -55,6 +55,8 @@ button { cursor: pointer; }
 }
 .main { width: min(1250px,100%); margin: 0 auto; padding: 30px 34px 120px; }
 .topbar { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 22px; }
+.moduleHeaderActions { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.financeMobileMenu, .pullRefreshIndicator { display: none; }
 .eyebrow { margin: 0 0 7px; font-size: 11px; font-weight: 900; letter-spacing: .12em; color: var(--muted); }
 h1 { margin: 0; font-size: 34px; letter-spacing: -.035em; }
 h2 { margin: 14px 0 0; font-size: 28px; letter-spacing: -.03em; }
@@ -116,6 +118,18 @@ h2 { margin: 14px 0 0; font-size: 28px; letter-spacing: -.03em; }
   .shell { display: block; }
   .sidebar { display: none; }
   .main { padding: 24px 18px 110px; }
+  .main > .mylifeDataStatus { display: none; }
+  .financeModule > .subnav { display: none; }
+  .financeMobileMenu { display: block; position: relative; }
+  .financeMobileMenu .iconBtn.active { border-color: rgba(118,168,255,.4); color: var(--blue); }
+  .financeMobileMenuList { position: absolute; top: calc(100% + 9px); right: 0; z-index: 35; width: min(230px, calc(100vw - 28px)); padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: #142236; box-shadow: 0 18px 45px rgba(0,0,0,.4); }
+  .financeMobileMenuList button { width: 100%; min-height: 44px; padding: 10px 12px; display: flex; align-items: center; gap: 11px; border: 0; border-radius: 9px; background: transparent; color: var(--text); text-align: left; }
+  .financeMobileMenuList button:hover, .financeMobileMenuList button.active { background: rgba(118,168,255,.16); }
+  .pullRefreshIndicator { display: flex; position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%; z-index: 50; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: #17263b; box-shadow: var(--shadow); color: var(--text); font-size: 11px; opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease; white-space: nowrap; }
+  .pullRefreshIndicator.visible { opacity: 1; }
+  .pullRefreshSpinner { width: 16px; height: 16px; border: 2px solid rgba(118,168,255,.25); border-top-color: var(--blue); border-radius: 50%; }
+  .pullRefreshIndicator.refreshing .pullRefreshSpinner { animation: pullRefreshSpin .75s linear infinite; }
+  @keyframes pullRefreshSpin { to { transform: rotate(360deg); } }
   h1 { font-size: 30px; }
   .lifeGrid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
   .lifeCard { min-height: 128px; padding: 16px; border-radius: 18px; }
@@ -124,7 +138,7 @@ h2 { margin: 14px 0 0; font-size: 28px; letter-spacing: -.03em; }
     padding: 8px; border: 1px solid var(--line); border-radius: 19px; background: rgba(11,21,36,.92);
     backdrop-filter: blur(18px); box-shadow: 0 18px 50px rgba(0,0,0,.35); z-index: 40;
   }
-  .mobileNav button { border: 0; background: transparent; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; }
+  .mobileNav button { border: 0; background: transparent; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 44px; font-size: 10px; }
   .mobileNav button.active { color: var(--text); }
   .mobileNav .aiMobile {
     width: 46px; height: 46px; border-radius: 15px; align-self: center; justify-self: center; justify-content: center;

@@ -19,10 +19,16 @@ import {
   Plane,
   Settings,
   Sparkles,
+  ArrowLeftRight,
+  ChartPie,
+  LayoutDashboard,
+  ListTree,
+  ReceiptText,
+  HandCoins,
   Users,
   WalletCards,
 } from 'lucide-react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
@@ -35,6 +41,7 @@ import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from 
 import './MyLifeData.css'
 
 type AreaKey = 'documents' | 'finance' | 'health' | 'auto' | 'homeLife' | 'travel' | 'family' | 'notes'
+type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'
 
 type LifeArea = {
   key: AreaKey
@@ -72,16 +79,22 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<string>('home')
+  const [financeTab, setFinanceTab] = useState<FinanceTab>('overview')
+  const [financeNavVersion, setFinanceNavVersion] = useState(0)
+  const navigateFinance = (tab: FinanceTab) => { setFinanceTab(tab); setFinanceNavVersion(value => value + 1) }
   const [documentTarget, setDocumentTarget] = useState<string | null>(null)
   const [transactionTarget, setTransactionTarget] = useState<Transaction | null>(null)
   const openDocument = (id: string) => { setDocumentTarget(id); setActive('documents') }
-  const openTransaction = (transaction: Transaction) => { setTransactionTarget(transaction); setActive('finance') }
+  const openTransaction = (transaction: Transaction) => { setTransactionTarget(transaction); setFinanceTab('transactions'); setActive('finance') }
   const [authReady, setAuthReady] = useState(developmentAccess)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [data, setData] = useState<MyLifeData | null>(initialData)
   const [loadingData, setLoadingData] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [refresh, setRefresh] = useState(0)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [pullRefreshing, setPullRefreshing] = useState(false)
+  const sawPullLoading = useRef(false)
   const [connecting, setConnecting] = useState(false)
   const displayName = data?.profile.displayName ?? 'Mircea'
   const accounts = data?.accounts ?? []
@@ -129,6 +142,42 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
     })
     return () => { cancelled = true }
   }, [supabase, userEmail, refresh])
+
+  useEffect(() => {
+    if (!pullRefreshing) return
+    if (loadingData) sawPullLoading.current = true
+    else if (sawPullLoading.current) { sawPullLoading.current = false; setPullRefreshing(false) }
+  }, [loadingData, pullRefreshing])
+
+  useEffect(() => {
+    let startY = 0, startX = 0, distance = 0, pulling = false
+    const mobile = window.matchMedia('(max-width: 720px)')
+    const start = (event: TouchEvent) => {
+      const target = event.target as Element | null
+      const nestedScroll = target?.closest('.expenseTrendScroll, .subnav, .documentsList, [role="dialog"], input, textarea, select')
+      pulling = mobile.matches && Boolean(userEmail) && !loadingData && !pullRefreshing && window.scrollY <= 0 && !nestedScroll && event.touches.length === 1
+      if (pulling) { startY = event.touches[0].clientY; startX = event.touches[0].clientX; distance = 0 }
+    }
+    const move = (event: TouchEvent) => {
+      if (!pulling || event.touches.length !== 1) return
+      const delta = event.touches[0].clientY - startY
+      if (Math.abs(event.touches[0].clientX - startX) > Math.abs(delta) || delta < 8) return
+      if (delta <= 0 || window.scrollY > 0) { distance = 0; setPullDistance(0); return }
+      event.preventDefault()
+      distance = Math.min(110, delta * 0.55)
+      setPullDistance(distance)
+    }
+    const end = () => {
+      if (pulling && distance >= 72) { sawPullLoading.current = false; setPullRefreshing(true); setRefresh(value => value + 1) }
+      pulling = false; distance = 0; setPullDistance(0)
+    }
+    const cancel = () => { pulling = false; distance = 0; setPullDistance(0) }
+    window.addEventListener('touchstart', start, { passive: true })
+    window.addEventListener('touchmove', move, { passive: false })
+    window.addEventListener('touchend', end)
+    window.addEventListener('touchcancel', cancel)
+    return () => { window.removeEventListener('touchstart', start); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', end); window.removeEventListener('touchcancel', cancel) }
+  }, [userEmail, loadingData, pullRefreshing])
 
   const visibleAreas = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('ro')
@@ -184,6 +233,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
       </aside>
 
       <main className="main">
+        <div className={`pullRefreshIndicator ${pullDistance || pullRefreshing ? 'visible' : ''} ${pullRefreshing ? 'refreshing' : ''}`} style={{ transform: `translate(-50%, ${pullRefreshing ? 0 : Math.min(pullDistance, 60) - 60}px)` }} role="status" aria-live="polite"><span className="pullRefreshSpinner" aria-hidden="true"/><span>{pullRefreshing ? 'Se actualizează…' : pullDistance >= 72 ? 'Eliberează pentru actualizare' : 'Trage pentru actualizare'}</span></div>
         <div className="mylifeDataStatus" role="status">
           <span>{loadingData ? 'Se încarcă datele reale…' : data?.source === 'live' ? 'Supabase · date actualizate' : data?.source === 'snapshot' ? `Date reale · instantaneu local din ${new Date(data.capturedAt).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' })}` : 'Datele Supabase nu sunt conectate.'}</span>
           {userEmail ? <button type="button" disabled={loadingData} onClick={() => setRefresh((value) => value + 1)}>Actualizează</button> : supabase && <button type="button" onClick={() => setConnecting(true)}>Conectează live</button>}
@@ -206,7 +256,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)}/></section>
         ) : active === 'auto' ? (
@@ -220,11 +270,19 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
       </main>
 
       <nav className="mobileNav" aria-label="Navigație mobilă">
-        <button className={active === 'home' ? 'active' : ''} onClick={() => setActive('home')}><Home size={20}/><span>Acasă</span></button>
-        <button className={active === 'documents' ? 'active' : ''} onClick={() => setActive('documents')}><FileText size={20}/><span>Documente</span></button>
-        <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
-        <button className={active === 'notes' ? 'active' : ''} onClick={() => setActive('notes')}><NotebookPen size={20}/><span>Notițe</span></button>
-        <button onClick={() => { if (!developmentAccess) void supabase?.auth.signOut() }}><Users size={20}/><span>Profil</span></button>
+        {active === 'finance' ? <>
+          <button className={financeTab === 'overview' ? 'active' : ''} onClick={() => navigateFinance('overview')}><LayoutDashboard size={20}/><span>Overview</span></button>
+          <button className={financeTab === 'transactions' ? 'active' : ''} onClick={() => navigateFinance('transactions')}><ReceiptText size={20}/><span>Tranzacții</span></button>
+          <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
+          <button className={financeTab === 'accounts' ? 'active' : ''} onClick={() => navigateFinance('accounts')}><WalletCards size={20}/><span>Conturi</span></button>
+          <button className={financeTab === 'reports' ? 'active' : ''} onClick={() => navigateFinance('reports')}><ChartPie size={20}/><span>Rapoarte</span></button>
+        </> : <>
+          <button className={active === 'home' ? 'active' : ''} onClick={() => setActive('home')}><Home size={20}/><span>Acasă</span></button>
+          <button className={active === 'documents' ? 'active' : ''} onClick={() => setActive('documents')}><FileText size={20}/><span>Documente</span></button>
+          <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
+          <button className={active === 'notes' ? 'active' : ''} onClick={() => setActive('notes')}><NotebookPen size={20}/><span>Notițe</span></button>
+          <button onClick={() => { if (!developmentAccess) void supabase?.auth.signOut() }}><Users size={20}/><span>Profil</span></button>
+        </>}
       </nav>
     </div>
   )
@@ -266,11 +324,11 @@ function LoginCard({ error, onError, onCancel }: { error: string; onError: (valu
   )
 }
 
-function ModuleHeader({ title, onHome }: { title: string; onHome: () => void }) {
-  return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1><p className="subtitle">Date reale din MyLife.</p></div><button className="iconBtn" onClick={onHome}><Home size={19}/></button></div>
+function ModuleHeader({ title, onHome, actions }: { title: string; onHome: () => void; actions?: React.ReactNode }) {
+  return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1></div><div className="moduleHeaderActions"><button type="button" className="iconBtn" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button>{actions}</div></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void }) {
+function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number }) {
   const [categoryKind,setCategoryKind]=useState('expense')
   const [creating,setCreating]=useState(false)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
@@ -278,7 +336,8 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const [accountRecord,setAccountRecord]=useState<Account|null>(null)
   const selectedAccount=accounts.find(account=>account.id===accountRecord?.id)??accountRecord??undefined
   const openAccount=(account:Account)=>{setAccountRecord(account);setTab('accounts')}
-  const [tab, setTab] = useState<'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'>(target ? 'transactions' : 'reports')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  useEffect(() => { setAccountRecord(null); setMobileMenuOpen(false) }, [mobileNavVersion])
   const [selectedDay, setSelectedDay] = useState<string | null>(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   const [calendarMonth, setCalendarMonth] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()).slice(0,7))
   const monthlyTransactions = useMemo(() => transactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [transactions, calendarMonth])
@@ -289,8 +348,8 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'} onClick={()=>setCreating(true)}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
 
   return (
-    <section className="modulePage">
-      <ModuleHeader title="Finanțe" onHome={onHome}/>
+    <section className="modulePage financeModule">
+      <ModuleHeader title="Finanțe" onHome={onHome} actions={<div className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Mai multe pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>}/>
       <div className="subnav" aria-label="Submeniu Finanțe">
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
