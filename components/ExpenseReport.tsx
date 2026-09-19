@@ -82,11 +82,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
               <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); setSelected(null) } }}/></label>
             </> : <label>{period === 'Zi' ? 'Ziua' : 'Alege o zi din săptămână'}<input type="date" value={anchor} onChange={(event) => { if (event.target.value) { setAnchor(event.target.value); setSelected(null) } }}/></label>}
           </div>
-          {!loading && data && !invalidRange && !report.error && <>
-          <div className="summaryMini"><span>Categorii</span><strong>{categories.length}</strong></div>
-          <div className="summaryMini"><span>Tranzacții în raport</span><strong>{report.transactionCount}</strong></div>
-          <div className="summaryMini"><span>Cea mai mare categorie</span><strong>{percent(categories[0]?.percent ?? 0)}</strong></div>
-          </>}
         </div>
       </div>
 
