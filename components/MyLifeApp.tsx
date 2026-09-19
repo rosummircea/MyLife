@@ -67,10 +67,6 @@ const nav = [
   ['notes', 'Notițe', NotebookPen],
 ] as const
 
-function money(value: number | string, currency = 'RON') {
-  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value))
-}
-
 export default function MyLifeApp({ developmentAccess = false, initialData = null }: { developmentAccess?: boolean; initialData?: MyLifeData | null }) {
   const openMyLifeChat = () => window.open('https://chatgpt.com/c/6aaa7be2-2820-83eb-a8c5-d90d5b9d9cc7', '_blank', 'noopener,noreferrer')
   const supabase = getSupabaseClient()
@@ -88,7 +84,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const [refresh, setRefresh] = useState(0)
   const [connecting, setConnecting] = useState(false)
   const displayName = data?.profile.displayName ?? 'Mircea'
-  const householdId = data?.profile.householdId ?? null
   const accounts = data?.accounts ?? []
   const transactions = data?.transactions ?? []
   const documents = data?.documents ?? []
@@ -143,7 +138,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
 
   const activeArea = areas.find((area) => area.key === active)
   const ActiveIcon = activeArea?.icon
-  const totalAssets = accounts.filter((a) => a.currency.trim() === 'RON' && Number(a.current_balance ?? a.opening_balance) > 0).reduce((sum, a) => sum + Number(a.current_balance ?? a.opening_balance), 0)
 
   if (!authReady) return <div className="splash">Se încarcă MyLife…</div>
 
@@ -209,13 +203,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
                 const Icon = area.icon
                 return <button key={area.key} className="lifeCard" onClick={() => setActive(area.key)}><div className="cardTop"><div className={`domainIcon ${area.accent}`}><Icon size={21}/></div><span className="arrow">↗</span></div><strong>{area.label}</strong></button>
               })}
-            </section>
-
-            <section className="quickStats">
-              <div className="statCard"><span>Conturi active</span><strong>{loadingData ? '…' : accounts.length}</strong></div>
-              <div className="statCard"><span>Solduri pozitive · RON</span><strong>{loadingData ? '…' : money(totalAssets)}</strong></div>
-              <div className="statCard"><span>Documente</span><strong>{loadingData ? '…' : documents.length}</strong></div>
-              <div className="statCard"><span>Household</span><strong>{householdId ? 'Conectat' : '—'}</strong></div>
             </section>
           </>
         ) : active === 'finance' ? (
@@ -334,4 +321,3 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
     </section>
   )
 }
-

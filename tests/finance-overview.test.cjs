@@ -22,3 +22,13 @@ test('availability handles multiple credit cards, no limit, over-limit debt and 
  assert.equal(m.owners[0].available,27500)
  assert.equal(m.owners[0].creditBalance,-36500)
 })
+
+test('family availability equals owner totals including remaining credit, while net calculations retain debt',()=>{
+ const m=financeOverview([account('m','BT Mircea RON',5993.16),account('a','BT Andreea RON',185.58),account('credit','BT Card Andreea RON',-19248.37,{account_type:'credit_card'})],[],[loan('given',15000),loan('received',82000)],'RON','2026-09-18')
+ assert.equal(m.availableBalance,993037)
+ assert.equal(m.availableBalance,m.owners.reduce((sum,owner)=>sum+owner.available,0))
+ assert.equal(m.creditBalance,-1924837)
+ assert.equal(m.netBalance,-1306963)
+ assert.equal(m.afterLoans,-8006963)
+ assert.equal(financeOverview([],[],[],'RON','2026-09-18').availableBalance,0)
+})

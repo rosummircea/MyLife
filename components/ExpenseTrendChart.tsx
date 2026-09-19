@@ -20,12 +20,16 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
   const active = points.find((point) => point.key === activeKey)
   const maximum = Math.max(0, ...points.map((point) => point.amount))
   const unitLabel = result.unit === 'month' ? 'luni' : result.unit === 'hour' ? 'ore' : 'zile'
+  const [fromYear, fromMonth] = range.from.split('-').map(Number)
+  const [toYear, toMonth] = range.to.split('-').map(Number)
+  const monthCount = Math.max(1, (toYear - fromYear) * 12 + toMonth - fromMonth + 1)
+  const monthlyAverage = Math.round(total * 100 / monthCount) / 100
 
   return (
     <section className="expenseTrend" aria-label={`Evoluția cheltuielilor pentru ${name}`}>
       <div className="expenseTrendHeader">
         <div><p className="expenseTrendEyebrow">EVOLUȚIA CHELTUIELILOR</p><h3>{name}</h3><p>{range.from} – {range.to} · pe {unitLabel}</p></div>
-        <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong>{money(total)}</strong></button></div>
+        <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong>{money(total)}</strong></button><div className="expenseTrendAverage"><span>Medie pe lună</span><strong>{money(monthlyAverage)}</strong></div></div>
       </div>
       {result.error ? <p role="alert" className="expenseTrendHint">{result.error}</p> : <>
         <div className="expenseTrendReadout" aria-live="polite">
