@@ -1,7 +1,6 @@
 'use client'
 
-import type {ReactNode} from 'react'
-import { ArrowLeft } from 'lucide-react'
+import {useRef, type ReactNode} from 'react'
 import type { Account, MyLifeData, Transaction } from '@/lib/mylife-data'
 import { accountTransactionMonths } from '@/lib/account-transactions'
 import { accountAmounts } from '@/lib/account-display'
@@ -19,8 +18,26 @@ export default function AccountTransactions({ account, data, loading, onBack, on
 }) {
   const months = accountTransactionMonths(data?.transactions ?? [], account.id)
   const { balance, color } = accountAmounts(account)
-  return <section className="accountTransactions" aria-label={`Tranzacțiile ${account.name}`}>
-    <button className="accountTransactionsBack" type="button" onClick={onBack}><ArrowLeft size={18}/>Înapoi la conturi</button>
+  const swipeStart = useRef<{x:number;y:number;at:number}|null>(null)
+
+  return <section
+    className="accountTransactions"
+    aria-label={`Tranzacțiile ${account.name}`}
+    onTouchStart={event=>{
+      const touch=event.touches[0]
+      swipeStart.current=touch&&touch.clientX<=32?{x:touch.clientX,y:touch.clientY,at:Date.now()}:null
+    }}
+    onTouchEnd={event=>{
+      const start=swipeStart.current
+      swipeStart.current=null
+      const touch=event.changedTouches[0]
+      if(!start||!touch)return
+      const dx=touch.clientX-start.x
+      const dy=Math.abs(touch.clientY-start.y)
+      if(dx>=72&&dy<=Math.max(64,dx*.6)&&Date.now()-start.at<=1000)onBack()
+    }}
+    onTouchCancel={()=>{swipeStart.current=null}}
+  >
     <header className="accountTransactionsHeader"><div><div className="accountTransactionsTitle"><h2>{account.name}</h2>{actions}</div><p>Toate tranzacțiile · transferuri trimise și primite</p></div><div><span>Sold actual</span><strong className={`accountTransactionsBalance-${color}`}>{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: account.currency.trim() }).format(balance)}</strong></div></header>
     {management}
     {loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : !months.length ? <div className="emptyState">Nu există tranzacții înregistrate în acest cont.</div> : months.map(group => <section key={group.month} className="accountTransactionsMonth">
