@@ -5,8 +5,9 @@ import { CalendarRange, ChevronRight } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
+import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
-import { expenseContributionTransactions } from '@/lib/expense-transactions'
+import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
 function money(value: number) {
@@ -105,7 +106,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-details-${item.id}`} hidden={!expanded}>
-                {expanded && <SubcategoryDetails onSelectTransaction={onSelectTransaction} category={item} data={data} range={range}/>}
+                {expanded && <SubcategoryDetails onSelectTransaction={onSelectTransaction} category={item} data={data} range={range} period={period}/>}
               </div>
             </div>
           )
@@ -117,15 +118,17 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   )
 }
 
-function SubcategoryDetails({ category, data, range, onSelectTransaction }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; onSelectTransaction:(transaction:Transaction)=>void }) {
+function SubcategoryDetails({ category, data, range, period, onSelectTransaction }: { category: ExpenseCategory; data: MyLifeData; range: DateRange; period: ReportPeriod; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [expandedSubcategories, setExpandedSubcategories] = useState<Set<string>>(() => new Set())
-  const [highlightedSubcategory, setHighlightedSubcategory] = useState<string | null>(null)
+  const [selectedBucket,setSelectedBucket]=useState<{key:string;unit:string;label:string}|null>(null)
+  const [showCategoryTransactions,setShowCategoryTransactions]=useState(false)
   const [reportView, setReportView] = useState(0)
   const carouselRef = useRef<HTMLDivElement>(null)
   const distribution = subcategoryDistribution(category)
   const gradient = distributionGradient(distribution)
   const subcategoryContributions = useMemo(() => new Map(distribution.filter(item => expandedSubcategories.has(item.id)).map(item => [item.id, expenseContributionTransactions(data.transactions, data.categories, data.splits, range, { categoryId: category.id, subcategoryId: item.id })])), [data, range.from, range.to, category, expandedSubcategories])
-  const maximum = Math.max(0, ...distribution.map(item => item.amount))
+  const categoryContributions = useMemo(() => expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id}).filter(row=>!selectedBucket||contributionBucketKey(row.transaction,selectedBucket.unit)===selectedBucket.key),[data,range.from,range.to,category.id,selectedBucket])
+  const categoryContributionTotal=categoryContributions.reduce((sum,row)=>sum+Math.round(row.amount*100),0)/100
   const [fromYear, fromMonth] = range.from.split('-').map(Number)
   const [toYear, toMonth] = range.to.split('-').map(Number)
   const monthCount = Math.max(1, (toYear - fromYear) * 12 + toMonth - fromMonth + 1)
@@ -143,7 +146,6 @@ function SubcategoryDetails({ category, data, range, onSelectTransaction }: { ca
       else next.add(id)
       return next
     })
-    setHighlightedSubcategory(closing ? null : id)
   }
 
   return (
@@ -155,7 +157,7 @@ function SubcategoryDetails({ category, data, range, onSelectTransaction }: { ca
         </header>
         <div className="expenseReportViewSwitch" role="tablist" aria-label="Tipul graficului">
           <button type="button" role="tab" aria-selected={reportView===0} onClick={()=>showReport(0)}>Distribuție</button>
-          <button type="button" role="tab" aria-selected={reportView===1} onClick={()=>showReport(1)}>Bare</button>
+          <button type="button" role="tab" aria-selected={reportView===1} onClick={()=>showReport(1)}>Evoluție</button>
         </div>
         <div className="expenseReportCarousel" ref={carouselRef} onScroll={event => {
           const element = event.currentTarget
@@ -167,19 +169,35 @@ function SubcategoryDetails({ category, data, range, onSelectTransaction }: { ca
               <div className="expenseSubchartHole"><span>Total categorie</span><strong>{money(category.amount)}</strong></div>
             </div>
           </section>
-          <section className="expenseReportSlide expenseReportBarSlide" aria-label={`Comparația subcategoriilor pentru ${category.name}`}>
-            <div className="expenseDistributionBars">
-              {distribution.map(item => <button type="button" key={item.id} className={highlightedSubcategory===item.id?'highlighted':''} aria-pressed={highlightedSubcategory===item.id} onClick={()=>{
-                setHighlightedSubcategory(item.id)
-                requestAnimationFrame(()=>document.getElementById(`expense-subcategory-${item.id}`)?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'}))
-              }}>
-                <span className="expenseDistributionBarLabel"><strong>{item.name}</strong><small>{money(item.amount)} · {item.percent.toLocaleString('ro-RO',{minimumFractionDigits:1,maximumFractionDigits:1})}%</small></span>
-                <span className="expenseDistributionBarTrack"><span style={{width:`${maximum>0?Math.max(item.amount/maximum*100,item.amount>0?2:0):0}%`,backgroundColor:item.color}}/></span>
-              </button>)}
-            </div>
+          <section className="expenseReportSlide expenseReportTrendSlide" aria-label={`Evoluția cheltuielilor pentru ${category.name}`}>
+            <ExpenseTrendChart
+              compact
+              key={`${category.id}-${range.from}-${range.to}-${period}`}
+              data={data}
+              range={range}
+              period={period}
+              target={{categoryId:category.id}}
+              name={category.name}
+              color={category.color}
+              onSelectPoint={(key,unit,label)=>{
+                setSelectedBucket({key,unit,label})
+                setShowCategoryTransactions(true)
+              }}
+              onSelectTotal={()=>{
+                setSelectedBucket(null)
+                setShowCategoryTransactions(true)
+              }}
+            />
           </section>
         </div>
       </div>
+      {showCategoryTransactions && <section className="expenseContributionList expenseCategoryPeriodTransactions" aria-label={`Tranzacțiile ${category.name}`}>
+        <header>
+          <div><h3>Tranzacții · {category.name}</h3><p>{selectedBucket?.label ?? `${range.from} – ${range.to}`} · {categoryContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div>
+          <div className="expenseContributionActions"><strong>{money(categoryContributionTotal)}</strong><button type="button" className="expenseCategoryTrendButton" onClick={()=>{setShowCategoryTransactions(false);setSelectedBucket(null)}}>Închide</button></div>
+        </header>
+        <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={categoryContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(categoryContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru intervalul selectat."/>
+      </section>}
       <div className="expenseSubcategories">
         <div className="expenseSubcategoryToolbar">
           <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru tranzacțiile care compun suma.</p>
@@ -189,7 +207,7 @@ function SubcategoryDetails({ category, data, range, onSelectTransaction }: { ca
             const expanded = expandedSubcategories.has(item.id)
             const rows = subcategoryContributions.get(item.id) ?? []
             return (
-            <li key={item.id} className={`expenseSubcategory ${highlightedSubcategory===item.id?'highlighted':''}`}>
+            <li key={item.id} className="expenseSubcategory">
               <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
                 <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
                 <span className="expenseSubcategoryName">{item.name}</span>
