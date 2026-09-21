@@ -29,3 +29,193 @@
 @media(prefers-reduced-motion:reduce){.transactionBalanceSwitch span{transition:none}}
 
 .transactionEditForm .transactionBalanceToggleLabel{display:flex;align-items:center;gap:12px;font-size:13px}.transactionEditForm .transactionBalanceToggleHeader{flex-wrap:wrap}.transactionBalanceSwitch{outline-offset:5px}.transactionBalanceSwitch:before{content:"";position:absolute;inset:-7px 0}.transactionBalanceSwitch{position:relative}
+
+
+/* Modern transaction composer */
+.transactionCreateRedesign .transactionTypeToggle,
+.transactionCreateRedesign .transactionFixedType,
+.transactionCreateRedesign .transactionAccountField { grid-column:1 / -1; }
+
+.transactionTypeToggle {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+}
+.transactionEditForm .transactionTypeToggle button {
+  min-height:42px;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  font-weight:700;
+}
+.transactionEditForm .transactionTypeToggle button.active.expense {
+  background:rgba(255,126,145,.14);
+  color:#ff7e91;
+  box-shadow:inset 0 0 0 1px rgba(255,126,145,.24);
+}
+.transactionEditForm .transactionTypeToggle button.active.income {
+  background:rgba(107,221,173,.14);
+  color:#6bddad;
+  box-shadow:inset 0 0 0 1px rgba(107,221,173,.24);
+}
+.transactionFixedType {
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  padding:10px 14px;
+  border:1px solid rgba(118,168,255,.22);
+  border-radius:12px;
+  background:rgba(118,168,255,.08);
+  color:var(--blue);
+  font-weight:700;
+  font-size:13px;
+}
+.transactionCreateRedesign .transactionAmountField,
+.transactionCreateRedesign .transactionTitleField { align-self:end; }
+.transactionEditForm .transactionAmountInput {
+  min-height:58px;
+  font-size:28px!important;
+  font-weight:800;
+  letter-spacing:-.025em;
+}
+.transactionEditForm .transactionAmountInput.expense { color:#ff7e91!important; }
+.transactionEditForm .transactionAmountInput.income { color:#6bddad!important; }
+.transactionEditForm .transactionAmountInput.transfer { color:#76a8ff!important; }
+.transactionDescriptionField { grid-column:1 / -1; }
+
+.transactionPickerLabel {
+  display:block;
+  margin:0 0 8px;
+  color:var(--muted);
+  font-size:12px;
+}
+.transactionAccountOptions {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.transactionEditForm .transactionAccountOptions button {
+  min-width:0;
+  min-height:58px;
+  padding:9px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  text-align:left;
+  background:#101b2c;
+  border-color:var(--line);
+}
+.transactionEditForm .transactionAccountOptions button.selected {
+  border-color:rgba(118,168,255,.58);
+  background:rgba(118,168,255,.11);
+  box-shadow:inset 0 0 0 1px rgba(118,168,255,.18);
+}
+.transactionAccountOptions button>span:last-child { min-width:0; }
+.transactionAccountOptions button strong {
+  display:block;
+  color:var(--text);
+  font-size:12px;
+  line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.transactionAccountOptions button small {
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:9px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.transactionAccountIcon {
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#fff;
+  color:#23334d;
+}
+.transactionAccountIcon img { width:25px; height:25px; object-fit:contain; }
+
+.transactionCategoriesSection { overflow:visible!important; }
+.transactionCategoriesHeader {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+}
+.transactionEditForm .transactionCategoriesHeader h3 { margin:0; }
+.transactionSplitToggleLabel {
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center;
+  gap:10px!important;
+  color:var(--text)!important;
+}
+.transactionPrimarySplit { display:grid; gap:10px; }
+.transactionSplitAmount { max-width:180px; }
+
+.transactionCategoryPicker { display:grid; gap:9px; min-width:0; }
+.transactionCategoryOptions,
+.transactionSubcategoryOptions>div {
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  padding:1px 1px 6px;
+  scrollbar-width:thin;
+  overscroll-behavior-x:contain;
+}
+.transactionEditForm .transactionCategoryOptions button,
+.transactionEditForm .transactionSubcategoryOptions button {
+  flex:0 0 auto;
+  min-height:42px;
+  padding:6px 10px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border-radius:12px;
+  background:#101b2c;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.transactionEditForm .transactionCategoryOptions button.selected,
+.transactionEditForm .transactionSubcategoryOptions button.selected {
+  color:var(--text);
+  border-color:rgba(118,168,255,.5);
+  background:rgba(118,168,255,.1);
+}
+.transactionCategoryOptions .categoryIcon,
+.transactionSubcategoryOptions .categoryIcon { display:inline-flex!important; width:27px!important; height:27px!important; border-radius:8px!important; }
+.transactionSubcategoryOptions { margin-top:2px; }
+
+.transactionCreateRedesign .transactionEditSplit {
+  grid-template-columns:minmax(0,1fr) 150px auto;
+  padding:14px 0;
+  border-top:1px solid var(--line);
+}
+.transactionEditForm .transactionAddSplitButton {
+  margin-top:10px;
+  background:rgba(118,168,255,.08);
+  border-color:rgba(118,168,255,.22);
+}
+@media(max-width:720px) {
+  .transactionAccountOptions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+  .transactionCreateRedesign .transactionAmountField,
+  .transactionCreateRedesign .transactionTitleField { grid-column:1 / -1; }
+  .transactionEditForm .transactionAmountInput { font-size:26px!important; }
+  .transactionAccountOptions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .transactionEditForm .transactionAccountOptions button { min-height:54px; padding:8px; }
+  .transactionCreateRedesign .transactionEditSplit { grid-template-columns:1fr; }
+  .transactionSplitAmount { max-width:none; }
+}
