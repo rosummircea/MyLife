@@ -2,6 +2,7 @@
 import FinanceOverview from './FinanceOverview'
 import CategoriesWorkspace from './CategoriesWorkspace'
 import NewTransaction from './NewTransaction'
+import QuickAddSheet from './QuickAddSheet'
 
 import ExpenseReport from '@/components/ExpenseReport'
 import TransactionsCalendar from '@/components/TransactionsCalendar'
@@ -80,6 +81,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const openMyLifeChat = () => window.open('https://chatgpt.com/c/6aaa7be2-2820-83eb-a8c5-d90d5b9d9cc7', '_blank', 'noopener,noreferrer')
   const supabase = getSupabaseClient()
   const [query, setQuery] = useState('')
+  const [quickAddOpen,setQuickAddOpen]=useState(false)
   const [active, setActive] = useState<string>('home')
   const swipePageRef = useRef<HTMLElement>(null)
   const swipeBackdropRef = useRef<HTMLDivElement>(null)
@@ -378,17 +380,19 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
         )}
       </main>
 
+      {quickAddOpen&&<QuickAddSheet onClose={()=>setQuickAddOpen(false)}/>}
+
       <nav className="mobileNav" aria-label="Navigație mobilă">
         {active === 'finance' ? <>
           <button className={financeTab === 'overview' ? 'active' : ''} onClick={() => navigateFinance('overview')}><LayoutDashboard size={20}/><span>Overview</span></button>
           <button className={financeTab === 'transactions' ? 'active' : ''} onClick={() => navigateFinance('transactions')}><ReceiptText size={20}/><span>Tranzacții</span></button>
-          <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
+          <button type="button" className="aiMobile" aria-label="Adaugă în MyLife" aria-expanded={quickAddOpen} onClick={()=>setQuickAddOpen(true)}><Sparkles size={21}/></button>
           <button className={financeTab === 'accounts' ? 'active' : ''} onClick={() => navigateFinance('accounts')}><WalletCards size={20}/><span>Conturi</span></button>
           <button className={financeTab === 'reports' ? 'active' : ''} onClick={() => navigateFinance('reports')}><ChartPie size={20}/><span>Rapoarte</span></button>
         </> : <>
           <button className={active === 'home' ? 'active' : ''} onClick={() => setActive('home')}><Home size={20}/><span>Acasă</span></button>
           <button className={active === 'documents' ? 'active' : ''} onClick={() => setActive('documents')}><FileText size={20}/><span>Documente</span></button>
-          <button type="button" className="aiMobile" aria-label="Deschide Arhitectura MyLife MVP în ChatGPT" onClick={openMyLifeChat}><Sparkles size={21}/></button>
+          <button type="button" className="aiMobile" aria-label="Adaugă în MyLife" aria-expanded={quickAddOpen} onClick={()=>setQuickAddOpen(true)}><Sparkles size={21}/></button>
           <button className={active === 'notes' ? 'active' : ''} onClick={() => setActive('notes')}><NotebookPen size={20}/><span>Notițe</span></button>
           <button onClick={() => { if (!developmentAccess) void supabase?.auth.signOut() }}><Users size={20}/><span>Profil</span></button>
         </>}
