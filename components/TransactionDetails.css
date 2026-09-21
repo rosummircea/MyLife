@@ -219,3 +219,22 @@
   .transactionCreateRedesign .transactionEditSplit { grid-template-columns:1fr; }
   .transactionSplitAmount { max-width:none; }
 }
+
+/* Category picker hierarchy: override the legacy two-column picker layout. */
+.transactionEditForm .transactionCategoryPicker {
+  grid-template-columns:minmax(0,1fr)!important;
+  align-items:start;
+}
+.transactionEditForm .transactionSubcategoryOptions {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:6px;
+}
+.transactionEditForm .transactionSubcategoryOptions>div {
+  width:100%;
+}
+.transactionEditForm .transactionSubcategoryOptions .categoryIcon.categoryColorOnly {
+  width:12px!important;
+  height:28px!important;
+  border-radius:999px!important;
+}
