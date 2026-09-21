@@ -21,6 +21,9 @@
 .expenseReportCarousel { display:flex; width:100%; overflow-x:auto; scroll-snap-type:x mandatory; scroll-behavior:smooth; scrollbar-width:none; overscroll-behavior-x:contain; touch-action:pan-x pan-y; }
 .expenseReportCarousel::-webkit-scrollbar { display:none; }
 .expenseReportSlide { flex:0 0 100%; width:100%; min-width:0; min-height:300px; padding:18px 22px 24px; scroll-snap-align:start; scroll-snap-stop:always; display:grid; align-items:center; justify-items:center; }
+.expenseReportTrendSlide { display:block; align-self:stretch; }
+.expenseReportTrendSlide .expenseTrend { width:100%; min-height:100%; border:0; padding:4px 0 0; background:transparent; }
+.expenseReportTrendSlide .expenseTrendReadout { margin-top:0; }
 .expenseSubchart { width:min(220px,70vw); aspect-ratio:1; border-radius:50%; position:relative; }
 .expenseSubchartHole {
   position: absolute; inset: 22%; border-radius: 50%; background: #0c1727;
@@ -28,14 +31,6 @@
 }
 .expenseSubchartHole span { font-size: 9px; color: var(--muted); }
 .expenseSubchartHole strong { font-size: 13px; }
-.expenseDistributionBars { display:grid; align-content:start; gap:10px; width:min(760px,100%); max-height:330px; padding:2px; overflow-y:auto; scrollbar-width:thin; }
-.expenseDistributionBars button { display:grid; grid-template-columns:minmax(130px,210px) minmax(0,1fr); align-items:center; gap:14px; width:100%; min-height:43px; padding:6px 8px; border:1px solid transparent; border-radius:11px; color:var(--text); background:transparent; text-align:left; }
-.expenseDistributionBars button:hover,.expenseDistributionBars button.highlighted { border-color:rgba(118,168,255,.32); background:rgba(118,168,255,.08); }
-.expenseDistributionBarLabel { display:grid; gap:3px; min-width:0; }
-.expenseDistributionBarLabel strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
-.expenseDistributionBarLabel small { color:var(--muted); font-size:10px; }
-.expenseDistributionBarTrack { display:block; height:14px; border-radius:999px; background:rgba(255,255,255,.055); overflow:hidden; }
-.expenseDistributionBarTrack>span { display:block; height:100%; min-width:2px; border-radius:999px; transition:width .25s ease; }
 .expenseSubcategories { min-width: 0; }
 .expenseDetailsCaption { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .expenseSubcategories ul { margin: 0; padding: 0; list-style: none; }
@@ -56,8 +51,7 @@
   .expenseReportDeckTotals strong { font-size:15px; }
   .expenseReportViewSwitch { padding:4px 12px 10px; }
   .expenseReportSlide { min-height:290px; padding:14px 12px 20px; }
-  .expenseDistributionBars { gap:7px; }
-  .expenseDistributionBars button { grid-template-columns:minmax(105px,42%) minmax(0,1fr); gap:9px; min-height:40px; padding:5px 6px; }
+  .expenseReportTrendSlide { padding:12px 10px 18px; }
   .expenseSubcategories { width: 100%; }
   .expenseCategory .expenseName { min-width: 0; overflow-wrap: anywhere; }
   .expenseSubcategoryButton { grid-template-columns: 10px minmax(0,1fr) auto 48px; gap: 8px; }
@@ -90,6 +84,9 @@
 .expenseContributionList h3 { margin:0; font-size:17px; overflow-wrap:anywhere; }
 .expenseContributionList header p { font-size:11px; line-height:1.5; color:var(--muted); margin:6px 0 0; }
 .expenseContributionList header>strong { font-size:20px; }
+.expenseContributionActions { display:flex; align-items:center; gap:10px; }
+.expenseContributionActions>strong { font-size:20px; }
+.expenseCategoryPeriodTransactions { margin:0; }
 .transactionList .transactionContributionTotal { display:block; white-space:normal; color:var(--muted); font-size:10px; font-weight:400; margin-top:4px; }
 .expenseCategoryButton,.expenseSubcategoryButton{grid-template-columns:30px minmax(0,1fr) auto auto;column-gap:12px}@media(max-width:600px){.expenseCategoryButton,.expenseSubcategoryButton{column-gap:8px}}
 .reportWrap .expenseRow{grid-template-columns:30px minmax(0,1fr) auto 20px}
@@ -122,5 +119,4 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .expenseReportCarousel { scroll-behavior:auto; }
-  .expenseDistributionBarTrack>span { transition:none; }
 }
