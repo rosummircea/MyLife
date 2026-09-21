@@ -3,9 +3,10 @@
 import {FileUp,Image as ImageIcon,PenLine,X} from 'lucide-react'
 import {useEffect,useRef} from 'react'
 import ReceiptCapture from './ReceiptCapture'
+import type {MyLifeData} from '@/lib/mylife-data'
 import './QuickAddSheet.css'
 
-export default function QuickAddSheet({onClose}:{onClose:()=>void}){
+export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;data:MyLifeData|null;onSaved:()=>void}){
   const dialog=useRef<HTMLDialogElement>(null)
 
   useEffect(()=>{dialog.current?.showModal()},[])
@@ -27,7 +28,7 @@ export default function QuickAddSheet({onClose}:{onClose:()=>void}){
       </header>
 
       <div className="quickAddOptions">
-        <ReceiptCapture menuMode/>
+        <ReceiptCapture menuMode data={data} onCompleted={()=>{onSaved();dialog.current?.close()}}/>
 
         <button type="button" className="quickAddOption" disabled>
           <ImageIcon size={20}/>
