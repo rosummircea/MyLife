@@ -114,3 +114,190 @@
     border-radius:22px;
   }
 }
+
+
+.quickAddSheet .receiptCaptureFlow { display:grid; gap:12px; }
+.quickAddSheet .receiptAnalysisLoading {
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  border:1px solid rgba(118,168,255,.22);
+  border-radius:13px;
+  background:rgba(118,168,255,.055);
+  color:var(--muted);
+  font-size:12px;
+}
+.quickAddSheet .receiptAnalysisLoading span {
+  width:16px;
+  height:16px;
+  border:2px solid rgba(118,168,255,.28);
+  border-top-color:var(--blue);
+  border-radius:50%;
+  animation:receiptAnalysisSpin .75s linear infinite;
+}
+@keyframes receiptAnalysisSpin { to { transform:rotate(360deg); } }
+
+.receiptReview {
+  display:grid;
+  gap:12px;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:17px;
+  background:rgba(255,255,255,.025);
+}
+.receiptReviewHeader {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px;
+}
+.receiptReviewHeader>div { min-width:0; }
+.receiptReviewHeader small,
+.receiptReviewMeta,
+.receiptAccountSelect,
+.receiptSplitSummary>strong,
+.receiptItemsReview>strong {
+  color:var(--muted);
+  font-size:11px;
+}
+.receiptReviewHeader strong {
+  display:block;
+  margin-top:3px;
+  font-size:17px;
+}
+.receiptReviewTotal { text-align:right; }
+.receiptReviewTotal strong { color:#ff8b9c; }
+.receiptReviewMeta {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding-top:9px;
+  border-top:1px solid var(--line);
+}
+.receiptAccountSelect {
+  display:grid;
+  gap:7px;
+}
+.receiptAccountSelect select {
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#111d2e;
+  color:var(--text);
+  padding:9px 11px;
+  font-size:14px;
+}
+
+.receiptSplitSummary {
+  display:grid;
+  gap:7px;
+  padding:11px;
+  border-radius:13px;
+  background:rgba(118,168,255,.055);
+  border:1px solid rgba(118,168,255,.16);
+}
+.receiptSplitSummary>div {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  font-size:12px;
+}
+.receiptSplitSummary span { color:var(--text); }
+.receiptSplitSummary b { white-space:nowrap; }
+
+.receiptItemsReview {
+  display:grid;
+  gap:8px;
+}
+.receiptReviewItem {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:4px 12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.receiptReviewItem:last-child { border-bottom:0; }
+.receiptReviewItem>div { min-width:0; }
+.receiptReviewItem span {
+  display:block;
+  font-size:12px;
+  font-weight:700;
+}
+.receiptReviewItem small {
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.3;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.receiptReviewItem>b {
+  font-size:12px;
+  white-space:nowrap;
+}
+.receiptReviewItem select {
+  grid-column:1 / -1;
+  min-width:0;
+  width:100%;
+  min-height:36px;
+  padding:6px 9px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#101b2c;
+  color:var(--muted);
+  font-size:11px;
+}
+.receiptReviewWarnings,
+.receiptBalanceError {
+  margin:0;
+  padding:10px 11px;
+  border-radius:11px;
+  font-size:11px;
+  line-height:1.45;
+}
+.receiptReviewWarnings {
+  border:1px solid rgba(255,201,90,.2);
+  background:rgba(255,201,90,.07);
+  color:#f5d488;
+}
+.receiptReviewWarnings p { margin:0; }
+.receiptReviewWarnings p+p { margin-top:5px; }
+.receiptBalanceError {
+  border:1px solid rgba(255,126,145,.24);
+  background:rgba(255,126,145,.08);
+  color:#ff9aac;
+}
+.receiptConfirmActions {
+  display:grid;
+  gap:7px;
+}
+.quickAddSheet .receiptConfirmButton {
+  min-height:48px;
+  border:0;
+  border-radius:13px;
+  background:linear-gradient(145deg,#74adff,#71e0c6);
+  color:#07101c;
+  font-weight:850;
+}
+.quickAddSheet .receiptConfirmButton:disabled {
+  opacity:.42;
+}
+.receiptConfirmActions small {
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
+}
+
+@media(max-width:480px) {
+  .receiptReviewHeader strong { font-size:16px; }
+  .receiptReview { padding:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .quickAddSheet .receiptAnalysisLoading span { animation:none; }
+}
