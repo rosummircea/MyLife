@@ -12,6 +12,14 @@ import {balanceDelta,initialAllocations,resizeAllocations,type TransactionEdit} 
 
 export type TransactionCreateMode = 'standard' | 'transfer' | 'adjustment'
 
+
+function defaultCategoryId(data:MyLifeData,type:string){
+  const rows=data.categories.filter(category=>category.kind===type&&category.is_active)
+  const roots=rows.filter(category=>!category.parent_id)
+  const uncategorized=roots.find(category=>category.name.trim().toLocaleLowerCase('ro')==='necategorizat')
+  return uncategorized?.id??roots[0]?.id??rows[0]?.id??null
+}
+
 type AccountPickerProps = {
   accounts: Account[]
   value: string
@@ -69,6 +77,12 @@ export default function TransactionEditor({
   onSavingChange:(saving:boolean)=>void
 }){
   const originalAllocations = initialAllocations(data.splits.filter(s => s.transaction_id === tx.id), Number(tx.amount))
+  const initialCategoryId = defaultCategoryId(data,tx.transaction_type)
+  const initialSplits = originalAllocations.length
+    ? originalAllocations
+    : ['expense','income'].includes(tx.transaction_type) && initialCategoryId
+      ? [{category_id:initialCategoryId,amount:Number(tx.amount)}]
+      : []
   const [form,setForm] = useState<TransactionEdit>(() => ({
     affects_balance: creating ? true : tx.affects_balance !== false && tx.affects_balance !== 'false',
     transaction_type: tx.transaction_type,
@@ -80,7 +94,7 @@ export default function TransactionEditor({
     title: tx.title ?? (tx.transaction_type === 'transfer' ? '' : tx.merchant || tx.description || ''),
     merchant: tx.merchant ?? '',
     description: tx.description ?? '',
-    splits: originalAllocations,
+    splits: initialSplits,
   }))
   const [saving,setSaving] = useState(false)
   const [error,setError] = useState('')
@@ -159,14 +173,12 @@ export default function TransactionEditor({
   }
 
   const setPrimaryCategory = (categoryId:string|null) => {
-    if(categoryId === null && !splitMode){
-      patch({splits:[]})
-      return
-    }
+    const resolvedCategoryId=categoryId??defaultCategoryId(data,form.transaction_type)
+    if(!resolvedCategoryId)return
     if(primary){
-      patch({splits:[{...primary,category_id:categoryId,amount:splitMode ? primary.amount : form.amount},...form.splits.slice(1)]})
+      patch({splits:[{...primary,category_id:resolvedCategoryId,amount:splitMode ? primary.amount : form.amount},...form.splits.slice(1)]})
     }else{
-      patch({splits:[{category_id:categoryId,amount:form.amount}]})
+      patch({splits:[{category_id:resolvedCategoryId,amount:form.amount}]})
     }
   }
 
@@ -176,13 +188,21 @@ export default function TransactionEditor({
       patch({splits:form.splits.length ? [{...form.splits[0],amount:form.amount}] : []})
     }else{
       setSplitMode(true)
-      if(!form.splits.length) patch({splits:[{category_id:null,amount:form.amount}]})
+      if(!form.splits.length){
+        const categoryId=defaultCategoryId(data,form.transaction_type)
+        if(categoryId)patch({splits:[{category_id:categoryId,amount:form.amount}]})
+      }
     }
   }
 
   const setStandardType = (type:'expense'|'income') => {
     setSplitMode(false)
-    patch({transaction_type:type,transfer_account_id:null,splits:[]})
+    const categoryId=defaultCategoryId(data,type)
+    patch({
+      transaction_type:type,
+      transfer_account_id:null,
+      splits:categoryId?[{category_id:categoryId,amount:form.amount}]:[],
+    })
   }
 
   const destinationAccounts = data.accounts.filter(account => account.id !== form.account_id && account.currency.trim() === form.currency)
@@ -198,7 +218,13 @@ export default function TransactionEditor({
       </div> : creating ? <div className="transactionFixedType">{createMode === 'transfer' ? 'Transfer între conturi' : 'Ajustare sold'}</div> : <label>Tip
         <select aria-label="Tip" value={form.transaction_type} onChange={event => {
           setSplitMode(false)
-          patch({transaction_type:event.target.value,transfer_account_id:event.target.value === 'transfer' ? form.transfer_account_id : null,splits:[]})
+          const nextType=event.target.value
+          const categoryId=defaultCategoryId(data,nextType)
+          patch({
+            transaction_type:nextType,
+            transfer_account_id:nextType === 'transfer' ? form.transfer_account_id : null,
+            splits:['expense','income'].includes(nextType)&&categoryId?[{category_id:categoryId,amount:form.amount}]:[],
+          })
         }}>
           <option value="expense">Cheltuială</option>
           <option value="income">Venit</option>
@@ -269,7 +295,10 @@ export default function TransactionEditor({
           </div>
         }) : null}
 
-        {splitMode ? <button className="transactionAddSplitButton" type="button" onClick={() => patch({splits:[...form.splits,{category_id:null,amount:0}]})}>+ Adaugă încă o categorie</button> : null}
+        {splitMode ? <button className="transactionAddSplitButton" type="button" onClick={() => {
+          const categoryId=defaultCategoryId(data,form.transaction_type)
+          if(categoryId)patch({splits:[...form.splits,{category_id:categoryId,amount:0}]})
+        }}>+ Adaugă încă o categorie</button> : null}
       </section> : null}
 
       <section>
