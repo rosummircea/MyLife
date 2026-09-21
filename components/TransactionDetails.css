@@ -296,3 +296,34 @@
   min-width:0!important;
   max-width:100%!important;
 }
+
+/* Compact metadata row in the transaction composer. */
+.transactionMetaRow {
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:minmax(150px,.42fr) minmax(0,.58fr);
+  gap:12px;
+  min-width:0;
+}
+.transactionMetaRow>label {
+  min-width:0;
+}
+.transactionEditForm .transactionDateField input[type="date"] {
+  text-align:left;
+  padding-inline:12px!important;
+}
+@media(max-width:600px) {
+  .transactionMetaRow {
+    grid-template-columns:minmax(150px,.45fr) minmax(0,.55fr);
+    gap:10px;
+  }
+  .transactionEditForm .transactionDateField input[type="date"],
+  .transactionEditForm .transactionMerchantField input {
+    min-height:48px;
+  }
+}
+@media(max-width:380px) {
+  .transactionMetaRow {
+    grid-template-columns:1fr;
+  }
+}
