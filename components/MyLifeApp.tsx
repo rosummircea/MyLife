@@ -439,7 +439,7 @@ function ModuleHeader({ title, onHome, actions }: { title: string; onHome: () =>
 
 function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
   const [categoryKind,setCategoryKind]=useState('expense')
-  const [creating,setCreating]=useState(false)
+  const [creating,setCreating]=useState<{mode:'standard'|'transfer'|'adjustment';accountId?:string}|null>(null)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
   const detail = transactions.find(item => item.id === detailId)
   const [accountRecord,setAccountRecord]=useState<Account|null>(null)
@@ -472,7 +472,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
   const selectedDayLabel = new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'} onClick={()=>setCreating(true)}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
+  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'standard'})}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
 
   return (
     <section className="modulePage financeModule">
@@ -487,12 +487,12 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
-      {creating&&data&&<NewTransaction data={data} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);onSaved()}}/>}
+      {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
-        <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
+        <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
-        <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
+        <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div><div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}>+ Adaugă transfer</button></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
