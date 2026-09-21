@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from 'react'
 import type {MyLifeData,Transaction} from '@/lib/mylife-data'
 import {bucharestDay} from '@/lib/expense-report'
 import TransactionEditor,{type TransactionCreateMode} from './TransactionEditor'
+import ReceiptCapture from './ReceiptCapture'
 import './TransactionDetails.css'
 
 export default function NewTransaction({data,onClose,onSaved,mode='standard',accountId}:{data:MyLifeData;onClose:()=>void;onSaved:()=>void;mode?:TransactionCreateMode;accountId?:string}){
@@ -14,5 +15,5 @@ export default function NewTransaction({data,onClose,onSaved,mode='standard',acc
  })
  useEffect(()=>{dialog.current?.showModal()},[])
  const title=mode==='transfer'?'Transfer nou':mode==='adjustment'?'Ajustare sold':'Tranzacție nouă'
- return <dialog ref={dialog} className="transactionDetails" onClose={onClose} onCancel={e=>{if(saving)e.preventDefault()}} aria-label={title}><header><h2>{title}</h2><button disabled={saving} onClick={()=>dialog.current?.close()} aria-label="Închide">×</button></header><TransactionEditor creating createMode={mode} transaction={transaction} data={data} onCancel={onClose} onSaved={onSaved} onSavingChange={setSaving}/></dialog>
+ return <dialog ref={dialog} className="transactionDetails" onClose={onClose} onCancel={e=>{if(saving)e.preventDefault()}} aria-label={title}><header><h2>{title}</h2><button disabled={saving} onClick={()=>dialog.current?.close()} aria-label="Închide">×</button></header>{mode==='standard'?<ReceiptCapture/>:null}<TransactionEditor creating createMode={mode} transaction={transaction} data={data} onCancel={onClose} onSaved={onSaved} onSavingChange={setSaving}/></dialog>
 }
