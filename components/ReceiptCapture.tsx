@@ -25,7 +25,7 @@ function extensionFor(file:File){
   return byMime[file.type]??'jpg'
 }
 
-export default function ReceiptCapture(){
+export default function ReceiptCapture({menuMode=false}:{menuMode?:boolean}){
   const inputRef=useRef<HTMLInputElement>(null)
   const [receipt,setReceipt]=useState<UploadedReceipt|null>(null)
   const [uploading,setUploading]=useState(false)
@@ -108,7 +108,7 @@ export default function ReceiptCapture(){
     }
   }
 
-  return <section className="receiptCapture" aria-label="Scanează bon">
+  return <section className={`receiptCapture ${menuMode?'receiptCaptureMenuMode':''}`} aria-label="Scanează bon">
     <input
       ref={inputRef}
       className="receiptCaptureInput"
@@ -120,7 +120,7 @@ export default function ReceiptCapture(){
 
     {!receipt?<button type="button" className="receiptCaptureButton" disabled={uploading} onClick={()=>inputRef.current?.click()}>
       <Camera size={20}/>
-      <span><strong>{uploading?'Se încarcă bonul…':'Scanează bon'}</strong><small>Deschide camera și salvează fotografia în MyLife.</small></span>
+      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera pentru un bon sau alt document.':'Deschide camera și salvează fotografia în MyLife.'}</small></span>
     </button>:<div className="receiptCapturePreview">
       <img src={receipt.previewUrl} alt="Previzualizare bon"/>
       <div>
