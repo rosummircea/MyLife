@@ -65,7 +65,7 @@ export async function POST(request:Request){
     const {data:categories,error:categoryError}=await supabase
       .from('finance_categories')
       .select('id,name,parent_id,kind,is_active')
-      .eq('household_id',body.householdId)
+      .or(`household_id.eq.${body.householdId},household_id.is.null`)
       .eq('kind','expense')
       .eq('is_active',true)
 
