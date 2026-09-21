@@ -266,8 +266,10 @@ export default function TransactionEditor({
         />
       </div> : null}
 
-      <label>Data<input required type="date" value={form.day} onChange={event => patch({day:event.target.value})}/></label>
-      <label>Comerciant<input maxLength={1000} value={form.merchant} onChange={event => patch({merchant:event.target.value})}/></label>
+      <div className="transactionMetaRow">
+        <label className="transactionDateField">Data<input required type="date" value={form.day} onChange={event => patch({day:event.target.value})}/></label>
+        <label className="transactionMerchantField">Comerciant<input maxLength={1000} value={form.merchant} onChange={event => patch({merchant:event.target.value})}/></label>
+      </div>
       <label className="transactionDescriptionField">Descriere<textarea maxLength={4000} value={form.description} onChange={event => patch({description:event.target.value})}/></label>
 
       {form.transaction_type === 'expense' || form.transaction_type === 'income' ? <section className="transactionCategoriesSection">
