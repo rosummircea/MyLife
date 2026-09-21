@@ -46,9 +46,6 @@ export default function CategoryPicker({rows,value,onChange,label}:Props){
     <span className="transactionPickerLabel">{label}</span>
 
     <div className="transactionCategoryOptions" role="group" aria-label={label}>
-      <button type="button" className={!selectedRoot ? 'selected' : ''} aria-pressed={!selectedRoot} onClick={() => onChange(null)}>
-        <span>Fără categorie</span>
-      </button>
       {roots.map(category => {
         const active = selectedRoot?.id === category.id
         return <button type="button" key={category.id} className={active ? 'selected' : ''} aria-pressed={active} onClick={() => onChange(category.id)}>
