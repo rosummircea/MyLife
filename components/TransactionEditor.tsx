@@ -95,7 +95,7 @@ export default function TransactionEditor({transaction:tx,data,onCancel,onSaved,
     <CategoryPicker label={`Categoria ${index+1}`} rows={categories} value={split.category_id} onChange={id=>patch({splits:form.splits.map((s,i)=>i===index?{...s,category_id:id}:s)})}/>
     <label>Sumă categorie<input required min="0" step="0.01" type="number" value={split.amount} onChange={e=>patch({splits:form.splits.map((s,i)=>i===index?{...s,amount:e.target.value}:s)})}/></label>
     <button type="button" onClick={()=>patch({splits:form.splits.filter((_,i)=>i!==index)})}>Elimină</button>
-   </div>)}
+   </div>})}
    {splitMode&&<button className="transactionAddSplitButton" type="button" onClick={()=>patch({splits:[...form.splits,{category_id:null,amount:0}]})}>+ Adaugă încă o categorie</button>}
   </section>}
 
