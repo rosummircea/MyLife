@@ -7,9 +7,9 @@ import './ExpenseTrendChart.css'
 
 const money = (amount: number) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(amount)
 
-export default function ExpenseTrendChart({ data, range, period, target, name, color, onSelectPoint, onSelectTotal }: {
+export default function ExpenseTrendChart({ data, range, period, target, name, color, onSelectPoint, onSelectTotal, compact = false }: {
   onSelectPoint?:(key:string,unit:string,label:string)=>void;onSelectTotal?:()=>void
-  data: MyLifeData; range: DateRange; period: ReportPeriod; target: ExpenseTrendTarget; name: string; color: string
+  data: MyLifeData; range: DateRange; period: ReportPeriod; target: ExpenseTrendTarget; name: string; color: string; compact?: boolean
 }) {
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const result = useMemo(() => {
@@ -27,10 +27,10 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
 
   return (
     <section className="expenseTrend" aria-label={`Evoluția cheltuielilor pentru ${name}`}>
-      <div className="expenseTrendHeader">
+      {!compact && <div className="expenseTrendHeader">
         <div><p className="expenseTrendEyebrow">EVOLUȚIA CHELTUIELILOR</p><h3>{name}</h3><p>{range.from} – {range.to} · pe {unitLabel}</p></div>
         <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong>{money(total)}</strong></button><div className="expenseTrendAverage"><span>Medie pe lună</span><strong>{money(monthlyAverage)}</strong></div></div>
-      </div>
+      </div>}
       {result.error ? <p role="alert" className="expenseTrendHint">{result.error}</p> : <>
         <div className="expenseTrendReadout" aria-live="polite">
           {active ? <><span>{active.fullLabel}</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${active.fullLabel}`} onClick={()=>onSelectPoint?.(active.key,result.unit,active.fullLabel)}><strong>{money(active.amount)}</strong></button></> : <span>Apasă pe o bară pentru sumă și tranzacțiile care o compun.</span>}
