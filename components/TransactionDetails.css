@@ -282,3 +282,17 @@
     padding-bottom:2px;
   }
 }
+
+/* iOS date fields can keep a large intrinsic width; force them into the sheet. */
+.transactionDetails .transactionEditForm label,
+.transactionDetails .transactionEditForm :is(input,select,textarea) {
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.transactionDetails .transactionEditForm input[type="date"] {
+  display:block;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
