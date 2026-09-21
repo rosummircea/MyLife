@@ -120,3 +120,11 @@
 @media (prefers-reduced-motion: reduce) {
   .expenseReportCarousel { scroll-behavior:auto; }
 }
+
+.expenseSubcategoryTrend { margin-top:14px; min-width:0; }
+.expenseSubcategoryTrend .expenseTrend { border-color:rgba(118,168,255,.16); background:rgba(7,16,29,.22); padding:14px; }
+.expenseSubcategoryTrend .expenseTrendReadout { margin-top:0; }
+@media(max-width:600px) {
+  .expenseSubcategoryTrend { margin-top:12px; }
+  .expenseSubcategoryTrend .expenseTrend { padding:12px 8px; }
+}
