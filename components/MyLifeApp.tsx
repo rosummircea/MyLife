@@ -380,7 +380,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
         )}
       </main>
 
-      {quickAddOpen&&<QuickAddSheet onClose={()=>setQuickAddOpen(false)}/>}
+      {quickAddOpen&&<QuickAddSheet data={data} onSaved={()=>setRefresh(value=>value+1)} onClose={()=>setQuickAddOpen(false)}/>}
 
       <nav className="mobileNav" aria-label="Navigație mobilă">
         {active === 'finance' ? <>
