@@ -238,3 +238,47 @@
   height:28px!important;
   border-radius:999px!important;
 }
+
+/* Transaction sheet must never make the page pan horizontally. */
+.transactionDetails {
+  box-sizing:border-box;
+  max-width:100vw;
+  overflow-x:hidden;
+  overscroll-behavior-x:none;
+}
+.transactionDetails .transactionEditForm,
+.transactionDetails .transactionEditForm fieldset,
+.transactionDetails .transactionEditForm section,
+.transactionDetails .transactionPrimarySplit,
+.transactionDetails .transactionCategoryPicker,
+.transactionDetails .transactionSubcategoryOptions {
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+.transactionDetails .transactionCategoryOptions,
+.transactionDetails .transactionSubcategoryOptions>div {
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  display:flex;
+  flex-wrap:wrap;
+  overflow-x:visible;
+  overscroll-behavior-x:none;
+}
+.transactionDetails .transactionCategoryOptions button,
+.transactionDetails .transactionSubcategoryOptions button {
+  max-width:100%;
+}
+@media(max-width:600px) {
+  .transactionDetails {
+    overflow-x:hidden;
+    touch-action:pan-y;
+  }
+  .transactionDetails .transactionCategoryOptions,
+  .transactionDetails .transactionSubcategoryOptions>div {
+    gap:7px;
+    padding-bottom:2px;
+  }
+}
