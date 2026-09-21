@@ -327,3 +327,121 @@
     grid-template-columns:1fr;
   }
 }
+
+
+/* Receipt capture: step 1 of the assisted transaction flow. */
+.transactionDetails .receiptCapture {
+  margin:18px 0 0;
+  padding:0;
+  border:0;
+  background:transparent;
+  min-width:0;
+}
+.receiptCaptureInput {
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+.transactionDetails .receiptCaptureButton {
+  width:100%;
+  min-height:66px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border:1px dashed rgba(118,168,255,.45);
+  border-radius:14px;
+  background:rgba(118,168,255,.07);
+  color:var(--text);
+  text-align:left;
+}
+.receiptCaptureButton>svg {
+  flex:0 0 auto;
+  color:var(--blue);
+}
+.receiptCaptureButton span {
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.receiptCaptureButton strong {
+  font-size:14px;
+}
+.receiptCaptureButton small,
+.receiptCapturePreview small {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.receiptCapturePreview {
+  display:grid;
+  grid-template-columns:76px minmax(0,1fr);
+  gap:12px;
+  padding:10px;
+  border:1px solid rgba(107,221,173,.25);
+  border-radius:14px;
+  background:rgba(107,221,173,.055);
+}
+.receiptCapturePreview>img {
+  width:76px;
+  height:88px;
+  object-fit:cover;
+  border-radius:10px;
+  background:#09121f;
+}
+.receiptCapturePreview>div {
+  min-width:0;
+  display:grid;
+  align-content:center;
+  gap:4px;
+}
+.receiptCapturePreview strong {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+}
+.receiptCaptureReady {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:#6bddad;
+  font-size:11px;
+  font-weight:700;
+}
+.receiptCaptureActions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:5px;
+}
+.transactionDetails .receiptCaptureActions button {
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 9px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  font-size:11px;
+}
+.receiptCaptureError {
+  margin:8px 2px 0;
+  color:#ff7e91;
+  font-size:11px;
+}
+
+@media(max-width:600px) {
+  .transactionDetails .receiptCapture { margin-top:14px; }
+  .transactionDetails .receiptCaptureButton { min-height:62px; }
+  .receiptCapturePreview { grid-template-columns:66px minmax(0,1fr); }
+  .receiptCapturePreview>img { width:66px; height:78px; }
+}
