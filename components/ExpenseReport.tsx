@@ -219,6 +219,16 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
                 {expanded && <>
                   <p className="expenseInlineCaption">{rows.length} tranzacții · {range.from} – {range.to} · Apasă pentru detalii și editare.</p>
                   <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={rows.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(rows.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
+                  {rows.length>0&&<div className="expenseSubcategoryTrend"><ExpenseTrendChart
+                    compact
+                    key={`subcategory-${item.id}-${range.from}-${range.to}-${period}`}
+                    data={data}
+                    range={range}
+                    period={period}
+                    target={{categoryId:category.id,subcategoryId:item.id}}
+                    name={`${category.name} · ${item.name}`}
+                    color={item.color}
+                  /></div>}
                   {rows.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele reprezintă partea repartizată aici; suma integrală este indicată separat.</p>}
                 </>}
               </div>
