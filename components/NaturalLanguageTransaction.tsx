@@ -17,7 +17,7 @@ type InterpretedTransaction={
   description:string
   account_id:string|null
   transfer_account_id:string|null
-  category_id:string|null
+  splits:Array<{category_id:string;amount:number}>
   confidence:number
   warnings:string[]
 }
@@ -201,8 +201,8 @@ export default function NaturalLanguageTransaction({data,onCompleted}:{data:MyLi
     description:draft.description,
     account_id:draft.account_id??'',
     transfer_account_id:draft.transfer_account_id,
-    ...(draft.category_id&&draft.transaction_type!=='transfer'
-      ?{splits:[{category_id:draft.category_id,amount:draft.amount}]}
+    ...(draft.transaction_type!=='transfer'&&draft.splits?.length
+      ?{splits:draft.splits}
       :{}),
   }:undefined
 
