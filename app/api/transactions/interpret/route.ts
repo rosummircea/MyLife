@@ -159,6 +159,7 @@ Răspunde EXCLUSIV cu JSON valid:
       },
       body:JSON.stringify({
         model:'gpt-5.6-luna',
+        reasoning:{effort:'none'},
         input:[{role:'user',content:[{type:'input_text',text:prompt}]}],
         text:{format:{type:'json_object'}},
       }),
