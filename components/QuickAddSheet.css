@@ -320,3 +320,164 @@
 @media(prefers-reduced-motion:reduce) {
   .quickAddSheet .receiptAnalysisLoading span { animation:none; }
 }
+
+
+.naturalLanguageTransaction {
+  display:grid;
+  gap:11px;
+  padding:13px;
+  border:1px solid rgba(118,168,255,.28);
+  border-radius:15px;
+  background:rgba(118,168,255,.055);
+}
+.naturalLanguageHeader {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.naturalLanguageHeader>div {
+  display:grid;
+  gap:3px;
+}
+.naturalLanguageHeader strong {
+  font-size:14px;
+}
+.naturalLanguageHeader small {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.4;
+}
+.naturalLanguageHeader>button {
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  flex:0 0 32px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.035);
+  color:var(--text);
+  font-size:20px;
+}
+.naturalLanguageComposer {
+  display:grid;
+  gap:10px;
+}
+.naturalLanguageComposer textarea {
+  width:100%;
+  min-height:112px;
+  resize:vertical;
+  box-sizing:border-box;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#101b2c;
+  color:var(--text);
+  font:inherit;
+  font-size:14px;
+  line-height:1.45;
+}
+.naturalLanguageComposer textarea::placeholder {
+  color:var(--muted);
+}
+.naturalLanguageActions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.naturalLanguageActions button,
+.naturalLanguageOriginal button {
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 11px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:rgba(255,255,255,.035);
+  color:var(--text);
+  font-weight:700;
+}
+.naturalLanguageActions .naturalLanguageAnalyze {
+  flex:1;
+  border-color:rgba(113,224,198,.28);
+  background:rgba(113,224,198,.09);
+}
+.naturalLanguageActions .recording {
+  border-color:rgba(255,126,145,.38);
+  background:rgba(255,126,145,.12);
+  color:#ff9aac;
+}
+.naturalLanguageActions button:disabled,
+.naturalLanguageHeader button:disabled,
+.naturalLanguageOriginal button:disabled {
+  opacity:.45;
+}
+.naturalLanguageStatus {
+  margin:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:11px;
+}
+.naturalLanguageStatus span {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#ff8b9c;
+  box-shadow:0 0 0 4px rgba(255,139,156,.12);
+}
+.naturalLanguageReview {
+  display:grid;
+  gap:11px;
+  min-width:0;
+}
+.naturalLanguageOriginal {
+  display:grid;
+  gap:6px;
+  padding:10px 11px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(255,255,255,.025);
+}
+.naturalLanguageOriginal small {
+  color:var(--muted);
+  font-size:10px;
+}
+.naturalLanguageOriginal p {
+  margin:0;
+  font-size:12px;
+  line-height:1.45;
+}
+.naturalLanguageOriginal button {
+  width:max-content;
+  min-height:34px;
+  padding:6px 9px;
+  font-size:11px;
+}
+.naturalLanguageWarnings {
+  padding:10px 11px;
+  border:1px solid rgba(255,201,90,.2);
+  border-radius:11px;
+  background:rgba(255,201,90,.07);
+  color:#f5d488;
+  font-size:11px;
+  line-height:1.45;
+}
+.naturalLanguageWarnings p {
+  margin:0;
+}
+.naturalLanguageWarnings p+p {
+  margin-top:5px;
+}
+.naturalLanguageTransaction .transactionEditForm {
+  margin:0;
+  min-width:0;
+}
+.naturalLanguageTransaction .transactionEditForm fieldset {
+  min-width:0;
+}
