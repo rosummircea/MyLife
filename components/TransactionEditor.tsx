@@ -85,21 +85,22 @@ export default function TransactionEditor({
     : ['expense','income'].includes(tx.transaction_type) && initialCategoryId
       ? [{category_id:initialCategoryId,amount:Number(tx.amount)}]
       : []
-  const [form,setForm] = useState<TransactionEdit>(() => ({
-    affects_balance: creating ? true : tx.affects_balance !== false && tx.affects_balance !== 'false',
-    transaction_type: tx.transaction_type,
-    account_id: tx.account_id ?? '',
-    transfer_account_id: tx.transfer_account_id ?? null,
-    amount: Number(tx.amount),
-    currency: tx.currency.trim(),
-    day: bucharestDay(new Date(tx.transaction_date)),
-    title: tx.title ?? (tx.transaction_type === 'transfer' ? '' : tx.merchant || tx.description || ''),
-    merchant: tx.merchant ?? '',
-    description: tx.description ?? '',
-    splits: initialSplits,
-    ...initialValues,
-    splits:initialValues?.splits??initialSplits,
-  }))
+  const [form,setForm] = useState<TransactionEdit>(() => {
+    const base:TransactionEdit={
+      affects_balance: creating ? true : tx.affects_balance !== false && tx.affects_balance !== 'false',
+      transaction_type: tx.transaction_type,
+      account_id: tx.account_id ?? '',
+      transfer_account_id: tx.transfer_account_id ?? null,
+      amount: Number(tx.amount),
+      currency: tx.currency.trim(),
+      day: bucharestDay(new Date(tx.transaction_date)),
+      title: tx.title ?? (tx.transaction_type === 'transfer' ? '' : tx.merchant || tx.description || ''),
+      merchant: tx.merchant ?? '',
+      description: tx.description ?? '',
+      splits: initialSplits,
+    }
+    return {...base,...initialValues,splits:initialValues?.splits??base.splits}
+  })
   const [saving,setSaving] = useState(false)
   const [error,setError] = useState('')
   const [splitMode,setSplitMode] = useState(!creating && originalAllocations.length > 1)
