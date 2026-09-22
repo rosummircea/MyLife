@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server'
 import {createClient} from '@supabase/supabase-js'
 import type {ReceiptAnalysis,ReceiptAnalysisItem} from '@/lib/receipt-analysis'
 
+// Redeploy trigger after OPENAI_API_KEY configuration
 export const runtime='nodejs'
 export const maxDuration=60
 
