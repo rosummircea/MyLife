@@ -1,6 +1,5 @@
 import {NextResponse} from 'next/server'
 import {createClient} from '@supabase/supabase-js'
-import {generateText} from 'ai'
 import type {ReceiptAnalysis,ReceiptAnalysisItem} from '@/lib/receipt-analysis'
 
 export const runtime='nodejs'
@@ -125,18 +124,46 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
   "warnings": []
 }`
 
-    const result=await generateText({
-      model:'openai/gpt-5.6-terra',
-      messages:[{
-        role:'user',
-        content:[
-          {type:'text',text:prompt},
-          {type:'image',image:signed.signedUrl},
-        ],
-      }],
+    const openaiKey=process.env.OPENAI_API_KEY
+    if(!openaiKey)return NextResponse.json({error:'OpenAI API nu este configurat pe server.'},{status:503})
+
+    const openaiResponse=await fetch('https://api.openai.com/v1/responses',{
+      method:'POST',
+      headers:{
+        Authorization:`Bearer ${openaiKey}`,
+        'Content-Type':'application/json',
+      },
+      body:JSON.stringify({
+        model:'gpt-5.6-terra',
+        input:[{
+          role:'user',
+          content:[
+            {type:'input_text',text:prompt},
+            {type:'input_image',image_url:signed.signedUrl,detail:'high'},
+          ],
+        }],
+        text:{format:{type:'json_object'}},
+      }),
     })
 
-    const parsed=jsonFromText(result.text) as {
+    const openaiPayload=await openaiResponse.json() as {
+      output?:Array<{content?:Array<{type?:string;text?:string}>}>
+      error?:{message?:string;code?:string}
+    }
+
+    if(!openaiResponse.ok){
+      const message=openaiPayload.error?.message??'OpenAI API a refuzat analiza bonului.'
+      throw new Error(`OpenAI API: ${message}`)
+    }
+
+    const outputText=openaiPayload.output
+      ?.flatMap(item=>item.content??[])
+      .find(item=>item.type==='output_text'&&typeof item.text==='string')
+      ?.text
+
+    if(!outputText)throw new Error('OpenAI API nu a returnat rezultatul analizei.')
+
+    const parsed=jsonFromText(outputText) as {
       merchant?:unknown
       date?:unknown
       currency?:unknown
@@ -202,9 +229,14 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
     console.error('Receipt analysis failed',error)
     const message=error instanceof Error?error.message:'Analiza bonului a eșuat.'
     const lower=message.toLowerCase()
-    if(lower.includes('ai gateway')&&lower.includes('credit card')){
+    if(lower.includes('openai api')&&(lower.includes('insufficient_quota')||lower.includes('quota')||lower.includes('billing'))){
       return NextResponse.json({
-        error:'Analiza AI este configurată corect, dar Vercel AI Gateway nu are billing activat. Adaugă un card în Vercel, apoi apasă din nou „Analizează”. Bonul rămâne salvat și nu trebuie refăcută poza.',
+        error:'OpenAI API nu are credit disponibil. Adaugă billing/credit în OpenAI Platform, apoi apasă din nou „Analizează”. Bonul rămâne salvat.',
+      },{status:503})
+    }
+    if(lower.includes('openai api')&&(lower.includes('api key')||lower.includes('authentication')||lower.includes('incorrect api key'))){
+      return NextResponse.json({
+        error:'Cheia OpenAI API nu este validă. Verifică OPENAI_API_KEY în Vercel și încearcă din nou.',
       },{status:503})
     }
     return NextResponse.json({error:message},{status:500})
