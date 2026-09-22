@@ -544,3 +544,135 @@
   border-color:rgba(113,224,198,.28);
   background:rgba(113,224,198,.09);
 }
+
+
+.quickAddAskOption {
+  border-color:rgba(167,139,250,.28);
+  background:rgba(167,139,250,.07);
+}
+.askMyLife {
+  display:grid;
+  gap:10px;
+  padding:13px;
+  border:1px solid rgba(167,139,250,.28);
+  border-radius:15px;
+  background:rgba(167,139,250,.055);
+}
+.askMyLifeHeader {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.askMyLifeHeader>div {
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.askMyLifeHeader strong {
+  font-size:14px;
+}
+.askMyLifeHeader small {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.4;
+}
+.askMyLifeHeader>button {
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.035);
+  color:var(--text);
+  font-size:20px;
+}
+.askMyLife textarea {
+  width:100%;
+  min-height:88px;
+  box-sizing:border-box;
+  resize:vertical;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#101b2c;
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  line-height:1.45;
+}
+.askMyLife textarea::placeholder {
+  color:var(--muted);
+}
+.askMyLifeActions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.askMyLifeActions button,
+.askMyLifeAnswer button {
+  min-height:39px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+  color:var(--text);
+  font-weight:700;
+  font-size:11px;
+}
+.askMyLifeActions .askMyLifeSend {
+  flex:1;
+  border-color:rgba(167,139,250,.32);
+  background:rgba(167,139,250,.11);
+}
+.askMyLifeActions .recording {
+  border-color:rgba(255,126,145,.38);
+  background:rgba(255,126,145,.12);
+  color:#ff9aac;
+}
+.askMyLifeActions button:disabled,
+.askMyLifeHeader button:disabled {
+  opacity:.45;
+}
+.askMyLifeStatus {
+  margin:0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:11px;
+}
+.askMyLifeStatus span {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#a78bfa;
+  box-shadow:0 0 0 4px rgba(167,139,250,.12);
+}
+.askMyLifeAnswer {
+  display:grid;
+  gap:9px;
+  padding:11px;
+  border:1px solid rgba(113,224,198,.22);
+  border-radius:12px;
+  background:rgba(113,224,198,.065);
+}
+.askMyLifeAnswer p {
+  margin:0;
+  color:var(--text);
+  font-size:12px;
+  line-height:1.5;
+}
+.askMyLifeAnswer button {
+  width:max-content;
+  max-width:100%;
+  border-color:rgba(113,224,198,.28);
+  background:rgba(113,224,198,.09);
+}
