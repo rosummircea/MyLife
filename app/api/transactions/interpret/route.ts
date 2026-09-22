@@ -124,8 +124,14 @@ Reguli:
 - Folosește account_id numai din lista de conturi și numai când textul îl indică suficient de clar. Altfel null.
 - Pentru transfer, transfer_account_id este contul destinație și trebuie să fie diferit de account_id. Altfel null.
 - Dacă moneda nu este spusă, folosește moneda contului identificat; dacă nu există cont identificat, folosește RON.
-- Pentru expense sau income, category_id trebuie să fie exact un UUID din categoria corespunzătoare tipului. Alege categoria semantic cea mai potrivită. Dacă nu este clar, preferă o categorie numită Necategorizat dacă există.
-- Pentru transfer, category_id trebuie să fie null.
+- Pentru expense sau income, folosește splits pentru defalcare pe categorii.
+- Dacă textul descrie explicit mai multe componente ale aceleiași plăți (de ex. „563 lei, din care 214 tigăi”), creează câte un split pentru fiecare componentă și calculează restul până la total dacă este determinabil fără ambiguitate.
+- Fiecare split.category_id trebuie să fie exact un UUID din categoria corespunzătoare tipului tranzacției.
+- Fiecare split.amount trebuie să fie pozitiv, cu maximum două zecimale.
+- Suma tuturor split.amount trebuie să fie exact egală cu amount. Nu dubla totalul și nu crea linii informative.
+- Dacă plata are o singură categorie, întoarce un singur split.
+- Dacă o componentă nu poate fi clasificată sigur, preferă o categorie numită Necategorizat dacă există.
+- Pentru transfer, splits trebuie să fie [].
 - merchant este comerciantul sau contrapartea, dacă apare.
 - title trebuie să fie scurt, natural și util în listă.
 - description păstrează contextul util din textul original.
@@ -143,7 +149,9 @@ Răspunde EXCLUSIV cu JSON valid:
   "description":"string",
   "account_id":null,
   "transfer_account_id":null,
-  "category_id":null,
+  "splits":[
+    {"category_id":"uuid","amount":0}
+  ],
   "confidence":0.9,
   "warnings":[]
 }`
@@ -197,19 +205,50 @@ Răspunde EXCLUSIV cu JSON valid:
     const currency=/^[A-Z]{3}$/.test(parsedCurrency)?parsedCurrency:(selectedAccount?.currency.trim().toUpperCase()||'RON')
     const day=typeof parsed.day==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.day)?parsed.day:today
 
-    let categoryId:null|string=null
+    const warnings=Array.isArray(parsed.warnings)?parsed.warnings.map(String).filter(Boolean):[]
+    let splits:Array<{category_id:string;amount:number}>=[]
     if(transactionType!=='transfer'){
-      const requestedCategory=typeof parsed.category_id==='string'?parsed.category_id:null
-      const validRequested=requestedCategory
-        ?categoryOptions.find(category=>category.id===requestedCategory&&category.kind===transactionType)
-        :undefined
       const uncategorized=categoryOptions.find(category=>
         category.kind===transactionType&&category.path.toLocaleLowerCase('ro').split(' → ').pop()==='necategorizat'
       )
-      categoryId=validRequested?.id??uncategorized?.id??categoryOptions.find(category=>category.kind===transactionType)?.id??null
+      const fallbackCategory=uncategorized??categoryOptions.find(category=>category.kind===transactionType)
+      const rawSplits=Array.isArray(parsed.splits)?parsed.splits:[]
+      const grouped=new Map<string,number>()
+
+      for(const raw of rawSplits){
+        if(!raw||typeof raw!=='object')continue
+        const row=raw as Record<string,unknown>
+        const requestedCategory=typeof row.category_id==='string'?row.category_id:null
+        const validCategory=requestedCategory
+          ?categoryOptions.find(category=>category.id===requestedCategory&&category.kind===transactionType)
+          :undefined
+        const categoryId=validCategory?.id??fallbackCategory?.id
+        const value=Number(row.amount)
+        const cents=Math.round(value*100)
+        if(!categoryId||!Number.isFinite(value)||cents<=0)continue
+        grouped.set(categoryId,(grouped.get(categoryId)??0)+cents)
+      }
+
+      splits=[...grouped.entries()].map(([category_id,cents])=>({category_id,amount:cents/100}))
+      const splitCents=splits.reduce((sum,split)=>sum+Math.round(split.amount*100),0)
+      const totalCents=Math.round(amount*100)
+
+      if(!splits.length&&fallbackCategory&&totalCents>0){
+        splits=[{category_id:fallbackCategory.id,amount}]
+      }else if(splitCents!==totalCents&&fallbackCategory&&totalCents>0){
+        const remainder=totalCents-splitCents
+        if(remainder>0){
+          const existing=splits.find(split=>split.category_id===fallbackCategory.id)
+          if(existing)existing.amount=Math.round((existing.amount+remainder/100)*100)/100
+          else splits.push({category_id:fallbackCategory.id,amount:remainder/100})
+          warnings.push('Am completat diferența până la total într-o categorie de rezervă. Verifică defalcarea înainte de salvare.')
+        }else{
+          splits=[{category_id:fallbackCategory.id,amount}]
+          warnings.push('Defalcarea detectată depășea totalul, așa că am revenit la o singură categorie. Verifică înainte de salvare.')
+        }
+      }
     }
 
-    const warnings=Array.isArray(parsed.warnings)?parsed.warnings.map(String).filter(Boolean):[]
     if(!amount)warnings.push('Nu am identificat sigur suma. Completeaz-o înainte de salvare.')
     if(!requestedAccount)warnings.push(transactionType==='transfer'?'Alege contul sursă înainte de salvare.':'Alege contul folosit înainte de salvare.')
     if(transactionType==='transfer'&&!requestedTransfer)warnings.push('Alege contul destinație înainte de salvare.')
@@ -224,7 +263,7 @@ Răspunde EXCLUSIV cu JSON valid:
       description:String(parsed.description??text).trim()||text,
       account_id:requestedAccount,
       transfer_account_id:transactionType==='transfer'?requestedTransfer:null,
-      category_id:categoryId,
+      splits,
       confidence:Math.max(0,Math.min(1,Number(parsed.confidence)||0)),
       warnings:[...new Set(warnings)],
     })
