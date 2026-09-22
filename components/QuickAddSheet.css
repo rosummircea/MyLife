@@ -481,3 +481,66 @@
 .naturalLanguageTransaction .transactionEditForm fieldset {
   min-width:0;
 }
+
+
+.quickAddUnifiedAttachment {
+  border-color:rgba(118,168,255,.35);
+  background:rgba(118,168,255,.08);
+}
+.quickAddImageChoice {
+  display:grid;
+  grid-template-columns:82px minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  padding:11px;
+  border:1px solid rgba(113,224,198,.25);
+  border-radius:15px;
+  background:rgba(113,224,198,.055);
+}
+.quickAddImageChoice>img {
+  width:82px;
+  height:96px;
+  object-fit:cover;
+  border-radius:11px;
+  background:#0a1320;
+}
+.quickAddImageChoice>div {
+  min-width:0;
+  display:grid;
+  gap:6px;
+}
+.quickAddImageChoice strong {
+  font-size:13px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.quickAddImageChoice small {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.35;
+}
+.quickAddImageChoice>div>div {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:3px;
+}
+.quickAddImageChoice button {
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+  color:var(--text);
+  font-weight:700;
+  font-size:11px;
+}
+.quickAddImageChoice button:first-child {
+  border-color:rgba(113,224,198,.28);
+  background:rgba(113,224,198,.09);
+}
