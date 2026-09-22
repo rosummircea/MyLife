@@ -1,8 +1,9 @@
 'use client'
 
-import {FileUp,Image as ImageIcon,PenLine,X} from 'lucide-react'
+import {FileUp,Image as ImageIcon,X} from 'lucide-react'
 import {useEffect,useRef,useState} from 'react'
 import ReceiptCapture from './ReceiptCapture'
+import NaturalLanguageTransaction from './NaturalLanguageTransaction'
 import {bucharestDay} from '@/lib/expense-report'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
@@ -143,11 +144,7 @@ export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;d
           <em>Files</em>
         </button>
 
-        <button type="button" className="quickAddOption" disabled>
-          <PenLine size={20}/>
-          <span><strong>Scrie sau dictează</strong><small>Descrii tranzacția în limbaj natural.</small></span>
-          <em>În curând</em>
-        </button>
+        <NaturalLanguageTransaction data={data} onCompleted={()=>{onSaved();dialog.current?.close()}}/>
       </div>
 
       {uploadError?<p className="quickAddUploadError" role="alert">{uploadError}</p>:null}
