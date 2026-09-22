@@ -137,7 +137,7 @@ export default function ReceiptCapture({
       const exactCurrency=data.accounts.filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===result.currency)
       if(exactCurrency.length===1)setSelectedAccountId(exactCurrency[0].id)
       await client.from('documents').update({
-        extra:{kind:'receipt',receipt_status:'review',source:'finance_transaction_camera'},
+        extra:{kind:'receipt',receipt_status:'review',temporary:false,source:'quick_add_camera'},
       }).eq('id',target.documentId)
     }catch(analysisError){
       setError(analysisError instanceof Error?analysisError.message:'Analiza bonului a eșuat.')
@@ -196,7 +196,7 @@ export default function ReceiptCapture({
       }
       receiptRef.current=uploaded
       setReceipt(uploaded)
-      if(!menuMode)await analyzeReceipt(uploaded)
+      await analyzeReceipt(uploaded)
     }catch(uploadError){
       setError(uploadError instanceof Error?uploadError.message:'Bonul nu a putut fi încărcat.')
     }finally{
@@ -243,6 +243,20 @@ export default function ReceiptCapture({
       })
       if(createError)throw new Error(createError.message)
 
+      const createdUpdatedAt=created&&typeof created==='object'&&'updated_at' in created?String(created.updated_at):null
+      const {data:linkedTransaction,error:linkError}=await client.from('finance_transactions')
+        .update({attachment_document_id:receipt.documentId,source:'receipt'})
+        .eq('id',transactionId)
+        .select('updated_at')
+        .single()
+
+      if(linkError){
+        if(createdUpdatedAt)await client.rpc('finance_delete_transaction',{p_id:transactionId,p_expected_updated_at:createdUpdatedAt})
+        throw new Error(`Bonul nu a putut fi atașat tranzacției: ${linkError.message}`)
+      }
+
+      const rollbackUpdatedAt=linkedTransaction?.updated_at?String(linkedTransaction.updated_at):createdUpdatedAt
+
       const {error:itemsError}=await client.from('finance_receipt_items').insert(analysis.items.map(item=>({
         transaction_id:transactionId,
         line_no:item.line_no,
@@ -257,17 +271,22 @@ export default function ReceiptCapture({
       })))
 
       if(itemsError){
-        const expectedUpdatedAt=created&&typeof created==='object'&&'updated_at' in created?String(created.updated_at):null
-        if(expectedUpdatedAt)await client.rpc('finance_delete_transaction',{p_id:transactionId,p_expected_updated_at:expectedUpdatedAt})
+        if(rollbackUpdatedAt)await client.rpc('finance_delete_transaction',{p_id:transactionId,p_expected_updated_at:rollbackUpdatedAt})
         throw new Error(`Produsele nu au putut fi salvate: ${itemsError.message}`)
       }
 
-      const cleaned=await cleanupReceipt(receipt,false)
-      if(!cleaned){
-        await client.from('documents').update({
-          extra:{kind:'receipt',receipt_status:'cleanup_pending',temporary:true,source:'finance_transaction_camera'},
-        }).eq('id',receipt.documentId)
+      const {error:documentUpdateError}=await client.from('documents').update({
+        issuer:analysis.merchant,
+        document_date:analysis.date??bucharestDay(new Date()),
+        extra:{kind:'receipt',receipt_status:'confirmed',temporary:false,source:'quick_add_camera',transaction_id:transactionId},
+      }).eq('id',receipt.documentId)
+
+      if(documentUpdateError){
+        if(rollbackUpdatedAt)await client.rpc('finance_delete_transaction',{p_id:transactionId,p_expected_updated_at:rollbackUpdatedAt})
+        throw new Error(`Bonul nu a putut fi finalizat: ${documentUpdateError.message}`)
       }
+
+      URL.revokeObjectURL(receipt.previewUrl)
       receiptRef.current=null
       setReceipt(null)
       setAnalysis(null)
@@ -293,17 +312,17 @@ export default function ReceiptCapture({
 
     {!receipt?<button type="button" className="receiptCaptureButton" disabled={busy} onClick={()=>inputRef.current?.click()}>
       <Camera size={20}/>
-      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera și salvează bonul în MyLife.':'Deschide camera și salvează bonul.'}</small></span>
+      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera, salvează și analizează bonul.':'Deschide camera, salvează și analizează bonul.'}</small></span>
     </button>:<div className="receiptCaptureFlow">
       <div className="receiptCapturePreview">
         <img src={receipt.previewUrl} alt="Previzualizare bon"/>
         <div>
           <span className="receiptCaptureReady"><CheckCircle2 size={16}/> {analyzing?'Se analizează…':analysis?'Gata pentru review':'Bon încărcat'}</span>
           <strong>{receipt.fileName}</strong>
-          <small>{analyzing?'Citesc produsele și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':menuMode?'Poza este salvată în MyLife. Analiza AI o adăugăm în pasul următor.':'Poza este salvată în MyLife.'}</small>
+          <small>{analyzing?'Citesc produsele și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':'Poza este salvată în MyLife. Poți porni din nou analiza.'}</small>
           <div className="receiptCaptureActions">
             <button type="button" disabled={busy} onClick={()=>inputRef.current?.click()}><ImagePlus size={16}/> Schimbă poza</button>
-            {analysis?<button type="button" disabled={busy} onClick={()=>void analyzeReceipt(receipt)}><RefreshCw size={16}/> Reanalizează</button>:null}
+            <button type="button" disabled={busy} onClick={()=>void analyzeReceipt(receipt)}><RefreshCw size={16}/> {analysis?'Reanalizează':'Analizează'}</button>
             <button type="button" disabled={busy} onClick={()=>void removeReceipt()}><Trash2 size={16}/> Șterge</button>
           </div>
         </div>
@@ -346,7 +365,7 @@ export default function ReceiptCapture({
 
         <div className="receiptConfirmActions">
           <button type="button" className="receiptConfirmButton" disabled={busy||!analysis.balanced||!selectedAccountId} onClick={()=>void confirmTransaction()}>{confirming?'Se salvează…':'Confirmă tranzacția'}</button>
-          <small>După confirmare, fotografia temporară este ștearsă din Supabase. Rămân tranzacția, defalcarea și produsele extrase.</small>
+          <small>După confirmare, bonul rămâne salvat și atașat tranzacției, împreună cu defalcarea și produsele extrase.</small>
         </div>
       </div>:null}
     </div>}
