@@ -78,7 +78,6 @@ export default function ReceiptCapture({
 
   useEffect(()=>{receiptRef.current=receipt},[receipt])
 
-  useEffect(()=>()=>{const target=receiptRef.current;if(target)void cleanupReceipt(target,false)},[])
 
   async function cleanupReceipt(target:UploadedReceipt,mutate=true){
     const client=getSupabaseClient()
@@ -180,8 +179,8 @@ export default function ReceiptCapture({
         mime_type:file.type||'image/jpeg',
         document_date:bucharestDay(new Date()),
         storage_path:storagePath,
-        notes:'Bon temporar încărcat din Finanțe',
-        extra:{kind:'receipt',receipt_status:'captured',temporary:true,source:'finance_transaction_camera'},
+        notes:'Bon încărcat din Quick Add',
+        extra:{kind:'receipt',receipt_status:'captured',temporary:false,source:'quick_add_camera'},
       }).select('id').single()
 
       if(documentError||!document){
@@ -197,7 +196,7 @@ export default function ReceiptCapture({
       }
       receiptRef.current=uploaded
       setReceipt(uploaded)
-      await analyzeReceipt(uploaded)
+      if(!menuMode)await analyzeReceipt(uploaded)
     }catch(uploadError){
       setError(uploadError instanceof Error?uploadError.message:'Bonul nu a putut fi încărcat.')
     }finally{
@@ -294,14 +293,14 @@ export default function ReceiptCapture({
 
     {!receipt?<button type="button" className="receiptCaptureButton" disabled={busy} onClick={()=>inputRef.current?.click()}>
       <Camera size={20}/>
-      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera pentru un bon.':'Deschide camera și analizează bonul.'}</small></span>
+      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera și salvează bonul în MyLife.':'Deschide camera și salvează bonul.'}</small></span>
     </button>:<div className="receiptCaptureFlow">
       <div className="receiptCapturePreview">
         <img src={receipt.previewUrl} alt="Previzualizare bon"/>
         <div>
           <span className="receiptCaptureReady"><CheckCircle2 size={16}/> {analyzing?'Se analizează…':analysis?'Gata pentru review':'Bon încărcat'}</span>
           <strong>{receipt.fileName}</strong>
-          <small>{analyzing?'Citesc produsele și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':'Poza este temporară și va fi ștearsă după folosire.'}</small>
+          <small>{analyzing?'Citesc produsele și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':menuMode?'Poza este salvată în MyLife. Analiza AI o adăugăm în pasul următor.':'Poza este salvată în MyLife.'}</small>
           <div className="receiptCaptureActions">
             <button type="button" disabled={busy} onClick={()=>inputRef.current?.click()}><ImagePlus size={16}/> Schimbă poza</button>
             {analysis?<button type="button" disabled={busy} onClick={()=>void analyzeReceipt(receipt)}><RefreshCw size={16}/> Reanalizează</button>:null}
