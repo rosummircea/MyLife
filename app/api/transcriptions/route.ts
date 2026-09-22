@@ -38,7 +38,8 @@ export async function POST(request:Request){
     if(!(audio instanceof File))return NextResponse.json({error:'Lipsește înregistrarea audio.'},{status:400})
     if(audio.size<=0)return NextResponse.json({error:'Înregistrarea este goală.'},{status:400})
     if(audio.size>12*1024*1024)return NextResponse.json({error:'Înregistrarea este prea lungă. Încearcă o dictare mai scurtă.'},{status:413})
-    if(audio.type&&!allowedAudioTypes.has(audio.type))return NextResponse.json({error:'Format audio nesuportat.'},{status:415})
+    const baseAudioType=audio.type.split(';')[0]
+    if(baseAudioType&&!allowedAudioTypes.has(baseAudioType))return NextResponse.json({error:'Format audio nesuportat.'},{status:415})
 
     const openaiKey=process.env.OPENAI_API_KEY
     if(!openaiKey)return NextResponse.json({error:'OpenAI API nu este configurat pe server.'},{status:503})
