@@ -67,10 +67,12 @@ export default function TransactionEditor({
   onSavingChange,
   creating=false,
   createMode='standard',
+  initialValues,
 }:{
   transaction:Transaction
   creating?:boolean
   createMode?:TransactionCreateMode
+  initialValues?:Partial<TransactionEdit>
   data:MyLifeData
   onCancel:()=>void
   onSaved:()=>void
@@ -95,6 +97,8 @@ export default function TransactionEditor({
     merchant: tx.merchant ?? '',
     description: tx.description ?? '',
     splits: initialSplits,
+    ...initialValues,
+    splits:initialValues?.splits??initialSplits,
   }))
   const [saving,setSaving] = useState(false)
   const [error,setError] = useState('')
