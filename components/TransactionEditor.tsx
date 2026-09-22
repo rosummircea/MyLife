@@ -115,6 +115,10 @@ export default function TransactionEditor({
       setError('Suma trebuie să fie validă, cu cel mult două zecimale.')
       return
     }
+    if(!form.account_id){
+      setError(form.transaction_type === 'transfer' ? 'Alege contul sursă.' : 'Alege contul tranzacției.')
+      return
+    }
     if(form.transaction_type === 'transfer' && (!form.transfer_account_id || form.transfer_account_id === form.account_id)){
       setError('Alege două conturi distincte.')
       return
