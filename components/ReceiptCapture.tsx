@@ -62,7 +62,10 @@ export default function ReceiptCapture({
   menuMode=false,
   data,
   onCompleted,
-}:{menuMode?:boolean;data?:MyLifeData|null;onCompleted?:()=>void}){
+  externalFile=null,
+  hideInitialTrigger=false,
+  onExternalFileConsumed,
+}:{menuMode?:boolean;data?:MyLifeData|null;onCompleted?:()=>void;externalFile?:File|null;hideInitialTrigger?:boolean;onExternalFileConsumed?:()=>void}){
   const inputRef=useRef<HTMLInputElement>(null)
   const receiptRef=useRef<UploadedReceipt|null>(null)
   const [receipt,setReceipt]=useState<UploadedReceipt|null>(null)
@@ -72,11 +75,17 @@ export default function ReceiptCapture({
   const [analyzing,setAnalyzing]=useState(false)
   const [confirming,setConfirming]=useState(false)
   const [error,setError]=useState('')
+  const externalFileRef=useRef<File|null>(null)
 
   const categories=useMemo(()=>data?categoryPaths(data):[],[data])
   const matchingAccounts=useMemo(()=>data?.accounts.filter(account=>account.is_active!==false&&(!analysis||account.currency.trim().toUpperCase()===analysis.currency))??[],[data,analysis])
 
   useEffect(()=>{receiptRef.current=receipt},[receipt])
+  useEffect(()=>{
+    if(!externalFile||externalFileRef.current===externalFile)return
+    externalFileRef.current=externalFile
+    void upload(externalFile).finally(()=>onExternalFileConsumed?.())
+  },[externalFile,onExternalFileConsumed])
 
 
   async function cleanupReceipt(target:UploadedReceipt,mutate=true){
@@ -306,14 +315,14 @@ export default function ReceiptCapture({
       className="receiptCaptureInput"
       type="file"
       accept="image/*"
-      capture="environment"
+      {...(!menuMode?{capture:'environment' as const}:{})}
       onChange={event=>{const file=event.target.files?.[0];if(file)void upload(file)}}
     />
 
-    {!receipt?<button type="button" className="receiptCaptureButton" disabled={busy} onClick={()=>inputRef.current?.click()}>
+    {!receipt?(hideInitialTrigger?null:<button type="button" className="receiptCaptureButton" disabled={busy} onClick={()=>inputRef.current?.click()}>
       <Camera size={20}/>
-      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Fă o poză':'Scanează bon'}</strong><small>{menuMode?'Deschide camera, salvează și analizează bonul.':'Deschide camera, salvează și analizează bonul.'}</small></span>
-    </button>:<div className="receiptCaptureFlow">
+      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Alege imaginea bonului':'Scanează bon'}</strong><small>{menuMode?'Cameră, galerie sau fișier imagine.':'Deschide camera, salvează și analizează bonul.'}</small></span>
+    </button>):<div className="receiptCaptureFlow">
       <div className="receiptCapturePreview">
         <img src={receipt.previewUrl} alt="Previzualizare bon"/>
         <div>
