@@ -200,6 +200,13 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
     return NextResponse.json(analysis)
   }catch(error){
     console.error('Receipt analysis failed',error)
-    return NextResponse.json({error:error instanceof Error?error.message:'Analiza bonului a eșuat.'},{status:500})
+    const message=error instanceof Error?error.message:'Analiza bonului a eșuat.'
+    const lower=message.toLowerCase()
+    if(lower.includes('ai gateway')&&lower.includes('credit card')){
+      return NextResponse.json({
+        error:'Analiza AI este configurată corect, dar Vercel AI Gateway nu are billing activat. Adaugă un card în Vercel, apoi apasă din nou „Analizează”. Bonul rămâne salvat și nu trebuie refăcută poza.',
+      },{status:503})
+    }
+    return NextResponse.json({error:message},{status:500})
   }
 }
