@@ -4,6 +4,7 @@ import {FileUp,Image as ImageIcon,ReceiptText,X} from 'lucide-react'
 import {useEffect,useRef,useState} from 'react'
 import ReceiptCapture from './ReceiptCapture'
 import NaturalLanguageTransaction from './NaturalLanguageTransaction'
+import AskMyLife from './AskMyLife'
 import {bucharestDay} from '@/lib/expense-report'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
@@ -192,6 +193,7 @@ export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;d
         />
 
         <NaturalLanguageTransaction data={data} onCompleted={()=>{onSaved();dialog.current?.close()}}/>
+        <AskMyLife/>
       </div>
 
       {uploadError?<p className="quickAddUploadError" role="alert">{uploadError}</p>:null}
