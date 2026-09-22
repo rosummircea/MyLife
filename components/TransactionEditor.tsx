@@ -103,7 +103,9 @@ export default function TransactionEditor({
   })
   const [saving,setSaving] = useState(false)
   const [error,setError] = useState('')
-  const [splitMode,setSplitMode] = useState(!creating && originalAllocations.length > 1)
+  const [splitMode,setSplitMode] = useState(
+    creating ? (initialValues?.splits?.length??0)>1 : originalAllocations.length>1
+  )
 
   const patch = (value:Partial<TransactionEdit>) => setForm(old => ({...old,...value}))
 
