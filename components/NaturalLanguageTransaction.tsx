@@ -1,7 +1,7 @@
 'use client'
 
 import {Mic,PenLine,Sparkles,Square,Trash2} from 'lucide-react'
-import {useEffect,useRef,useState} from 'react'
+import {useEffect,useMemo,useRef,useState} from 'react'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData,Transaction} from '@/lib/mylife-data'
 import type {TransactionEdit} from '@/lib/transaction-edit'
@@ -178,7 +178,7 @@ export default function NaturalLanguageTransaction({data,onCompleted}:{data:MyLi
   const busy=recording||transcribing||interpreting||saving
   const createMode:TransactionCreateMode=draft?.transaction_type==='transfer'?'transfer':'standard'
 
-  const transaction:Transaction|undefined=draft?{
+  const transaction=useMemo<Transaction|undefined>(()=>draft?{
     id:crypto.randomUUID(),
     transaction_type:draft.transaction_type,
     amount:draft.amount,
@@ -189,7 +189,7 @@ export default function NaturalLanguageTransaction({data,onCompleted}:{data:MyLi
     merchant:draft.merchant||null,
     description:draft.description||null,
     title:draft.title||null,
-  }:undefined
+  }:undefined,[draft])
 
   const initialValues:Partial<TransactionEdit>|undefined=draft?{
     transaction_type:draft.transaction_type,
