@@ -1,8 +1,7 @@
 'use client'
 
 import {X} from 'lucide-react'
-import {useEffect} from 'react'
-import {createPortal} from 'react-dom'
+import {useEffect,useRef} from 'react'
 import './ImageLightbox.css'
 
 export default function ImageLightbox({
@@ -11,33 +10,35 @@ export default function ImageLightbox({
   alt,
   onClose,
 }:{open:boolean;src:string;alt:string;onClose:()=>void}){
+  const dialogRef=useRef<HTMLDialogElement>(null)
+
   useEffect(()=>{
-    if(!open)return
-    const onKeyDown=(event:KeyboardEvent)=>{
-      if(event.key==='Escape')onClose()
+    const dialog=dialogRef.current
+    if(!dialog)return
+    if(open){
+      if(!dialog.open)dialog.showModal()
+    }else if(dialog.open){
+      dialog.close()
     }
-    document.addEventListener('keydown',onKeyDown)
-    return ()=>document.removeEventListener('keydown',onKeyDown)
-  },[open,onClose])
+  },[open])
 
-  if(!open||typeof document==='undefined')return null
-
-  return createPortal(
-    <div
-      className="imageLightbox"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Previzualizare imagine"
-      onClick={event=>{if(event.target===event.currentTarget)onClose()}}
-    >
-      <button type="button" className="imageLightboxClose" onClick={onClose} aria-label="Închide imaginea">
-        <X size={24}/>
-      </button>
-      <div className="imageLightboxViewport" onClick={event=>{if(event.target===event.currentTarget)onClose()}}>
-        <img src={src} alt={alt}/>
-      </div>
-      <small>Apasă × sau în afara imaginii pentru a reveni.</small>
-    </div>,
-    document.body
-  )
+  return <dialog
+    ref={dialogRef}
+    className="imageLightbox"
+    aria-label="Previzualizare imagine"
+    onCancel={event=>{
+      event.preventDefault()
+      onClose()
+    }}
+    onClose={()=>{if(open)onClose()}}
+    onClick={event=>{if(event.target===event.currentTarget)onClose()}}
+  >
+    <button type="button" className="imageLightboxClose" onClick={onClose} aria-label="Închide imaginea">
+      <X size={24}/>
+    </button>
+    <div className="imageLightboxViewport">
+      <img src={src} alt={alt}/>
+    </div>
+    <small>Apasă × sau în afara imaginii pentru a reveni.</small>
+  </dialog>
 }
