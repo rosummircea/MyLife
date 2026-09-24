@@ -49,6 +49,15 @@
 .autoOverviewGrid>div { display: flex; flex-direction: column; gap: 12px; padding: 20px; background: #18273b; border-radius: 16px; min-width: 0; }
 .autoOverviewGrid span { color: #91a4ba; font-size: 13px; }
 .autoOverviewGrid strong { font-size: 22px; overflow-wrap: anywhere; }
+.autoDeadlineGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)); gap: 14px; margin: 14px 0 28px; }
+.autoDeadlineCard { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px; border: 1px solid rgba(255,255,255,.09); border-radius: 16px; background: #18273b; }
+.autoDeadlineCard header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.autoDeadlineCard header span { padding: 5px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #26384d; color: #a7b8ca; white-space: nowrap; }
+.autoDeadlineCard header span.ok { color: #79e3c5; background: #173b38; }
+.autoDeadlineCard header span.attention { color: #ffca80; background: #46351f; }
+.autoDeadlineCard header span.danger { color: #ff9b9b; background: #4b272b; }
+.autoDeadlineCard b { font-size: 20px; }
+.autoDeadlineCard small { color: #91a4ba; overflow-wrap: anywhere; }
 .autoDocumentGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 16px; }
 .autoDocumentCard { display: flex; flex-direction: column; gap: 12px; padding: 22px; text-align: left; background: #18273b; }
 .autoDocumentHeading { display: flex; align-items: center; gap: 12px; }

@@ -14,6 +14,14 @@ function label(type: string) { return recordLabels[type] || type.replace(/_/g,' 
 function date(value: string) { const parsed = new Date(value.slice(0,10)+'T12:00:00Z'); return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('ro-RO',{timeZone:'UTC'}) }
 function title(vehicle: Vehicle) { return [vehicle.make,vehicle.model].filter(Boolean).join(' ') || 'Vehicul fără denumire' }
 function money(amount: number, currency: string) { return new Intl.NumberFormat('ro-RO',{style:'currency',currency}).format(amount) }
+function deadlineStatus(value: string | null, today: string) {
+  if (!value) return {label:'Nesetat',tone:'muted'}
+  const days=(Date.parse(value.slice(0,10))-Date.parse(today))/86400000
+  if (!Number.isFinite(days)) return {label:'Dată nevalidă',tone:'attention'}
+  if (days < 0) return {label:'Expirat',tone:'danger'}
+  if (days <= 30) return {label:`${Math.ceil(days)} zile`,tone:'attention'}
+  return {label:`${Math.ceil(days)} zile`,tone:'ok'}
+}
 
 export default function AutoModule({ connected, refreshVersion, documents, documentsLoading, registerMobileBack, onHome, onOpenDocument }: { connected: boolean; refreshVersion: number; documents: DocumentRow[]; documentsLoading: boolean; registerMobileBack: (handler: (() => boolean) | null) => void; onHome: () => void; onOpenDocument: (id: string) => void }) {
   const [data,setData] = useState<AutoData>({vehicles:[],records:[]})
@@ -67,6 +75,7 @@ function VehicleGallery({ vehicle, compact = false }: { vehicle: Vehicle; compac
   const [revision,setRevision] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
   const identity = JSON.stringify(items)
+  const photoKey=(photo:VehiclePhoto,index:number)=>photo.data_url?`inline-${index}-${photo.data_url.length}`:`${photo.bucket}/${photo.path}`
   useEffect(() => {
     const current: VehiclePhoto[] = JSON.parse(identity)
     if (!current.length) return
@@ -74,27 +83,36 @@ function VehicleGallery({ vehicle, compact = false }: { vehicle: Vehicle; compac
     let timer: ReturnType<typeof setTimeout> | undefined
     setUrls({});setError('');setFailed({})
     async function load() {
+      const inlineEntries=current.flatMap((photo,index)=>photo.data_url?[[photoKey(photo,index),photo.data_url] as const]:[])
+      const remote=current.map((photo,index)=>({photo,index})).filter(item=>!item.photo.data_url)
+      if (!remote.length) { if (!cancelled) setUrls(Object.fromEntries(inlineEntries)); return }
       const client = getSupabaseClient()
       if (!client) throw new Error('Conectează contul pentru fotografii.')
       const {data,error} = await client.auth.getUser()
       if (error || !data.user) throw new Error('Fotografiile necesită autentificare.')
-      const results = await Promise.all(current.map(async photo => {
+      const results = await Promise.all(remote.map(async ({photo,index}) => {
+        const key=photoKey(photo,index)
+        if (!photo.bucket || !photo.path) return {key,url:undefined}
         const {data,error} = await client.storage.from(photo.bucket).createSignedUrl(photo.path,300)
-        return {path:`${photo.bucket}/${photo.path}`,url:!error ? data?.signedUrl : undefined}
+        return {key,url:!error ? data?.signedUrl : undefined}
       }))
-      if (!cancelled) {setUrls(Object.fromEntries(results.filter(item => item.url).map(item => [item.path,item.url!])));if (results.some(item => !item.url)) setError('Unele fotografii nu sunt disponibile pentru acest cont.');timer=setTimeout(() => setRevision(value => value+1),240000)}
+      if (!cancelled) {
+        setUrls({...Object.fromEntries(inlineEntries),...Object.fromEntries(results.filter(item => item.url).map(item => [item.key,item.url!]))})
+        if (results.some(item => !item.url)) setError('Unele fotografii nu sunt disponibile pentru acest cont.')
+        timer=setTimeout(() => setRevision(value => value+1),240000)
+      }
     }
     load().catch(error => {if (!cancelled) setError(error instanceof Error ? error.message : 'Fotografiile nu pot fi încărcate.')})
     return () => {cancelled=true;if (timer) clearTimeout(timer)}
   },[identity,revision])
   const photo = items[selected] ?? items[0]
-  const url = photo && !failed[`${photo.bucket}/${photo.path}`] ? urls[`${photo.bucket}/${photo.path}`] : null
+  const key = photo ? photoKey(photo,selected) : ''
+  const url = photo && !failed[key] ? urls[key] : null
   const Icon = vehicleType(vehicle) === 'Motocicletă' ? Bike : Car
-  const image = url ? <img src={url} alt={photo.caption || title(vehicle)} onError={() => setFailed(value => ({...value,[`${photo.bucket}/${photo.path}`]:true}))}/> : <div className="autoPhotoEmpty"><Icon size={compact ? 54 : 80}/><span>{items.length ? error || 'Fotografie în curs de încărcare / indisponibilă' : 'Fotografie neadăugată'}</span></div>
+  const image = url ? <img src={url} alt={photo.caption || title(vehicle)} onError={() => setFailed(value => ({...value,[key]:true}))}/> : <div className="autoPhotoEmpty"><Icon size={compact ? 54 : 80}/><span>{items.length ? error || 'Fotografie în curs de încărcare / indisponibilă' : 'Fotografie neadăugată'}</span></div>
   if (compact) return <div className="autoCardPhoto">{image}</div>
-  return <div className="autoGallery"><div className="autoHeroPhoto">{url ? <button type="button" onClick={() => dialog.current?.showModal()} aria-label="Mărește fotografia vehiculului">{image}<span><ImageIcon size={16}/> Mărește fotografia</span></button> : image}</div>{error && <p className="autoMuted" role="status">{error}</p>}{items.length > 1 && <div className="autoThumbnails" aria-label="Galerie fotografii">{items.map((item,index) => <button type="button" key={`${item.bucket}/${item.path}`} aria-pressed={selected === index} aria-label={item.caption || `Fotografia ${index+1}`} onClick={() => setSelected(index)}>{urls[`${item.bucket}/${item.path}`] && !failed[`${item.bucket}/${item.path}`] ? <img src={urls[`${item.bucket}/${item.path}`]} alt="" onError={() => setFailed(value => ({...value,[`${item.bucket}/${item.path}`]:true}))}/> : <ImageIcon size={22}/>}</button>)}</div>}{url && <dialog className="autoImageDialog" ref={dialog} aria-label="Fotografia vehiculului" onClick={event => {if (event.target === event.currentTarget) dialog.current?.close()}}><button type="button" aria-label="Închide fotografia" onClick={() => dialog.current?.close()}><X/></button><img src={url} alt={photo.caption || title(vehicle)}/></dialog>}</div>
+  return <div className="autoGallery"><div className="autoHeroPhoto">{url ? <button type="button" onClick={() => dialog.current?.showModal()} aria-label="Mărește fotografia vehiculului">{image}<span><ImageIcon size={16}/> Mărește fotografia</span></button> : image}</div>{error && <p className="autoMuted" role="status">{error}</p>}{items.length > 1 && <div className="autoThumbnails" aria-label="Galerie fotografii">{items.map((item,index) => {const itemKey=photoKey(item,index);return <button type="button" key={itemKey} aria-pressed={selected === index} aria-label={item.caption || `Fotografia ${index+1}`} onClick={() => setSelected(index)}>{urls[itemKey] && !failed[itemKey] ? <img src={urls[itemKey]} alt="" onError={() => setFailed(value => ({...value,[itemKey]:true}))}/> : <ImageIcon size={22}/>}</button>})}</div>}{url && <dialog className="autoImageDialog" ref={dialog} aria-label="Fotografia vehiculului" onClick={event => {if (event.target === event.currentTarget) dialog.current?.close()}}><button type="button" aria-label="Închide fotografia" onClick={() => dialog.current?.close()}><X/></button><img src={url} alt={photo.caption || title(vehicle)}/></dialog>}</div>
 }
-
 function VehicleDetail({vehicle,records,documents,documentsLoading,demo,today,onBack,onOpenDocument}: {vehicle: Vehicle;records: VehicleRecord[];documents: DocumentRow[];documentsLoading:boolean;demo:boolean;today:string;onBack:()=>void;onOpenDocument:(id:string)=>void}) {
   const [tab,setTab] = useState<typeof tabs[number]>('Overview')
   const technical = [
@@ -106,6 +124,23 @@ function VehicleDetail({vehicle,records,documents,documentsLoading,demo,today,on
   const maintenance = records.filter(record => ['service','maintenance','oil_change','filters','brakes','tires','repair','inspection','itp'].includes(record.record_type) || record.extra?.category === 'maintenance')
   const costs = records.map(record => ({record,cost:recordCost(record)})).filter(item => item.cost !== null)
   const totals = costs.reduce<Record<string,number>>((result,item) => {const cost=item.cost!;result[cost.currency]=(result[cost.currency]??0)+Math.round(cost.amount*100);return result},{})
+  const deadlineItems = [
+    {key:'rca',label:'RCA',types:['rca']},
+    {key:'casco',label:'CASCO',types:['casco']},
+    {key:'vignette',label:'Rovinietă',types:['vignette']},
+    {key:'itp',label:'ITP',types:['itp','inspection']},
+    {key:'service',label:'Revizie',types:['service']},
+  ].map(spec => {
+    const candidates=records.filter(record => spec.types.includes(record.record_type))
+    const dueFor=(record:VehicleRecord)=>{
+      if (spec.key==='service') return text(record.extra?.next_due_date) || record.expires_at
+      return record.expires_at
+    }
+    const record=[...candidates].sort((a,b)=>(dueFor(b)||b.issued_at||'').localeCompare(dueFor(a)||a.issued_at||''))[0] ?? null
+    const due=record ? dueFor(record) : null
+    const nextMileage=spec.key==='service'&&record ? text(record.extra?.next_due_mileage_km) : null
+    return {...spec,record,due,nextMileage,status:deadlineStatus(due,today)}
+  })
   const events = [
     ...(text(vehicle.extra?.purchase_date) ? [{id:'purchase',date:String(vehicle.extra.purchase_date),title:'Achiziție vehicul',description:null,documentId:null}] : []),
     ...records.filter(record => record.issued_at || text(record.extra?.date)).map(record => ({id:`record-${record.id}`,date:record.issued_at || String(record.extra.date),title:label(record.record_type),description:record.provider,documentId:null})),
@@ -116,14 +151,16 @@ function VehicleDetail({vehicle,records,documents,documentsLoading,demo,today,on
   return <div className="autoVehicleDetail"><button type="button" className="autoBack" onClick={onBack}><ArrowLeft size={17}/> Toate vehiculele</button><div className="autoDetailHero"><VehicleGallery vehicle={vehicle}/><section className="autoTechnical"><span className="autoMuted">{vehicleType(vehicle) || 'Vehicul'}{demo ? ' · DEMO' : ''}</span><h2>{title(vehicle)}</h2>{vehicle.registration_number && <strong className="autoPlate">{vehicle.registration_number}</strong>}<dl>{technical.map(([key,value]) => <div key={String(key)}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>{extra.length>0 && <><h3>Alte date</h3><dl>{extra.map(([key,value]) => <div key={key}><dt>{key.replace(/_/g,' ')}</dt><dd>{typeof value==='object' ? JSON.stringify(value,null,2) : String(value)}</dd></div>)}</dl></>}</section></div>
     <nav className="autoTabs" aria-label="Secțiuni vehicul">{tabs.map(item => <button type="button" key={item} aria-pressed={tab===item} className={tab===item?'active':''} onClick={() => setTab(item)}>{item}</button>)}</nav>
     <div className="autoTabContent">
-      {tab==='Overview' ? <><div className="autoOverviewGrid"><div><span>Documente asociate</span><strong>{documentsLoading?'…':documents.length}</strong></div><div><span>Înregistrări</span><strong>{records.length}</strong></div><div><span>Costuri înregistrate</span><strong>{Object.keys(totals).length ? Object.entries(totals).map(([currency,amount]) => money(amount/100,currency)).join(' · ') : 'Neadăugate'}</strong></div></div><h3>Documente importante</h3><DocumentCards documents={documents} loading={documentsLoading} today={today} onOpenDocument={onOpenDocument}/></> : tab==='Documente' ? <DocumentCards documents={documents} loading={documentsLoading} today={today} onOpenDocument={onOpenDocument}/> : tab==='Mentenanță' ? <><p className="autoMuted">Revizii, ulei, filtre, frâne, anvelope, reparații și inspecții.</p>{maintenance.length ? <div className="autoRecordList">{maintenance.map(record => <RecordCard key={record.id} record={record}/>)}</div> : <div className="autoEmpty">Nu există intervenții înregistrate. Înregistrările din vehicle_records vor apărea aici.</div>}</> : tab==='Costuri' ? <><p className="autoMuted">Costuri salvate în înregistrările vehiculului. Tranzacțiile din Finanțe nu sunt conectate.</p>{Object.entries(totals).map(([currency,amount]) => <p className="autoCostTotal" key={currency}>Total {money(amount/100,currency)}</p>)}{costs.length ? <div className="autoRecordList">{costs.map(item => <RecordCard key={item.record.id} record={item.record}/>)}</div> : <div className="autoEmpty">Nu există costuri înregistrate pentru combustibil, service, asigurări, taxe, rovinietă sau parcare.</div>}</> : events.length ? <ol className="autoTimeline">{events.map(event => <li key={event.id}><time dateTime={event.date}>{date(event.date)}{event.date>today?' · Planificat':''}</time><strong>{event.title}</strong>{event.description && <span>{event.description}</span>}{event.documentId && <button type="button" onClick={() => onOpenDocument(event.documentId!)}>Vezi documentul</button>}</li>)}</ol> : <div className="autoEmpty">Istoricul va include achiziția, documentele și intervențiile datate.</div>}
+      {tab==='Overview' ? <><div className="autoOverviewGrid"><div><span>Documente asociate</span><strong>{documentsLoading?'…':documents.length}</strong></div><div><span>Înregistrări</span><strong>{records.length}</strong></div><div><span>Costuri înregistrate</span><strong>{Object.keys(totals).length ? Object.entries(totals).map(([currency,amount]) => money(amount/100,currency)).join(' · ') : 'Neadăugate'}</strong></div></div><h3>Scadențe și revizie</h3><div className="autoDeadlineGrid">{deadlineItems.map(item => <article className="autoDeadlineCard" key={item.key}><header><strong>{item.label}</strong><span className={item.status.tone}>{item.status.label}</span></header><b>{item.due ? date(item.due) : 'Nesetat'}</b>{item.nextMileage && <small>Următoarea la {Number(item.nextMileage).toLocaleString('ro-RO')} km</small>}{item.record?.provider && <small>{item.record.provider}</small>}{!item.record && <small>Nu există încă o înregistrare.</small>}</article>)}</div><h3>Documente importante</h3><DocumentCards documents={documents} loading={documentsLoading} today={today} onOpenDocument={onOpenDocument}/></> : tab==='Documente' ? <DocumentCards documents={documents} loading={documentsLoading} today={today} onOpenDocument={onOpenDocument}/> : tab==='Mentenanță' ? <><p className="autoMuted">Revizii, ulei, filtre, frâne, anvelope, reparații și inspecții.</p>{maintenance.length ? <div className="autoRecordList">{maintenance.map(record => <RecordCard key={record.id} record={record}/>)}</div> : <div className="autoEmpty">Nu există intervenții înregistrate. Înregistrările din vehicle_records vor apărea aici.</div>}</> : tab==='Costuri' ? <><p className="autoMuted">Costuri salvate în înregistrările vehiculului. Tranzacțiile din Finanțe nu sunt conectate.</p>{Object.entries(totals).map(([currency,amount]) => <p className="autoCostTotal" key={currency}>Total {money(amount/100,currency)}</p>)}{costs.length ? <div className="autoRecordList">{costs.map(item => <RecordCard key={item.record.id} record={item.record}/>)}</div> : <div className="autoEmpty">Nu există costuri înregistrate pentru combustibil, service, asigurări, taxe, rovinietă sau parcare.</div>}</> : events.length ? <ol className="autoTimeline">{events.map(event => <li key={event.id}><time dateTime={event.date}>{date(event.date)}{event.date>today?' · Planificat':''}</time><strong>{event.title}</strong>{event.description && <span>{event.description}</span>}{event.documentId && <button type="button" onClick={() => onOpenDocument(event.documentId!)}>Vezi documentul</button>}</li>)}</ol> : <div className="autoEmpty">Istoricul va include achiziția, documentele și intervențiile datate.</div>}
     </div>
   </div>
 }
 function RecordCard({record}:{record:VehicleRecord}) {
   const cost = recordCost(record)
   const recordDate=record.issued_at || text(record.extra?.date)
-  return <article className="autoRecordCard"><header><h3>{label(record.record_type)}</h3>{recordDate && <time dateTime={recordDate}>{date(recordDate)}</time>}</header><dl>{text(record.extra?.mileage_km)!==null && <div><dt>Kilometraj</dt><dd>{text(record.extra.mileage_km)} km</dd></div>}{record.provider && <div><dt>Service / furnizor</dt><dd>{record.provider}</dd></div>}{cost && <div><dt>Cost</dt><dd>{money(cost.amount,cost.currency)}</dd></div>}{record.expires_at && <div><dt>Expiră</dt><dd>{date(record.expires_at)}</dd></div>}{record.policy_number && <div><dt>Referință / poliță</dt><dd>{record.policy_number}</dd></div>}{record.notes && <div><dt>Note</dt><dd>{record.notes}</dd></div>}</dl></article>
+  const nextDueDate=text(record.extra?.next_due_date)
+  const nextDueMileage=text(record.extra?.next_due_mileage_km)
+  return <article className="autoRecordCard"><header><h3>{label(record.record_type)}</h3>{recordDate && <time dateTime={recordDate}>{date(recordDate)}</time>}</header><dl>{text(record.extra?.mileage_km)!==null && <div><dt>Kilometraj</dt><dd>{text(record.extra.mileage_km)} km</dd></div>}{record.provider && <div><dt>Service / furnizor</dt><dd>{record.provider}</dd></div>}{cost && <div><dt>Cost</dt><dd>{money(cost.amount,cost.currency)}</dd></div>}{record.expires_at && <div><dt>Expiră</dt><dd>{date(record.expires_at)}</dd></div>}{nextDueDate && <div><dt>Următoarea scadență</dt><dd>{date(nextDueDate)}</dd></div>}{nextDueMileage && <div><dt>Următorul prag</dt><dd>{Number(nextDueMileage).toLocaleString('ro-RO')} km</dd></div>}{record.policy_number && <div><dt>Referință / poliță</dt><dd>{record.policy_number}</dd></div>}{record.notes && <div><dt>Note</dt><dd>{record.notes}</dd></div>}</dl></article>
 }
 function DocumentCards({documents,loading,today,onOpenDocument}:{documents:DocumentRow[];loading:boolean;today:string;onOpenDocument:(id:string)=>void}) {
   if(loading) return <div className="autoEmpty" role="status">Se încarcă documentele…</div>
