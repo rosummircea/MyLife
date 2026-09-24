@@ -203,13 +203,9 @@ export default function ReceiptCapture({
       setAnalysis(result)
       preselectAccounts(result)
       await client.from('documents').update({
-        extra:{
-          kind:result.document_type==='receipt'?'receipt':'expense_image',
-          analysis_status:'review',
-          temporary:false,
-          source:'quick_add_image',
-          document_type:result.document_type,
-        },
+        extra:result.document_type==='receipt'
+          ?{kind:'receipt',receipt_status:'review',temporary:false,source:'quick_add_camera',document_type:'receipt'}
+          :{kind:'expense_image',analysis_status:'review',temporary:false,source:'quick_add_image',document_type:result.document_type},
       }).eq('id',target.documentId)
     }catch(analysisError){
       setError(analysisError instanceof Error?analysisError.message:'Analiza imaginii a eșuat.')
@@ -375,7 +371,7 @@ export default function ReceiptCapture({
       const {error:documentUpdateError}=await client.from('documents').update({
         issuer:analysis.merchant,
         document_date:analysis.date??bucharestDay(new Date()),
-        extra:{kind:'receipt',analysis_status:'confirmed',temporary:false,source:'quick_add_image',document_type:'receipt',transaction_id:transactionId},
+        extra:{kind:'receipt',receipt_status:'confirmed',temporary:false,source:'quick_add_camera',document_type:'receipt',transaction_id:transactionId},
       }).eq('id',receipt.documentId)
 
       if(documentUpdateError){
