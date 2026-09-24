@@ -3,6 +3,7 @@
 import {Camera,CheckCircle2,ImagePlus,RefreshCw,Trash2} from 'lucide-react'
 import {useEffect,useMemo,useRef,useState} from 'react'
 import {bucharestDay} from '@/lib/expense-report'
+import ImageLightbox from './ImageLightbox'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
 import type {ReceiptAnalysis,ReceiptAnalysisItem,ReceiptAnalysisSplit} from '@/lib/receipt-analysis'
@@ -75,6 +76,7 @@ export default function ReceiptCapture({
   const [analyzing,setAnalyzing]=useState(false)
   const [confirming,setConfirming]=useState(false)
   const [error,setError]=useState('')
+  const [previewOpen,setPreviewOpen]=useState(false)
   const externalFileRef=useRef<File|null>(null)
 
   const categories=useMemo(()=>data?categoryPaths(data):[],[data])
@@ -324,7 +326,9 @@ export default function ReceiptCapture({
       <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Alege imaginea bonului':'Scanează bon'}</strong><small>{menuMode?'Cameră, galerie sau fișier imagine.':'Deschide camera, salvează și analizează bonul.'}</small></span>
     </button>):<div className="receiptCaptureFlow">
       <div className="receiptCapturePreview">
-        <img src={receipt.previewUrl} alt="Previzualizare bon"/>
+        <button type="button" className="receiptCaptureThumb" onClick={()=>setPreviewOpen(true)} aria-label="Deschide bonul mărit">
+          <img src={receipt.previewUrl} alt="Previzualizare bon"/>
+        </button>
         <div>
           <span className="receiptCaptureReady"><CheckCircle2 size={16}/> {analyzing?'Se analizează…':analysis?'Gata pentru review':'Bon încărcat'}</span>
           <strong>{receipt.fileName}</strong>
@@ -378,6 +382,13 @@ export default function ReceiptCapture({
         </div>
       </div>:null}
     </div>}
+
+    <ImageLightbox
+      open={previewOpen&&!!receipt}
+      src={receipt?.previewUrl??''}
+      alt={receipt?.fileName??'Bon încărcat'}
+      onClose={()=>setPreviewOpen(false)}
+    />
 
     {error?<p className="receiptCaptureError" role="alert">{error}</p>:null}
   </section>
