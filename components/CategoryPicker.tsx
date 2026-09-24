@@ -26,6 +26,7 @@ export default function CategoryPicker({rows,value,onChange,label}:Props){
 
   const roots = sortedCategories(rows.filter(row => !row.parent_id))
   const selectedRoot = path[0]
+  const selectedPath = path.map(category => category.name).join(' → ')
 
   const levels: {parent:CategoryRow;children:CategoryRow[];selectedChild?:CategoryRow}[] = []
   if(selectedRoot){
@@ -44,6 +45,14 @@ export default function CategoryPicker({rows,value,onChange,label}:Props){
 
   return <div className="transactionCategoryPicker">
     <span className="transactionPickerLabel">{label}</span>
+
+    <div className={`transactionCategorySelected ${selected?'hasSelection':''}`} aria-live="polite">
+      {selectedRoot?<CategoryIcon category={selectedRoot} categories={rows}/>:null}
+      <span>
+        <small>{selected?'Selectat':'Neselectat'}</small>
+        <strong>{selectedPath||'Alege categoria'}</strong>
+      </span>
+    </div>
 
     <div className="transactionCategoryOptions" role="group" aria-label={label}>
       {roots.map(category => {
