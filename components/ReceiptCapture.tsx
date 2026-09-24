@@ -6,7 +6,13 @@ import {bucharestDay} from '@/lib/expense-report'
 import ImageLightbox from './ImageLightbox'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
-import type {ReceiptAnalysis,ReceiptAnalysisItem,ReceiptAnalysisSplit} from '@/lib/receipt-analysis'
+import type {
+  ExpenseImageDocumentType,
+  ExpenseImageTransaction,
+  ReceiptAnalysis,
+  ReceiptAnalysisItem,
+  ReceiptAnalysisSplit,
+} from '@/lib/receipt-analysis'
 
 type UploadedReceipt = {
   documentId:string
@@ -59,6 +65,20 @@ function rebuildSplits(items:ReceiptAnalysisItem[]):ReceiptAnalysisSplit[]{
   })).sort((a,b)=>b.amount-a.amount)
 }
 
+function documentTypeLabel(type:ExpenseImageDocumentType){
+  const labels:Record<ExpenseImageDocumentType,string>={
+    receipt:'Bon fiscal',
+    bank_transactions:'Listă de tranzacții',
+    bank_statement:'Extras de cont',
+    invoice:'Factură',
+    order_confirmation:'Confirmare de comandă',
+    payment_confirmation:'Confirmare de plată',
+    handwritten_expenses:'Listă de cheltuieli',
+    other_expense_document:'Document cu cheltuieli',
+  }
+  return labels[type]
+}
+
 export default function ReceiptCapture({
   menuMode=false,
   data,
@@ -72,6 +92,7 @@ export default function ReceiptCapture({
   const [receipt,setReceipt]=useState<UploadedReceipt|null>(null)
   const [analysis,setAnalysis]=useState<ReceiptAnalysis|null>(null)
   const [selectedAccountId,setSelectedAccountId]=useState('')
+  const [selectedTransactionAccounts,setSelectedTransactionAccounts]=useState<Record<number,string>>({})
   const [uploading,setUploading]=useState(false)
   const [analyzing,setAnalyzing]=useState(false)
   const [confirming,setConfirming]=useState(false)
@@ -80,7 +101,16 @@ export default function ReceiptCapture({
   const externalFileRef=useRef<File|null>(null)
 
   const categories=useMemo(()=>data?categoryPaths(data):[],[data])
-  const matchingAccounts=useMemo(()=>data?.accounts.filter(account=>account.is_active!==false&&(!analysis||account.currency.trim().toUpperCase()===analysis.currency))??[],[data,analysis])
+  const transactionCurrencies=useMemo(
+    ()=>analysis?[...new Set(analysis.transactions.map(transaction=>transaction.currency))]:[],
+    [analysis],
+  )
+  const singleTransactionCurrency=transactionCurrencies.length===1?transactionCurrencies[0]:null
+  const accountCurrency=analysis?.transactions.length?singleTransactionCurrency:analysis?.currency
+  const matchingAccounts=useMemo(
+    ()=>data?.accounts.filter(account=>account.is_active!==false&&(!accountCurrency||account.currency.trim().toUpperCase()===accountCurrency))??[],
+    [data,accountCurrency],
+  )
 
   useEffect(()=>{receiptRef.current=receipt},[receipt])
   useEffect(()=>{
@@ -89,6 +119,11 @@ export default function ReceiptCapture({
     void upload(externalFile).finally(()=>onExternalFileConsumed?.())
   },[externalFile,onExternalFileConsumed])
 
+  function resetAnalysisState(){
+    setAnalysis(null)
+    setSelectedAccountId('')
+    setSelectedTransactionAccounts({})
+  }
 
   async function cleanupReceipt(target:UploadedReceipt,mutate=true){
     const client=getSupabaseClient()
@@ -98,15 +133,14 @@ export default function ReceiptCapture({
       client.from('documents').delete().eq('id',target.documentId),
     ])
     if(storageError||documentError){
-      if(mutate)setError(storageError?.message??documentError?.message??'Bonul temporar nu a putut fi șters.')
+      if(mutate)setError(storageError?.message??documentError?.message??'Imaginea nu a putut fi ștearsă.')
       return false
     }
     URL.revokeObjectURL(target.previewUrl)
     if(receiptRef.current?.documentId===target.documentId)receiptRef.current=null
     if(mutate){
       setReceipt(null)
-      setAnalysis(null)
-      setSelectedAccountId('')
+      resetAnalysisState()
     }
     return true
   }
@@ -117,13 +151,35 @@ export default function ReceiptCapture({
     await cleanupReceipt(receipt,true)
   }
 
+  function preselectAccounts(result:ReceiptAnalysis){
+    if(!data)return
+    if(!result.transactions.length){
+      const exactCurrency=data.accounts.filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===result.currency)
+      if(exactCurrency.length===1)setSelectedAccountId(exactCurrency[0].id)
+      return
+    }
+
+    const currencies=[...new Set(result.transactions.map(transaction=>transaction.currency))]
+    if(currencies.length===1){
+      const exactCurrency=data.accounts.filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===currencies[0])
+      if(exactCurrency.length===1)setSelectedAccountId(exactCurrency[0].id)
+      return
+    }
+
+    const defaults:Record<number,string>={}
+    for(const transaction of result.transactions){
+      const exactCurrency=data.accounts.filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===transaction.currency)
+      if(exactCurrency.length===1)defaults[transaction.line_no]=exactCurrency[0].id
+    }
+    setSelectedTransactionAccounts(defaults)
+  }
+
   async function analyzeReceipt(target:UploadedReceipt){
     if(!data){setError('Datele MyLife nu sunt încă încărcate.');return}
     const client=getSupabaseClient()
     if(!client){setError('Conexiunea la Supabase nu este disponibilă.');return}
     setAnalyzing(true)
-    setAnalysis(null)
-    setSelectedAccountId('')
+    resetAnalysisState()
     setError('')
     try{
       const {data:sessionData,error:sessionError}=await client.auth.getSession()
@@ -142,16 +198,17 @@ export default function ReceiptCapture({
         }),
       })
       const payload=await response.json()
-      if(!response.ok)throw new Error(payload?.error??'Analiza bonului a eșuat.')
+      if(!response.ok)throw new Error(payload?.error??'Analiza imaginii a eșuat.')
       const result=payload as ReceiptAnalysis
       setAnalysis(result)
-      const exactCurrency=data.accounts.filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===result.currency)
-      if(exactCurrency.length===1)setSelectedAccountId(exactCurrency[0].id)
+      preselectAccounts(result)
       await client.from('documents').update({
-        extra:{kind:'receipt',receipt_status:'review',temporary:false,source:'quick_add_camera'},
+        extra:result.document_type==='receipt'
+          ?{kind:'receipt',receipt_status:'review',temporary:false,source:'quick_add_camera',document_type:'receipt'}
+          :{kind:'expense_image',analysis_status:'review',temporary:false,source:'quick_add_image',document_type:result.document_type},
       }).eq('id',target.documentId)
     }catch(analysisError){
-      setError(analysisError instanceof Error?analysisError.message:'Analiza bonului a eșuat.')
+      setError(analysisError instanceof Error?analysisError.message:'Analiza imaginii a eșuat.')
     }finally{
       setAnalyzing(false)
     }
@@ -160,7 +217,7 @@ export default function ReceiptCapture({
   async function upload(file:File){
     const client=getSupabaseClient()
     if(!client){setError('Conexiunea la Supabase nu este disponibilă.');return}
-    if(!file.type.startsWith('image/')){setError('Alege o fotografie a bonului.');return}
+    if(!file.type.startsWith('image/')){setError('Alege o imagine care conține cheltuieli.');return}
     if(file.size>50*1024*1024){setError('Imaginea depășește limita de 50 MB.');return}
 
     setUploading(true)
@@ -171,11 +228,11 @@ export default function ReceiptCapture({
 
       if(receipt){
         const removed=await cleanupReceipt(receipt,true)
-        if(!removed)throw new Error('Bonul anterior nu a putut fi curățat.')
+        if(!removed)throw new Error('Imaginea anterioară nu a putut fi curățată.')
       }
 
       const ext=extensionFor(file)
-      const storagePath=`${user.id}/receipts/${crypto.randomUUID()}.${ext}`
+      const storagePath=`${user.id}/expenses/${crypto.randomUUID()}.${ext}`
       const {error:uploadError}=await client.storage.from('mylife-documents').upload(storagePath,file,{
         contentType:file.type||'image/jpeg',
         cacheControl:'3600',
@@ -186,30 +243,30 @@ export default function ReceiptCapture({
       const {data:document,error:documentError}=await client.from('documents').insert({
         user_id:user.id,
         document_type:'invoice',
-        source_filename:file.name||`bon.${ext}`,
+        source_filename:file.name||`cheltuiala.${ext}`,
         mime_type:file.type||'image/jpeg',
         document_date:bucharestDay(new Date()),
         storage_path:storagePath,
-        notes:'Bon încărcat din Quick Add',
-        extra:{kind:'receipt',receipt_status:'captured',temporary:false,source:'quick_add_camera'},
+        notes:'Imagine cu cheltuieli încărcată din Quick Add',
+        extra:{kind:'expense_image',analysis_status:'captured',temporary:false,source:'quick_add_image'},
       }).select('id').single()
 
       if(documentError||!document){
         await client.storage.from('mylife-documents').remove([storagePath])
-        throw new Error(documentError?.message??'Metadatele bonului nu au putut fi salvate.')
+        throw new Error(documentError?.message??'Metadatele imaginii nu au putut fi salvate.')
       }
 
       const uploaded={
         documentId:document.id,
         storagePath,
-        fileName:file.name||`bon.${ext}`,
+        fileName:file.name||`cheltuiala.${ext}`,
         previewUrl:URL.createObjectURL(file),
       }
       receiptRef.current=uploaded
       setReceipt(uploaded)
       await analyzeReceipt(uploaded)
     }catch(uploadError){
-      setError(uploadError instanceof Error?uploadError.message:'Bonul nu a putut fi încărcat.')
+      setError(uploadError instanceof Error?uploadError.message:'Imaginea nu a putut fi încărcată.')
     }finally{
       setUploading(false)
       if(inputRef.current)inputRef.current.value=''
@@ -224,7 +281,32 @@ export default function ReceiptCapture({
     setAnalysis({...analysis,items,splits:rebuildSplits(items)})
   }
 
-  async function confirmTransaction(){
+  function changeTransactionCategory(index:number,categoryId:string){
+    if(!analysis)return
+    const option=categories.find(category=>category.id===categoryId)
+    if(!option)return
+    const transactions=analysis.transactions.map((transaction,transactionIndex)=>transactionIndex===index?{
+      ...transaction,
+      category_id:categoryId,
+      category_path:option.path,
+    }:transaction)
+    setAnalysis({...analysis,transactions})
+  }
+
+  function accountForTransaction(transaction:ExpenseImageTransaction){
+    const accountId=singleTransactionCurrency?selectedAccountId:selectedTransactionAccounts[transaction.line_no]??''
+    return data?.accounts.find(account=>account.id===accountId)??null
+  }
+
+  function clearCompletedImage(){
+    if(receipt)URL.revokeObjectURL(receipt.previewUrl)
+    receiptRef.current=null
+    setReceipt(null)
+    resetAnalysisState()
+    onCompleted?.()
+  }
+
+  async function confirmReceiptTransaction(){
     if(!data||!analysis||!receipt)return
     if(!analysis.balanced){setError('Totalul articolelor nu este încă reconciliat cu totalul bonului. Reanalizează poza.');return}
     const account=data.accounts.find(item=>item.id===selectedAccountId)
@@ -289,7 +371,7 @@ export default function ReceiptCapture({
       const {error:documentUpdateError}=await client.from('documents').update({
         issuer:analysis.merchant,
         document_date:analysis.date??bucharestDay(new Date()),
-        extra:{kind:'receipt',receipt_status:'confirmed',temporary:false,source:'quick_add_camera',transaction_id:transactionId},
+        extra:{kind:'receipt',receipt_status:'confirmed',temporary:false,source:'quick_add_camera',document_type:'receipt',transaction_id:transactionId},
       }).eq('id',receipt.documentId)
 
       if(documentUpdateError){
@@ -297,11 +379,7 @@ export default function ReceiptCapture({
         throw new Error(`Bonul nu a putut fi finalizat: ${documentUpdateError.message}`)
       }
 
-      URL.revokeObjectURL(receipt.previewUrl)
-      receiptRef.current=null
-      setReceipt(null)
-      setAnalysis(null)
-      onCompleted?.()
+      clearCompletedImage()
     }catch(confirmError){
       setError(confirmError instanceof Error?confirmError.message:'Tranzacția nu a putut fi salvată.')
     }finally{
@@ -309,9 +387,142 @@ export default function ReceiptCapture({
     }
   }
 
-  const busy=uploading||analyzing||confirming
+  async function confirmExpenseTransactions(){
+    if(!data||!analysis||!receipt||!analysis.transactions.length)return
 
-  return <section className={`receiptCapture ${menuMode?'receiptCaptureMenuMode':''}`} aria-label="Scanează bon">
+    for(const transaction of analysis.transactions){
+      const account=accountForTransaction(transaction)
+      if(!account){
+        setError(singleTransactionCurrency?'Alege contul din care au fost plătite cheltuielile.':`Alege contul pentru ${transaction.merchant}.`)
+        return
+      }
+      if(account.currency.trim().toUpperCase()!==transaction.currency){
+        setError(`Moneda contului nu corespunde cu tranzacția ${transaction.merchant}.`)
+        return
+      }
+    }
+
+    const client=getSupabaseClient()
+    if(!client)return
+    setConfirming(true)
+    setError('')
+
+    const createdTransactions:{id:string;updatedAt:string|null}[]=[]
+    const rollback=async()=>{
+      for(const transaction of [...createdTransactions].reverse()){
+        if(transaction.updatedAt){
+          await client.rpc('finance_delete_transaction',{p_id:transaction.id,p_expected_updated_at:transaction.updatedAt})
+        }
+      }
+    }
+
+    try{
+      for(const transaction of analysis.transactions){
+        const account=accountForTransaction(transaction)
+        if(!account)throw new Error(`Lipsește contul pentru ${transaction.merchant}.`)
+        const transactionId=crypto.randomUUID()
+        const details=[
+          transaction.description,
+          transaction.location?`Locație: ${transaction.location}`:null,
+          transaction.date_text&&!transaction.date?`Data afișată: ${transaction.date_text}`:null,
+        ].filter((value):value is string=>!!value).join(' · ')
+
+        const {data:created,error:createError}=await client.rpc('finance_create_transaction_with_balance',{
+          p_household_id:data.profile.householdId,
+          p_affects_balance:true,
+          p_title:transaction.merchant||'Cheltuială importată',
+          p_id:transactionId,
+          p_type:'expense',
+          p_account_id:account.id,
+          p_transfer_account_id:null,
+          p_amount:transaction.amount,
+          p_currency:transaction.currency,
+          p_day:transaction.date??bucharestDay(new Date()),
+          p_merchant:transaction.merchant,
+          p_description:details||'Cheltuială extrasă automat din imagine',
+          p_splits:[{category_id:transaction.category_id,amount:transaction.amount}],
+        })
+        if(createError)throw new Error(createError.message)
+
+        const createdUpdatedAt=created&&typeof created==='object'&&'updated_at' in created?String(created.updated_at):null
+        const {data:linkedTransaction,error:linkError}=await client.from('finance_transactions')
+          .update({
+            attachment_document_id:receipt.documentId,
+            source:analysis.document_type==='receipt'?'receipt':'ai',
+            import_metadata:{
+              source:analysis.document_type==='receipt'?'receipt_ai_fallback':'expense_image_ai',
+              document_id:receipt.documentId,
+              document_type:analysis.document_type,
+              ai_confidence:transaction.confidence,
+              date_text:transaction.date_text,
+              location:transaction.location,
+            },
+          })
+          .eq('id',transactionId)
+          .select('updated_at')
+          .single()
+
+        if(linkError){
+          if(createdUpdatedAt)await client.rpc('finance_delete_transaction',{p_id:transactionId,p_expected_updated_at:createdUpdatedAt})
+          throw new Error(`Cheltuiala ${transaction.merchant} nu a putut fi legată de imagine: ${linkError.message}`)
+        }
+
+        createdTransactions.push({
+          id:transactionId,
+          updatedAt:linkedTransaction?.updated_at?String(linkedTransaction.updated_at):createdUpdatedAt,
+        })
+      }
+
+      const commonDate=analysis.transactions.every(transaction=>transaction.date===analysis.transactions[0].date)
+        ?analysis.transactions[0].date
+        :null
+      const {error:documentUpdateError}=await client.from('documents').update({
+        issuer:analysis.transactions.length===1?analysis.transactions[0].merchant:'Cheltuieli importate',
+        document_date:commonDate??bucharestDay(new Date()),
+        extra:analysis.document_type==='receipt'
+          ?{
+            kind:'receipt',
+            receipt_status:'confirmed',
+            temporary:false,
+            source:'quick_add_camera',
+            document_type:'receipt',
+            transaction_ids:createdTransactions.map(transaction=>transaction.id),
+          }
+          :{
+            kind:'expense_image',
+            analysis_status:'confirmed',
+            temporary:false,
+            source:'quick_add_image',
+            document_type:analysis.document_type,
+            transaction_ids:createdTransactions.map(transaction=>transaction.id),
+          },
+      }).eq('id',receipt.documentId)
+
+      if(documentUpdateError){
+        throw new Error(`Imaginea nu a putut fi finalizată: ${documentUpdateError.message}`)
+      }
+
+      clearCompletedImage()
+    }catch(confirmError){
+      await rollback()
+      setError(confirmError instanceof Error?confirmError.message:'Cheltuielile nu au putut fi salvate.')
+    }finally{
+      setConfirming(false)
+    }
+  }
+
+  async function confirmAnalysis(){
+    if(!analysis)return
+    if(analysis.transactions.length)await confirmExpenseTransactions()
+    else await confirmReceiptTransaction()
+  }
+
+  const busy=uploading||analyzing||confirming
+  const transactionAccountsReady=analysis?.transactions.length
+    ?analysis.transactions.every(transaction=>!!accountForTransaction(transaction))
+    :false
+
+  return <section className={`receiptCapture ${menuMode?'receiptCaptureMenuMode':''}`} aria-label="Analizează cheltuieli din imagine">
     <input
       ref={inputRef}
       className="receiptCaptureInput"
@@ -323,16 +534,16 @@ export default function ReceiptCapture({
 
     {!receipt?(hideInitialTrigger?null:<button type="button" className="receiptCaptureButton" disabled={busy} onClick={()=>inputRef.current?.click()}>
       <Camera size={20}/>
-      <span><strong>{uploading?'Se încarcă bonul…':menuMode?'Alege imaginea bonului':'Scanează bon'}</strong><small>{menuMode?'Cameră, galerie sau fișier imagine.':'Deschide camera, salvează și analizează bonul.'}</small></span>
+      <span><strong>{uploading?'Se încarcă imaginea…':menuMode?'Adaugă poză sau document':'Fotografiază o cheltuială'}</strong><small>{menuMode?'Cameră, galerie sau Files · orice imagine cu cheltuieli.':'Deschide camera, salvează și analizează imaginea.'}</small></span>
     </button>):<div className="receiptCaptureFlow">
       <div className="receiptCapturePreview">
-        <button type="button" className="receiptCaptureThumb" onClick={()=>setPreviewOpen(true)} aria-label="Deschide bonul mărit">
-          <img src={receipt.previewUrl} alt="Previzualizare bon"/>
+        <button type="button" className="receiptCaptureThumb" onClick={()=>setPreviewOpen(true)} aria-label="Deschide imaginea mărită">
+          <img src={receipt.previewUrl} alt="Previzualizare imagine"/>
         </button>
         <div>
-          <span className="receiptCaptureReady"><CheckCircle2 size={16}/> {analyzing?'Se analizează…':analysis?'Gata pentru review':'Bon încărcat'}</span>
+          <span className="receiptCaptureReady"><CheckCircle2 size={16}/> {analyzing?'Se analizează…':analysis?'Gata pentru review':'Imagine încărcată'}</span>
           <strong>{receipt.fileName}</strong>
-          <small>{analyzing?'Citesc produsele și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':'Poza este salvată în MyLife. Poți porni din nou analiza.'}</small>
+          <small>{analyzing?'Citesc cheltuielile și le clasific în categoriile tale.':analysis?'Verifică datele înainte de confirmare.':'Imaginea este salvată în MyLife. Poți porni din nou analiza.'}</small>
           <div className="receiptCaptureActions">
             <button type="button" disabled={busy} onClick={()=>inputRef.current?.click()}><ImagePlus size={16}/> Schimbă poza</button>
             <button type="button" disabled={busy} onClick={()=>void analyzeReceipt(receipt)}><RefreshCw size={16}/> {analysis?'Reanalizează':'Analizează'}</button>
@@ -341,9 +552,53 @@ export default function ReceiptCapture({
         </div>
       </div>
 
-      {analyzing?<div className="receiptAnalysisLoading"><span/> Analizez bonul cu AI…</div>:null}
+      {analyzing?<div className="receiptAnalysisLoading"><span/> Analizez imaginea cu AI…</div>:null}
 
-      {analysis?<div className="receiptReview">
+      {analysis&&analysis.transactions.length?<div className="receiptReview">
+        <div className="receiptReviewHeader">
+          <div><small>Identificat</small><strong>{analysis.transactions.length} {analysis.transactions.length===1?'cheltuială':'cheltuieli'}</strong></div>
+          {singleTransactionCurrency?<div className="receiptReviewTotal"><small>Total</small><strong>{analysis.total.toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2})} {singleTransactionCurrency}</strong></div>:null}
+        </div>
+        <div className="receiptReviewMeta"><span>{documentTypeLabel(analysis.document_type)}</span><span>{singleTransactionCurrency??'Mai multe monede'}</span></div>
+
+        {singleTransactionCurrency?<label className="receiptAccountSelect">Plătit din
+          <select value={selectedAccountId} onChange={event=>setSelectedAccountId(event.target.value)}>
+            <option value="">Alege contul</option>
+            {matchingAccounts.map(account=><option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+        </label>:null}
+
+        <div className="receiptItemsReview">
+          <strong>Cheltuieli identificate</strong>
+          {analysis.transactions.map((transaction,index)=><div className="receiptReviewItem" key={`${transaction.line_no}-${transaction.merchant}`}>
+            <div>
+              <span>{transaction.merchant}</span>
+              <small>{transaction.date??transaction.date_text??'Data nu a fost citită'}{transaction.location?` · ${transaction.location}`:''}</small>
+              {!singleTransactionCurrency?<label>Plătit din
+                <select
+                  aria-label={`Contul pentru ${transaction.merchant}`}
+                  value={selectedTransactionAccounts[transaction.line_no]??''}
+                  onChange={event=>setSelectedTransactionAccounts(current=>({...current,[transaction.line_no]:event.target.value}))}
+                >
+                  <option value="">Alege contul</option>
+                  {(data?.accounts??[]).filter(account=>account.is_active!==false&&account.currency.trim().toUpperCase()===transaction.currency).map(account=><option key={account.id} value={account.id}>{account.name}</option>)}
+                </select>
+              </label>:null}
+            </div>
+            <b>{transaction.amount.toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2})} {transaction.currency}</b>
+            <select aria-label={`Categoria pentru ${transaction.merchant}`} value={transaction.category_id} onChange={event=>changeTransactionCategory(index,event.target.value)}>
+              {categories.map(category=><option key={category.id} value={category.id}>{category.path}</option>)}
+            </select>
+          </div>)}
+        </div>
+
+        {analysis.warnings.length?<div className="receiptReviewWarnings">{analysis.warnings.map((warning,index)=><p key={index}>{warning}</p>)}</div>:null}
+
+        <div className="receiptConfirmActions">
+          <button type="button" className="receiptConfirmButton" disabled={busy||!transactionAccountsReady} onClick={()=>void confirmAnalysis()}>{confirming?'Se salvează…':`Adaugă ${analysis.transactions.length} ${analysis.transactions.length===1?'cheltuială':'cheltuieli'}`}</button>
+          <small>Fiecare rând va fi salvat ca tranzacție separată și va rămâne legat de imaginea originală.</small>
+        </div>
+      </div>:analysis?<div className="receiptReview">
         <div className="receiptReviewHeader">
           <div><small>Comerciant</small><strong>{analysis.merchant}</strong></div>
           <div className="receiptReviewTotal"><small>Total</small><strong>{analysis.total.toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2})} {analysis.currency}</strong></div>
@@ -377,7 +632,7 @@ export default function ReceiptCapture({
         {!analysis.balanced?<p className="receiptBalanceError">Diferență față de total: {analysis.difference.toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2})} {analysis.currency}. Confirmarea este blocată până la o analiză corectă.</p>:null}
 
         <div className="receiptConfirmActions">
-          <button type="button" className="receiptConfirmButton" disabled={busy||!analysis.balanced||!selectedAccountId} onClick={()=>void confirmTransaction()}>{confirming?'Se salvează…':'Confirmă tranzacția'}</button>
+          <button type="button" className="receiptConfirmButton" disabled={busy||!analysis.balanced||!selectedAccountId} onClick={()=>void confirmAnalysis()}>{confirming?'Se salvează…':'Confirmă tranzacția'}</button>
           <small>După confirmare, bonul rămâne salvat și atașat tranzacției, împreună cu defalcarea și produsele extrase.</small>
         </div>
       </div>:null}
@@ -386,7 +641,7 @@ export default function ReceiptCapture({
     <ImageLightbox
       open={previewOpen&&!!receipt}
       src={receipt?.previewUrl??''}
-      alt={receipt?.fileName??'Bon încărcat'}
+      alt={receipt?.fileName??'Imagine încărcată'}
       onClose={()=>setPreviewOpen(false)}
     />
 

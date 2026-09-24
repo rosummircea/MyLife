@@ -1,6 +1,11 @@
 import {NextResponse} from 'next/server'
 import {createClient} from '@supabase/supabase-js'
-import type {ReceiptAnalysis,ReceiptAnalysisItem} from '@/lib/receipt-analysis'
+import type {
+  ExpenseImageDocumentType,
+  ExpenseImageTransaction,
+  ReceiptAnalysis,
+  ReceiptAnalysisItem,
+} from '@/lib/receipt-analysis'
 
 // Redeploy trigger after OPENAI_API_KEY configuration
 export const runtime='nodejs'
@@ -13,6 +18,17 @@ type CategoryRow={
   kind:string
   is_active:boolean
 }
+
+const DOCUMENT_TYPES:ExpenseImageDocumentType[]=[
+  'receipt',
+  'bank_transactions',
+  'bank_statement',
+  'invoice',
+  'order_confirmation',
+  'payment_confirmation',
+  'handwritten_expenses',
+  'other_expense_document',
+]
 
 function categoryPath(category:CategoryRow,byId:Map<string,CategoryRow>){
   const names:string[]=[]
@@ -42,6 +58,32 @@ function money(value:unknown){
   return Number.isFinite(number)?Math.round(number*100)/100:0
 }
 
+function dateOrNull(value:unknown){
+  return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)?value:null
+}
+
+function textOrNull(value:unknown){
+  if(typeof value!=='string')return null
+  const trimmed=value.trim()
+  return trimmed||null
+}
+
+function documentType(value:unknown):ExpenseImageDocumentType{
+  const candidate=typeof value==='string'?value.trim() as ExpenseImageDocumentType:'other_expense_document'
+  return DOCUMENT_TYPES.includes(candidate)?candidate:'other_expense_document'
+}
+
+function bucharestToday(){
+  const parts=new Intl.DateTimeFormat('en-US',{
+    timeZone:'Europe/Bucharest',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+  }).formatToParts(new Date())
+  const value=(type:string)=>parts.find(part=>part.type===type)?.value??''
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
+
 export async function POST(request:Request){
   try{
     const authorization=request.headers.get('authorization')??''
@@ -49,7 +91,7 @@ export async function POST(request:Request){
     if(!token)return NextResponse.json({error:'Autentificare necesară.'},{status:401})
 
     const body=await request.json() as {storagePath?:string;householdId?:string}
-    if(!body.storagePath||!body.householdId)return NextResponse.json({error:'Lipsește fotografia bonului.'},{status:400})
+    if(!body.storagePath||!body.householdId)return NextResponse.json({error:'Lipsește imaginea de analizat.'},{status:400})
 
     const url=process.env.NEXT_PUBLIC_SUPABASE_URL
     const key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -84,32 +126,70 @@ export async function POST(request:Request){
     const {data:signed,error:signedError}=await supabase.storage
       .from('mylife-documents')
       .createSignedUrl(body.storagePath,180)
-    if(signedError||!signed?.signedUrl)return NextResponse.json({error:signedError?.message??'Fotografia nu poate fi citită.'},{status:400})
+    if(signedError||!signed?.signedUrl)return NextResponse.json({error:signedError?.message??'Imaginea nu poate fi citită.'},{status:400})
 
-    const prompt=`Analizează bonul fiscal din imagine pentru aplicația personală de finanțe MyLife.
+    const today=bucharestToday()
+    const prompt=`Analizează imaginea pentru aplicația personală de finanțe MyLife.
 
-Extrage comerciantul, data, moneda, totalul și TOATE produsele cumpărate. Pentru fiecare produs atribuie exact un category_id din lista MyLife de mai jos.
+IMPORTANT: NU presupune că imaginea este un bon fiscal. Scopul este să identifici orice cheltuială sau listă de cheltuieli vizibilă în imagine.
 
-Reguli importante:
-- Folosește numai category_id-urile furnizate.
-- Nu inventa categorii.
-- Normalizează reducerile: aplică reducerea produsului la valoarea acelui produs și NU crea linii negative separate.
+Imaginea poate fi:
+- bon fiscal
+- screenshot din Apple Wallet / Google Wallet
+- screenshot dintr-o aplicație bancară
+- extras de cont sau listă de tranzacții
+- factură
+- confirmare de comandă
+- confirmare de plată
+- listă scrisă de mână cu cheltuieli
+- alt document financiar
+
+Clasifică document_type folosind EXACT una dintre valorile:
+receipt, bank_transactions, bank_statement, invoice, order_confirmation, payment_confirmation, handwritten_expenses, other_expense_document.
+
+Reguli generale:
+- Extrage numai cheltuieli reale. Nu transforma solduri, limite de card, venituri, rambursări sau transferuri între conturi în cheltuieli.
+- O singură imagine poate conține mai multe tranzacții distincte.
+- Sumele cheltuielilor se întorc pozitive.
+- Folosește numai category_id-urile furnizate mai jos. Nu inventa categorii.
+- Dacă nu poți clasifica sigur o cheltuială, folosește categoria Necategorizat.
+- confidence este între 0 și 1.
+- Nu inventa comerciant, locație sau dată dacă nu sunt vizibile ori deductibile în siguranță.
+- Astăzi este ${today} în fusul orar Europe/Bucharest.
+- Transformă date relative precum "Today", "Yesterday", "Azi", "Ieri" în YYYY-MM-DD raportat la data de mai sus și păstrează textul original în date_text.
+- Dacă data nu poate fi stabilită sigur, date trebuie să fie null.
+
+Pentru document_type = receipt:
+- Completează merchant, date, currency și total.
+- Dacă produsele sunt lizibile, extrage TOATE produsele în items și lasă transactions = [].
+- Dacă bonul arată clar o cheltuială, dar produsele nu pot fi citite suficient, lasă items = [] și pune în transactions o singură tranzacție cu comerciantul și totalul bonului. Lipsa produselor NU trebuie să facă analiza să eșueze.
+- Normalizează reducerile: aplică reducerea produsului la produs și NU crea linii negative separate.
 - Nu include subtotaluri, TVA, totaluri intermediare, metode de plată, carduri, puncte de fidelitate sau linii informative.
 - Include garanțiile/depozitele de ambalaj dacă sunt efectiv taxate.
 - line_total trebuie să fie suma finală plătită pentru acea linie și să fie >= 0.
-- Dacă un articol nu poate fi clasificat sigur, folosește categoria Necategorizat.
-- Suma tuturor line_total trebuie să fie egală cu totalul bonului, dacă bonul este lizibil.
+- Suma tuturor line_total trebuie să fie egală cu totalul bonului dacă bonul este lizibil.
 - Păstrează eticheta de pe bon în raw_label și scrie o denumire curățată în normalized_label.
-- confidence este între 0 și 1.
+
+Pentru orice alt document_type:
+- items trebuie să fie [].
+- Pune în transactions FIECARE cheltuială distinctă vizibilă.
+- O factură, confirmare de comandă sau confirmare de plată cu o singură cheltuială trebuie să producă exact o tranzacție.
+- Un screenshot/extras cu mai multe rânduri trebuie să producă o tranzacție pentru fiecare rând de cheltuială.
+- merchant este numele comerciantului/beneficiarului dacă este vizibil.
+- amount este suma acelei tranzacții.
+- currency este moneda acelei tranzacții.
+- location este locația doar dacă apare în imagine.
+- description este un text scurt util doar dacă există informație suplimentară relevantă.
 
 Categorii disponibile:
 ${categoryOptions.map(category=>`${category.id} | ${category.path}`).join('\n')}
 
 Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
 {
-  "merchant": "string",
+  "document_type": "receipt | bank_transactions | bank_statement | invoice | order_confirmation | payment_confirmation | handwritten_expenses | other_expense_document",
+  "merchant": "string sau null",
   "date": "YYYY-MM-DD sau null",
-  "currency": "RON",
+  "currency": "RON sau altă monedă, ori null",
   "total": 0,
   "items": [
     {
@@ -118,6 +198,19 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
       "quantity": 1,
       "unit_price": 0,
       "line_total": 0,
+      "category_id": "uuid",
+      "confidence": 0.95
+    }
+  ],
+  "transactions": [
+    {
+      "merchant": "string",
+      "amount": 0,
+      "currency": "RON",
+      "date": "YYYY-MM-DD sau null",
+      "date_text": "textul original al datei sau null",
+      "location": "string sau null",
+      "description": "string sau null",
       "category_id": "uuid",
       "confidence": 0.95
     }
@@ -153,7 +246,7 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
     }
 
     if(!openaiResponse.ok){
-      const message=openaiPayload.error?.message??'OpenAI API a refuzat analiza bonului.'
+      const message=openaiPayload.error?.message??'OpenAI API a refuzat analiza imaginii.'
       throw new Error(`OpenAI API: ${message}`)
     }
 
@@ -165,11 +258,13 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
     if(!outputText)throw new Error('OpenAI API nu a returnat rezultatul analizei.')
 
     const parsed=jsonFromText(outputText) as {
+      document_type?:unknown
       merchant?:unknown
       date?:unknown
       currency?:unknown
       total?:unknown
       items?:unknown
+      transactions?:unknown
       warnings?:unknown
     }
 
@@ -195,44 +290,101 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
       }
     }).filter(item=>item.line_total>0)
 
-    if(!items.length)return NextResponse.json({error:'Nu am putut identifica produsele de pe bon.'},{status:422})
+    const rawTransactions=Array.isArray(parsed.transactions)?parsed.transactions:[]
+    const transactions:ExpenseImageTransaction[]=rawTransactions.map((raw,index)=>{
+      const transaction=raw&&typeof raw==='object'?raw as Record<string,unknown>:{}
+      const requestedCategory=typeof transaction.category_id==='string'?transaction.category_id:''
+      const categoryId=validCategoryIds.has(requestedCategory)?requestedCategory:uncategorized.id
+      const path=categoryOptions.find(category=>category.id===categoryId)?.path??uncategorized.path
+      const description=textOrNull(transaction.description)
+      const merchant=textOrNull(transaction.merchant)??description??`Cheltuială ${index+1}`
+      return {
+        line_no:index+1,
+        merchant,
+        amount:Math.max(0,money(transaction.amount)),
+        currency:String(transaction.currency??parsed.currency??'RON').trim().toUpperCase()||'RON',
+        date:dateOrNull(transaction.date),
+        date_text:textOrNull(transaction.date_text),
+        location:textOrNull(transaction.location),
+        description,
+        category_id:categoryId,
+        category_path:path,
+        confidence:Math.max(0,Math.min(1,Number(transaction.confidence) || 0)),
+      }
+    }).filter(transaction=>transaction.amount>0)
 
-    const splitCents=new Map<string,number>()
-    for(const item of items){
-      splitCents.set(item.category_id,(splitCents.get(item.category_id)??0)+Math.round(item.line_total*100))
+    const requestedDocumentType=documentType(parsed.document_type)
+    const detectedDocumentType:ExpenseImageDocumentType=items.length?'receipt':requestedDocumentType
+
+    if(!items.length&&!transactions.length){
+      return NextResponse.json({error:'Nu am putut identifica nicio cheltuială în imagine.'},{status:422})
     }
-    const splits=[...splitCents.entries()].map(([category_id,cents])=>({
-      category_id,
-      category_path:categoryOptions.find(category=>category.id===category_id)?.path??uncategorized.path,
-      amount:cents/100,
-    })).sort((a,b)=>b.amount-a.amount)
 
-    const total=money(parsed.total)
-    const itemsTotal=Math.round(items.reduce((sum,item)=>sum+item.line_total,0)*100)/100
-    const difference=Math.round((total-itemsTotal)*100)/100
     const warnings=Array.isArray(parsed.warnings)?parsed.warnings.map(String).filter(Boolean):[]
-    if(Math.abs(difference)>.05)warnings.push(`Produsele însumează ${itemsTotal.toFixed(2)} ${String(parsed.currency??'RON')}, iar totalul bonului este ${total.toFixed(2)}.`)
+
+    if(items.length){
+      const splitCents=new Map<string,number>()
+      for(const item of items){
+        splitCents.set(item.category_id,(splitCents.get(item.category_id)??0)+Math.round(item.line_total*100))
+      }
+      const splits=[...splitCents.entries()].map(([category_id,cents])=>({
+        category_id,
+        category_path:categoryOptions.find(category=>category.id===category_id)?.path??uncategorized.path,
+        amount:cents/100,
+      })).sort((a,b)=>b.amount-a.amount)
+
+      const total=money(parsed.total)
+      const itemsTotal=Math.round(items.reduce((sum,item)=>sum+item.line_total,0)*100)/100
+      const difference=Math.round((total-itemsTotal)*100)/100
+      const currency=String(parsed.currency??'RON').trim().toUpperCase()||'RON'
+      if(Math.abs(difference)>.05)warnings.push(`Produsele însumează ${itemsTotal.toFixed(2)} ${currency}, iar totalul documentului este ${total.toFixed(2)}.`)
+
+      const analysis:ReceiptAnalysis={
+        document_type:'receipt',
+        merchant:String(parsed.merchant??'Bon').trim()||'Bon',
+        date:dateOrNull(parsed.date),
+        currency,
+        total,
+        items,
+        splits,
+        transactions:[],
+        balanced:Math.abs(difference)<=.05&&total>0,
+        difference,
+        warnings,
+      }
+      return NextResponse.json(analysis)
+    }
+
+    const currencies=[...new Set(transactions.map(transaction=>transaction.currency))]
+    const dates=[...new Set(transactions.map(transaction=>transaction.date).filter((value):value is string=>!!value))]
+    const singleCurrency=currencies.length===1?currencies[0]:'MULTI'
+    const total=currencies.length===1
+      ?Math.round(transactions.reduce((sum,transaction)=>sum+transaction.amount,0)*100)/100
+      :0
+    if(currencies.length>1)warnings.push('Imaginea conține cheltuieli în mai multe monede; contul de plată trebuie verificat pentru fiecare tranzacție.')
 
     const analysis:ReceiptAnalysis={
-      merchant:String(parsed.merchant??'Bon').trim()||'Bon',
-      date:typeof parsed.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(parsed.date)?parsed.date:null,
-      currency:String(parsed.currency??'RON').trim().toUpperCase()||'RON',
+      document_type:detectedDocumentType,
+      merchant:transactions.length===1?transactions[0].merchant:`${transactions.length} cheltuieli`,
+      date:dates.length===1?dates[0]:null,
+      currency:singleCurrency,
       total,
-      items,
-      splits,
-      balanced:Math.abs(difference)<=.05&&total>0,
-      difference,
+      items:[],
+      splits:[],
+      transactions,
+      balanced:true,
+      difference:0,
       warnings,
     }
 
     return NextResponse.json(analysis)
   }catch(error){
-    console.error('Receipt analysis failed',error)
-    const message=error instanceof Error?error.message:'Analiza bonului a eșuat.'
+    console.error('Expense image analysis failed',error)
+    const message=error instanceof Error?error.message:'Analiza imaginii a eșuat.'
     const lower=message.toLowerCase()
     if(lower.includes('openai api')&&(lower.includes('insufficient_quota')||lower.includes('quota')||lower.includes('billing'))){
       return NextResponse.json({
-        error:'OpenAI API nu are credit disponibil. Adaugă billing/credit în OpenAI Platform, apoi apasă din nou „Analizează”. Bonul rămâne salvat.',
+        error:'OpenAI API nu are credit disponibil. Adaugă billing/credit în OpenAI Platform, apoi apasă din nou „Analizează”. Imaginea rămâne salvată.',
       },{status:503})
     }
     if(lower.includes('openai api')&&(lower.includes('api key')||lower.includes('authentication')||lower.includes('incorrect api key'))){
