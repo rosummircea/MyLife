@@ -494,7 +494,6 @@ export default function ReceiptCapture({
       }).eq('id',receipt.documentId)
 
       if(documentUpdateError){
-        await rollback()
         throw new Error(`Imaginea nu a putut fi finalizată: ${documentUpdateError.message}`)
       }
 
