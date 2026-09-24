@@ -160,8 +160,9 @@ Reguli generale:
 - Dacă data nu poate fi stabilită sigur, date trebuie să fie null.
 
 Pentru document_type = receipt:
-- Completează merchant, date, currency, total și TOATE produsele în items.
-- transactions trebuie să fie [].
+- Completează merchant, date, currency și total.
+- Dacă produsele sunt lizibile, extrage TOATE produsele în items și lasă transactions = [].
+- Dacă bonul arată clar o cheltuială, dar produsele nu pot fi citite suficient, lasă items = [] și pune în transactions o singură tranzacție cu comerciantul și totalul bonului. Lipsa produselor NU trebuie să facă analiza să eșueze.
 - Normalizează reducerile: aplică reducerea produsului la produs și NU crea linii negative separate.
 - Nu include subtotaluri, TVA, totaluri intermediare, metode de plată, carduri, puncte de fidelitate sau linii informative.
 - Include garanțiile/depozitele de ambalaj dacă sunt efectiv taxate.
@@ -313,11 +314,7 @@ Răspunde EXCLUSIV cu JSON valid, fără markdown, în forma:
     }).filter(transaction=>transaction.amount>0)
 
     const requestedDocumentType=documentType(parsed.document_type)
-    const detectedDocumentType:ExpenseImageDocumentType=items.length
-      ?'receipt'
-      :transactions.length
-        ?(requestedDocumentType==='receipt'?'bank_transactions':requestedDocumentType)
-        :requestedDocumentType
+    const detectedDocumentType:ExpenseImageDocumentType=items.length?'receipt':requestedDocumentType
 
     if(!items.length&&!transactions.length){
       return NextResponse.json({error:'Nu am putut identifica nicio cheltuială în imagine.'},{status:422})
