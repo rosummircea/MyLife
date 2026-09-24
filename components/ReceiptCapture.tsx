@@ -448,9 +448,9 @@ export default function ReceiptCapture({
         const {data:linkedTransaction,error:linkError}=await client.from('finance_transactions')
           .update({
             attachment_document_id:receipt.documentId,
-            source:'ai',
+            source:analysis.document_type==='receipt'?'receipt':'ai',
             import_metadata:{
-              source:'expense_image_ai',
+              source:analysis.document_type==='receipt'?'receipt_ai_fallback':'expense_image_ai',
               document_id:receipt.documentId,
               document_type:analysis.document_type,
               ai_confidence:transaction.confidence,
@@ -479,14 +479,23 @@ export default function ReceiptCapture({
       const {error:documentUpdateError}=await client.from('documents').update({
         issuer:analysis.transactions.length===1?analysis.transactions[0].merchant:'Cheltuieli importate',
         document_date:commonDate??bucharestDay(new Date()),
-        extra:{
-          kind:'expense_image',
-          analysis_status:'confirmed',
-          temporary:false,
-          source:'quick_add_image',
-          document_type:analysis.document_type,
-          transaction_ids:createdTransactions.map(transaction=>transaction.id),
-        },
+        extra:analysis.document_type==='receipt'
+          ?{
+            kind:'receipt',
+            receipt_status:'confirmed',
+            temporary:false,
+            source:'quick_add_camera',
+            document_type:'receipt',
+            transaction_ids:createdTransactions.map(transaction=>transaction.id),
+          }
+          :{
+            kind:'expense_image',
+            analysis_status:'confirmed',
+            temporary:false,
+            source:'quick_add_image',
+            document_type:analysis.document_type,
+            transaction_ids:createdTransactions.map(transaction=>transaction.id),
+          },
       }).eq('id',receipt.documentId)
 
       if(documentUpdateError){
