@@ -1,15 +1,24 @@
-.imageLightbox {
+dialog.imageLightbox {
   position:fixed;
   inset:0;
-  z-index:10000;
+  width:100vw;
+  max-width:none;
+  height:100dvh;
+  max-height:none;
+  margin:0;
+  box-sizing:border-box;
   display:grid;
   grid-template-rows:auto minmax(0,1fr) auto;
   gap:10px;
   padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));
-  background:rgba(2,7,14,.96);
-  backdrop-filter:blur(8px);
+  border:0;
+  background:rgba(2,7,14,.97);
   color:#fff;
   overscroll-behavior:contain;
+}
+dialog.imageLightbox::backdrop {
+  background:rgba(2,7,14,.97);
+  backdrop-filter:blur(8px);
 }
 .imageLightboxClose {
   justify-self:end;
@@ -44,7 +53,7 @@
   box-shadow:0 18px 60px rgba(0,0,0,.45);
   touch-action:pinch-zoom pan-x pan-y;
 }
-.imageLightbox>small {
+dialog.imageLightbox>small {
   justify-self:center;
   color:rgba(255,255,255,.62);
   font-size:11px;
