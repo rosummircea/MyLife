@@ -1,0 +1,56 @@
+.imageLightbox {
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  gap:10px;
+  padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));
+  background:rgba(2,7,14,.96);
+  backdrop-filter:blur(8px);
+  color:#fff;
+  overscroll-behavior:contain;
+}
+.imageLightboxClose {
+  justify-self:end;
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:14px;
+  background:rgba(255,255,255,.09);
+  color:#fff;
+}
+.imageLightboxViewport {
+  min-width:0;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pinch-zoom pan-x pan-y;
+}
+.imageLightboxViewport img {
+  display:block;
+  max-width:100%;
+  max-height:100%;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  border-radius:8px;
+  box-shadow:0 18px 60px rgba(0,0,0,.45);
+  touch-action:pinch-zoom pan-x pan-y;
+}
+.imageLightbox>small {
+  justify-self:center;
+  color:rgba(255,255,255,.62);
+  font-size:11px;
+  text-align:center;
+}
+.imageLightboxClose:focus-visible {
+  outline:2px solid #76a8ff;
+  outline-offset:3px;
+}
