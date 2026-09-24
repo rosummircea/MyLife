@@ -11,7 +11,7 @@ export type VehicleRecord = {
   expires_at: string | null; provider: string | null; policy_number: string | null
   notes: string | null; extra: Record<string, unknown>; created_at: string
 }
-export type VehiclePhoto = { bucket: string; path: string; caption?: string; primary?: boolean }
+export type VehiclePhoto = { bucket?: string; path?: string; data_url?: string; caption?: string; primary?: boolean }
 export type AutoData = { vehicles: Vehicle[]; records: VehicleRecord[] }
 
 export function text(value: unknown): string | null {
@@ -25,8 +25,16 @@ export function photos(vehicle: Vehicle): VehiclePhoto[] {
   const items = vehicle.extra?.photos
   if (!Array.isArray(items)) return []
   return items.flatMap((item): VehiclePhoto[] => {
-    if (!item || typeof item !== 'object' || !text(item.bucket) || !text(item.path) || typeof item.bucket !== 'string' || typeof item.path !== 'string') return []
-    return [{ bucket: item.bucket.trim(), path: item.path.trim(), caption: typeof item.caption === 'string' ? item.caption : undefined, primary: item.primary === true }]
+    if (!item || typeof item !== 'object') return []
+    const value=item as Record<string,unknown>
+    const caption=typeof value.caption === 'string' ? value.caption : undefined
+    const primary=value.primary === true
+    const dataUrl=text(value.data_url)
+    if (dataUrl?.startsWith('data:image/')) return [{data_url:dataUrl,caption,primary}]
+    const bucket=text(value.bucket)
+    const path=text(value.path)
+    if (!bucket || !path) return []
+    return [{bucket,path,caption,primary}]
   }).sort((a,b) => Number(Boolean(b.primary)) - Number(Boolean(a.primary)))
 }
 export function vehicleDocuments(vehicleId: string, documents: DocumentRow[]) {
