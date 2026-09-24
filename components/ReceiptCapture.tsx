@@ -452,7 +452,7 @@ export default function ReceiptCapture({
         const {data:linkedTransaction,error:linkError}=await client.from('finance_transactions')
           .update({
             attachment_document_id:receipt.documentId,
-            source:'image_import',
+            source:'ai',
             import_metadata:{
               source:'expense_image_ai',
               document_id:receipt.documentId,
