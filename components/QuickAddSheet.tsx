@@ -5,6 +5,7 @@ import {useEffect,useRef,useState} from 'react'
 import ReceiptCapture from './ReceiptCapture'
 import NaturalLanguageTransaction from './NaturalLanguageTransaction'
 import AskMyLife from './AskMyLife'
+import ImageLightbox from './ImageLightbox'
 import {bucharestDay} from '@/lib/expense-report'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
@@ -40,6 +41,7 @@ export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;d
   const [uploadError,setUploadError]=useState('')
   const [pendingImage,setPendingImage]=useState<PendingImage|null>(null)
   const [receiptFile,setReceiptFile]=useState<File|null>(null)
+  const [pendingPreviewOpen,setPendingPreviewOpen]=useState(false)
 
   useEffect(()=>{dialog.current?.showModal()},[])
   useEffect(()=>()=>{if(pendingImage)URL.revokeObjectURL(pendingImage.previewUrl)},[pendingImage])
@@ -172,7 +174,9 @@ export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;d
         </button>
 
         {pendingImage?<section className="quickAddImageChoice">
-          <img src={pendingImage.previewUrl} alt="Previzualizare imagine selectată"/>
+          <button type="button" className="quickAddImageThumb" onClick={()=>setPendingPreviewOpen(true)} aria-label="Deschide imaginea mărită">
+            <img src={pendingImage.previewUrl} alt="Previzualizare imagine selectată"/>
+          </button>
           <div>
             <strong>{pendingImage.file.name||'Imagine selectată'}</strong>
             <small>Ce vrei să facă MyLife cu imaginea?</small>
@@ -195,6 +199,13 @@ export default function QuickAddSheet({onClose,data,onSaved}:{onClose:()=>void;d
         <NaturalLanguageTransaction data={data} onCompleted={()=>{onSaved();dialog.current?.close()}}/>
         <AskMyLife/>
       </div>
+
+      <ImageLightbox
+        open={pendingPreviewOpen&&!!pendingImage}
+        src={pendingImage?.previewUrl??''}
+        alt={pendingImage?.file.name||'Imagine selectată'}
+        onClose={()=>setPendingPreviewOpen(false)}
+      />
 
       {uploadError?<p className="quickAddUploadError" role="alert">{uploadError}</p>:null}
     </div>
