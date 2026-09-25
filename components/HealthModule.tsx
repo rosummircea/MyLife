@@ -1,10 +1,10 @@
 'use client'
 
 import {useEffect,useMemo,useState,type ReactNode} from 'react'
-import {Activity,CalendarDays,ChevronRight,FileText,HeartPulse,Plus,Save,Stethoscope,Trash2,X} from 'lucide-react'
+import {Activity,CalendarDays,ChevronRight,ExternalLink,FileText,HeartPulse,Pencil,Plus,Save,Search,Stethoscope,Trash2,Upload,X} from 'lucide-react'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {DocumentRow} from '@/lib/mylife-data'
-import {healthDocuments,healthDocumentTitle,loadHealthData,metricMeta,type HealthData,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
+import {healthDocumentCategory,healthDocuments,healthDocumentTitle,loadHealthData,metricMeta,type HealthData,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
 import './HealthModule.css'
 
 export type HealthTab='overview'|'visits'|'data'|'documents'
@@ -15,6 +15,8 @@ export default function HealthModule({connected,refreshVersion,documents,documen
   const [error,setError]=useState('')
   const [visitEditor,setVisitEditor]=useState<HealthVisit|null|'new'>(null)
   const [metricEditor,setMetricEditor]=useState<HealthMeasurement|null|'new'>(null)
+  const [documentEditor,setDocumentEditor]=useState<DocumentRow|null|'new'>(null)
+  const [selectedDocument,setSelectedDocument]=useState<DocumentRow|null>(null)
   const medicalDocuments=useMemo(()=>healthDocuments(documents),[documents])
 
   useEffect(()=>{
@@ -31,20 +33,24 @@ export default function HealthModule({connected,refreshVersion,documents,documen
     registerMobileBack(()=>{
       if(visitEditor){setVisitEditor(null);return true}
       if(metricEditor){setMetricEditor(null);return true}
+      if(documentEditor){setDocumentEditor(null);return true}
+      if(selectedDocument){setSelectedDocument(null);return true}
       if(tab!=='overview'){setTab('overview');return true}
       return false
     })
     return()=>registerMobileBack(null)
-  },[metricEditor,registerMobileBack,setTab,tab,visitEditor])
+  },[documentEditor,metricEditor,registerMobileBack,selectedDocument,setTab,tab,visitEditor])
 
   return <section className="healthModule">
     {error&&<div className="healthError">{error}</div>}
     {tab==='overview'&&<Overview data={data} documents={medicalDocuments} loading={loading||documentsLoading} setTab={setTab}/>}
     {tab==='visits'&&<VisitsTab visits={data.visits} loading={loading} onAdd={()=>setVisitEditor('new')} onOpen={visit=>setVisitEditor(visit)}/>}
     {tab==='data'&&<MetricsTab measurements={data.measurements} loading={loading} onAdd={()=>setMetricEditor('new')} onOpen={measurement=>setMetricEditor(measurement)}/>}
-    {tab==='documents'&&<Documents documents={medicalDocuments} loading={documentsLoading}/>}
+    {tab==='documents'&&<DocumentsTab documents={medicalDocuments} loading={documentsLoading} onAdd={()=>setDocumentEditor('new')} onOpen={document=>setSelectedDocument(document)}/>}
     {visitEditor&&<VisitSheet visit={visitEditor==='new'?null:visitEditor} onClose={()=>setVisitEditor(null)} onSaved={()=>{setVisitEditor(null);onChanged()}}/>}
     {metricEditor&&<MetricSheet measurement={metricEditor==='new'?null:metricEditor} onClose={()=>setMetricEditor(null)} onSaved={()=>{setMetricEditor(null);onChanged()}}/>}
+    {documentEditor&&<MedicalDocumentSheet document={documentEditor==='new'?null:documentEditor} onClose={()=>setDocumentEditor(null)} onSaved={()=>{setDocumentEditor(null);onChanged()}}/>}
+    {selectedDocument&&<MedicalDocumentDetail document={selectedDocument} onClose={()=>setSelectedDocument(null)} onEdit={()=>{setDocumentEditor(selectedDocument);setSelectedDocument(null)}} onDeleted={()=>{setSelectedDocument(null);onChanged()}}/>}
   </section>
 }
 
@@ -283,6 +289,148 @@ function MetricSheet({measurement,onClose,onSaved}:{measurement:HealthMeasuremen
   </div></Sheet>
 }
 
-function Documents({documents,loading}:{documents:DocumentRow[];loading:boolean}){
-  return <div className="healthPage"><Header title="Documente" subtitle="Analize, imagistică, rețete și alte acte medicale."/><section className="healthDocumentList">{loading?<p className="healthMuted">Se încarcă…</p>:documents.length?documents.map(document=><button key={document.id}><div className="healthSquareIcon document"><FileText size={21}/></div><div><strong>{healthDocumentTitle(document)}</strong><span>{document.issuer||document.source_filename||'Document medical'}</span></div><ChevronRight size={18}/></button>):<div className="healthEmptyPanel"><FileText size={34}/><strong>Niciun document</strong></div>}</section></div>
+function DocumentsTab({documents,loading,onAdd,onOpen}:{documents:DocumentRow[];loading:boolean;onAdd:()=>void;onOpen:(document:DocumentRow)=>void}){
+  const [query,setQuery]=useState('')
+  const [filter,setFilter]=useState('all')
+  const filtered=documents.filter(document=>{
+    const haystack=(healthDocumentTitle(document)+' '+(document.issuer||'')+' '+(document.source_filename||'')).toLowerCase()
+    const matches=haystack.includes(query.trim().toLowerCase())
+    return matches&&(filter==='all'||healthDocumentCategory(document)===filter)
+  })
+  return <div className="healthPage">
+    <Header title="Documente" subtitle="Analize, imagistică, rețete și alte acte medicale."/>
+    <label className="healthSearch"><Search size={19}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Caută documente, emitent sau fișier…"/></label>
+    <div className="healthFilters"><button className={filter==='all'?'active':''} onClick={()=>setFilter('all')}>Toate</button><button className={filter==='lab'?'active':''} onClick={()=>setFilter('lab')}>Analize</button><button className={filter==='imaging'?'active':''} onClick={()=>setFilter('imaging')}>Imagistică</button><button className={filter==='prescription'?'active':''} onClick={()=>setFilter('prescription')}>Rețete</button></div>
+    <div className="healthSectionHeading"><h2>Documentele tale</h2><button className="healthAddButton" onClick={onAdd}><Plus size={17}/> Adaugă</button></div>
+    <section className="healthDocumentList">{loading?<p className="healthMuted">Se încarcă…</p>:filtered.length?filtered.map(document=><button key={document.id} onClick={()=>onOpen(document)}><div className="healthSquareIcon document"><FileText size={21}/></div><div><strong>{healthDocumentTitle(document)}</strong><span>{document.issuer||document.source_filename||'Document medical'}</span><small>{document.document_date?new Date(document.document_date+'T12:00:00Z').toLocaleDateString('ro-RO',{timeZone:'UTC',day:'2-digit',month:'short',year:'numeric'}):'Fără dată'}</small></div><ChevronRight size={18}/></button>):<div className="healthEmptyPanel"><FileText size={34}/><strong>Niciun document</strong><button onClick={onAdd}><Upload size={17}/> Adaugă document</button></div>}</section>
+  </div>
 }
+
+function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|null;onClose:()=>void;onSaved:()=>void}){
+  const initialTitle=typeof document?.extra?.health_title==='string'?document.extra.health_title:''
+  const [type,setType]=useState(document?.document_type??'health_other')
+  const [title,setTitle]=useState(initialTitle)
+  const [issuer,setIssuer]=useState(document?.issuer??'')
+  const [date,setDate]=useState(document?.document_date?.slice(0,10)??'')
+  const [file,setFile]=useState<File|null>(null)
+  const [busy,setBusy]=useState(false)
+  const [error,setError]=useState('')
+
+  async function save(){
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      if(!document&&!file)throw new Error('Alege un fișier.')
+      if(file&&file.size>20*1024*1024)throw new Error('Fișierul trebuie să fie sub 20 MB.')
+      if(file&&!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Folosește PDF, JPG, PNG sau WebP.')
+      const extra={...(document?.extra??{}),domain:'health',health_category:type.replace(/^health_/,'other'===type?'other':'') as string}
+      extra.health_category=type.replace(/^health_/,'')
+      if(title.trim())extra.health_title=title.trim()
+      else delete extra.health_title
+
+      if(!document){
+        const id=crypto.randomUUID()
+        const {error:insertError}=await client.from('documents').insert({
+          id,
+          user_id:auth.user.id,
+          document_type:type,
+          source_filename:file?.name??null,
+          mime_type:file?.type??null,
+          issuer:issuer.trim()||null,
+          document_date:date||null,
+          extra,
+        })
+        if(insertError)throw new Error(insertError.message)
+        const extension=file?.type==='application/pdf'?'pdf':file?.name.split('.').pop()||'bin'
+        const path=auth.user.id+'/health/'+id+'/'+crypto.randomUUID()+'.'+extension
+        const {error:uploadError}=await client.storage.from('mylife-documents').upload(path,file as File,{contentType:(file as File).type,upsert:false})
+        if(uploadError){await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(uploadError.message)}
+        const {error:linkError}=await client.from('documents').update({storage_path:path}).eq('id',id).eq('user_id',auth.user.id)
+        if(linkError){await client.storage.from('mylife-documents').remove([path]);await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(linkError.message)}
+      }else{
+        let newPath:string|null=null
+        if(file){
+          const extension=file.type==='application/pdf'?'pdf':file.name.split('.').pop()||'bin'
+          newPath=auth.user.id+'/health/'+document.id+'/'+crypto.randomUUID()+'.'+extension
+          const {error:uploadError}=await client.storage.from('mylife-documents').upload(newPath,file,{contentType:file.type,upsert:false})
+          if(uploadError)throw new Error(uploadError.message)
+        }
+        const update={
+          document_type:type,
+          issuer:issuer.trim()||null,
+          document_date:date||null,
+          extra,
+          ...(file&&newPath?{source_filename:file.name,mime_type:file.type,storage_path:newPath}:{}),
+        }
+        const {error:updateError}=await client.from('documents').update(update).eq('id',document.id).eq('user_id',auth.user.id)
+        if(updateError){if(newPath)await client.storage.from('mylife-documents').remove([newPath]);throw new Error(updateError.message)}
+        if(newPath&&document.storage_path)await client.storage.from('mylife-documents').remove([document.storage_path.replace(/^mylife-documents\//,'')])
+      }
+      onSaved()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Salvarea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  return <Sheet title={document?'Editează document':'Adaugă document'} onClose={onClose}><div className="healthForm">
+    <label>Fișier<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={event=>setFile(event.target.files?.[0]??null)}/></label>
+    <label>Tip<select value={type} onChange={event=>setType(event.target.value)}><option value="health_lab">Analize</option><option value="health_imaging">Imagistică</option><option value="health_prescription">Rețetă</option><option value="health_discharge">Bilet externare</option><option value="health_consultation">Raport consultație</option><option value="health_other">Alt document</option></select></label>
+    <label>Titlu<input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Opțional"/></label>
+    <label>Emitent<input value={issuer} onChange={event=>setIssuer(event.target.value)} placeholder="Opțional"/></label>
+    <label>Data documentului<input type="date" value={date} onChange={event=>setDate(event.target.value)}/></label>
+    {error&&<p className="healthFormError">{error}</p>}
+    <div className="healthFormActions"><button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
+  </div></Sheet>
+}
+
+function MedicalDocumentDetail({document,onClose,onEdit,onDeleted}:{document:DocumentRow;onClose:()=>void;onEdit:()=>void;onDeleted:()=>void}){
+  const [url,setUrl]=useState<string|null>(null)
+  const [error,setError]=useState('')
+  const [busy,setBusy]=useState(false)
+
+  useEffect(()=>{
+    let cancelled=false
+    if(!document.storage_path)return
+    const client=getSupabaseClient()
+    if(!client)return
+    const path=document.storage_path.replace(/^mylife-documents\//,'')
+    client.storage.from('mylife-documents').createSignedUrl(path,300).then(({data,error:signError})=>{
+      if(cancelled)return
+      if(signError)setError(signError.message)
+      else setUrl(data.signedUrl)
+    })
+    return()=>{cancelled=true}
+  },[document.storage_path])
+
+  async function remove(){
+    if(!window.confirm('Ștergi definitiv acest document medical?'))return
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      const path=document.storage_path?.replace(/^mylife-documents\//,'')||null
+      const {error:deleteError}=await client.from('documents').delete().eq('id',document.id).eq('user_id',auth.user.id)
+      if(deleteError)throw new Error(deleteError.message)
+      if(path)await client.storage.from('mylife-documents').remove([path])
+      onDeleted()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Ștergerea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  return <Sheet title={healthDocumentTitle(document)} onClose={onClose}><div className="healthDocDetail">
+    <div className="healthDocMeta"><div><span>Tip</span><strong>{healthDocumentCategory(document)}</strong></div><div><span>Emitent</span><strong>{document.issuer||'—'}</strong></div><div><span>Data</span><strong>{document.document_date||'—'}</strong></div><div><span>Fișier</span><strong>{document.source_filename||'—'}</strong></div></div>
+    {error&&<p className="healthFormError">{error}</p>}
+    <div className="healthFormActions">{url&&<a className="healthLinkButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={17}/> Deschide fișierul</a>}<button type="button" className="secondary" onClick={onEdit}><Pencil size={17}/> Editează</button><button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button></div>
+  </div></Sheet>
+}
+
