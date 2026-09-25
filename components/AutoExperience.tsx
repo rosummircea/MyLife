@@ -292,4 +292,70 @@ function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehi
         const path = `${auth.user.id}/${id}/${crypto.randomUUID()}.${ext}`
         const { error: uploadError } = await client.storage.from('mylife-documents').upload(path, file!, { contentType: file!.type, upsert: false })
         if (uploadError) { await client.from('documents').delete().eq('id', id).eq('user_id', auth.user.id); throw new Error('Fișierul nu a putut fi încărcat.') }
-        const { error: linkError } = await clien
+        const { error: linkError } = await client.from('documents').update({ storage_path: path }).eq('id', id).eq('user_id', auth.user.id)
+        if (linkError) { await client.storage.from('mylife-documents').remove([path]); await client.from('documents').delete().eq('id', id).eq('user_id', auth.user.id); throw new Error('Fișierul nu a putut fi asociat.') }
+      } else {
+        let newPath: string | null = null
+        if (file) {
+          const ext = file.type === 'application/pdf' ? 'pdf' : file.type.split('/')[1]
+          newPath = `${auth.user.id}/${document.id}/${crypto.randomUUID()}.${ext}`
+          const { error: uploadError } = await client.storage.from('mylife-documents').upload(newPath, file, { contentType: file.type, upsert: false })
+          if (uploadError) throw new Error('Fișierul nou nu a putut fi încărcat.')
+        }
+        const update = { ...payload, ...(file && newPath ? { source_filename: file.name, mime_type: file.type, storage_path: newPath } : {}) }
+        const { error: updateError } = await client.from('documents').update(update).eq('id', document.id).eq('user_id', auth.user.id)
+        if (updateError) { if (newPath) await client.storage.from('mylife-documents').remove([newPath]); throw new Error('Documentul nu a putut fi actualizat.') }
+        if (newPath && document.storage_path) await client.storage.from('mylife-documents').remove([document.storage_path.replace(/^mylife-documents\//, '')])
+      }
+      onSaved()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Salvarea nu a reușit.') } finally { setBusy(false) }
+  }
+  return <Sheet title={document ? 'Editează document' : 'Adaugă document'} onClose={onClose}><div className="autoForm"><label>Tip document<select value={type} onChange={event => setType(event.target.value)}>{documentTypeOptions.map(([code, label]) => <option value={code} key={code}>{label}</option>)}</select></label><label>Data emiterii<input type="date" value={issuedAt} onChange={event => setIssuedAt(event.target.value)}/></label><label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label><label>Emitent<input value={issuer} onChange={event => setIssuer(event.target.value)} placeholder="Opțional"/></label><label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label><label>{document ? 'Înlocuiește / atașează fișier' : 'Fișier'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => setFile(event.target.files?.[0] ?? null)}/></label>{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions"><button type="button" className="autoSecondaryButton" onClick={onClose}>Anulează</button><button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={18}/>{busy ? 'Se salvează…' : 'Salvează'}</button></div></div></Sheet>
+}
+
+function VehicleFieldEditor({ vehicle, field, onClose, onSaved }: { vehicle: Vehicle; field: VehicleDataField; onClose: () => void; onSaved: () => void }) {
+  const current = text(vehicle.extra?.[field.key]) ?? ''
+  const [value, setValue] = useState(current)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save(clear = false) {
+    setBusy(true); setError('')
+    try {
+      const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth } = await client.auth.getUser(); if (!auth.user) throw new Error('Sesiunea nu este validă.')
+      const nextExtra = { ...(vehicle.extra ?? {}) }
+      if (clear || !value.trim()) delete nextExtra[field.key]
+      else nextExtra[field.key] = field.numeric ? Number(value.replace(/\s/g, '').replace(',', '.')) : value.trim()
+      if (!clear && field.numeric && !Number.isFinite(Number(nextExtra[field.key]))) throw new Error('Introdu o valoare numerică validă.')
+      const { error: updateError } = await client.from('vehicles').update({ extra: nextExtra, updated_at: new Date().toISOString() }).eq('id', vehicle.id).eq('user_id', auth.user.id)
+      if (updateError) throw new Error('Valoarea nu a putut fi actualizată.')
+      if (field.key === 'mileage_km' && !clear && value.trim() && value !== current) await client.from('vehicle_records').insert({ user_id: auth.user.id, vehicle_id: vehicle.id, record_type: 'mileage', issued_at: bucharestDay(new Date()), notes: 'Kilometraj actualizat din MyLife', extra: { mileage_km: Number(value.replace(/\s/g, '').replace(',', '.')) } })
+      onSaved()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Salvarea nu a reușit.') } finally { setBusy(false) }
+  }
+  return <Sheet title={field.label} onClose={onClose}><div className="autoForm"><label>Valoare<input type={field.numeric ? 'number' : 'text'} value={value} onChange={event => setValue(event.target.value)} placeholder="Nesetat"/></label>{field.unit && <p className="autoMutedLight">Unitate: {field.unit}</p>}{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions"><button type="button" className="autoDangerButton" disabled={busy || !current} onClick={() => void save(true)}><Trash2 size={17}/> Șterge valoarea</button><button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={17}/>{busy ? 'Se salvează…' : 'Salvează'}</button></div></div></Sheet>
+}
+
+function RecordEditor({ vehicle, item, onClose, onSaved }: { vehicle: Vehicle; item: DeadlineItem; onClose: () => void; onSaved: () => void }) {
+  const [expiresAt, setExpiresAt] = useState(item.due?.slice(0, 10) ?? '')
+  const [remainingKm, setRemainingKm] = useState(item.remainingKm ?? '')
+  const [dueMonth, setDueMonth] = useState(item.dueMonth ?? '')
+  const [notes, setNotes] = useState(item.record?.notes ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save() {
+    setBusy(true); setError('')
+    try {
+      const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth } = await client.auth.getUser(); if (!auth.user) throw new Error('Sesiunea nu este validă.')
+      const extra = { ...(item.record?.extra ?? {}) }
+      if (item.key === 'service') {
+        if (remainingKm.trim()) extra.remaining_km = Number(remainingKm); else delete extra.remaining_km
+        if (dueMonth) extra.next_due_month = dueMonth; else delete extra.next_due_month
+      }
+      const payload = { expires_at: item.key === 'service' ? null : (expiresAt || null), notes: notes.trim() || null, extra }
+      if (item.record) {
+        const { error: updateError } = await client.from('vehicle_records').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', item.record.id).eq('user_id', auth.user.id)
+        if (updateError) throw new Error('Scadența nu a putut fi actualizată.')
+      } else {
+        const { error: insertError } 
