@@ -294,7 +294,7 @@ function DocumentsTab({ documents, loading, today, onSelect, onCreate, onReorder
   return <div className="autoAppleContent"><section className="autoListCard autoDocumentsCard"><header><div><h3>Toate documentele</h3>{documents.length>1&&<span>Trage de mâner pentru a schimba ordinea</span>}</div><button type="button" className="autoPrimaryMini" onClick={onCreate}><Plus size={16}/> Adaugă</button></header>{orderError&&<p className="autoFormError">{orderError}</p>}{loading ? <p className="autoMutedLight">Se încarcă documentele…</p> : !ordered.length ? <div className="autoEmptyLight"><FileText size={34}/><h3>Niciun document</h3><p>Adaugă primul fișier al mașinii. AI-ul va completa automat datele pe care le găsește.</p><button type="button" className="autoPrimaryButton" onClick={onCreate}><Plus size={18}/> Adaugă document</button></div> : <div className="autoDocumentsList">{ordered.map(document => {
     const rawStatus=document.storage_path?documentStatus(document.expires_at,today):'Fără fișier'
     const status=rawStatus==='Fără dată expirare'?'Fără expirare':rawStatus
-    const tone=status==='Expirat'?'danger':status==='Expiră curând'||status==='Fără fișier'?'attention':status==='Fără expirare'?'neutral':'ok'
+    const tone=status==='Expirat'?'danger':status==='Expiră curând'||status==='Fără fișier'||status==='Dată nevalidă'?'attention':status==='Fără expirare'?'neutral':'ok'
     return <div className={`autoDocumentSortableRow ${draggingId===document.id?'dragging':''}`} data-auto-doc-id={document.id} key={document.id}>
       <button type="button" className="autoDragHandle" aria-label={`Mută ${documentLabel(document.document_type)}`} onPointerDown={event=>startDrag(event,document.id)} onPointerMove={dragMove} onPointerUp={()=>void endDrag()} onPointerCancel={()=>void endDrag()}><GripVertical size={19}/></button>
       <button type="button" className="autoDocumentRow" onClick={() => onSelect(document)}><div className="autoDocIcon"><FileText size={21}/></div><div><strong>{documentLabel(document.document_type)}</strong><span>{documentHelper(document.document_type)}</span></div><em className={`autoPill ${tone}`}>{status}</em><ChevronRight size={18}/></button>
@@ -329,7 +329,8 @@ function HistoryTab({ records, documents, today, onDocument, onRecord }: { recor
 function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: { document: DocumentRow; today: string; onClose: () => void; onOpen: () => void; onEdit: () => void; onDeleted: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const status = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'
+  const rawStatus = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'
+  const status = rawStatus === 'Fără dată expirare' ? 'Fără expirare' : rawStatus
   async function remove() {
     if (!window.confirm(`Ștergi definitiv documentul „${documentLabel(document.document_type)}”?`)) return
     setBusy(true); setError('')
