@@ -189,4 +189,46 @@ function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
   return <section className="autoVehicleHero"><div className="autoVehicleHeroCopy"><h2>{vehicleTitle(vehicle)}</h2><strong>{vehicle.registration_number || 'Fără număr'}</strong><div className="autoHeroPills">{text(vehicle.extra?.fuel) && <span><Zap size={15}/>{text(vehicle.extra?.fuel)}</span>}{text(vehicle.extra?.power_kw) && <span><Gauge size={15}/>{Number(text(vehicle.extra?.power_kw)).toLocaleString('ro-RO')} kW</span>}</div></div><VehiclePhoto vehicle={vehicle}/></section>
 }
 
-function Vehi
+function VehiclePhoto({ vehicle }: { vehicle: Vehicle }) {
+  const photo = photos(vehicle)[0]
+  const [url, setUrl] = useState<string | null>(photo?.data_url ?? null)
+  const [failed, setFailed] = useState(false)
+  const identity = photo ? JSON.stringify(photo) : ''
+  useEffect(() => {
+    const current: VehiclePhoto | undefined = identity ? JSON.parse(identity) : undefined
+    if (!current || current.data_url) { setUrl(current?.data_url ?? null); return }
+    let cancelled = false
+    const client = getSupabaseClient()
+    if (!client || !current.bucket || !current.path) return
+    client.storage.from(current.bucket).createSignedUrl(current.path, 300).then(({ data, error }) => { if (!cancelled && !error) setUrl(data?.signedUrl ?? null) })
+    return () => { cancelled = true }
+  }, [identity])
+  if (!photo || !url || failed) return <div className="autoVehiclePhotoFallback"><Car size={72}/></div>
+  return <div className="autoVehiclePhoto"><img src={url} alt={photo.caption || vehicleTitle(vehicle)} onError={() => setFailed(true)}/></div>
+}
+
+function OverviewTab({ vehicle, documents, documentsLoading, deadlines, onTab, onDeadline }: { vehicle: Vehicle; documents: DocumentRow[]; documentsLoading: boolean; deadlines: DeadlineItem[]; onTab: (tab: AutoTab) => void; onDeadline: (item: DeadlineItem) => void }) {
+  const urgent = deadlines.filter(item => item.record && (item.status.tone === 'danger' || item.status.tone === 'attention'))
+  const service = deadlines.find(item => item.key === 'service' && item.record)
+  const next = urgent[0] ?? service ?? deadlines.find(item => item.record) ?? null
+  return <div className="autoAppleContent">
+    <section className="autoActionCard"><span>Următoarea acțiune</span>{next ? <button type="button" onClick={() => onDeadline(next)}><div className="autoRoundIcon"><Wrench size={23}/></div><div><strong>{next.label}{next.status.tone === 'attention' ? ' · în curând' : ''}</strong><p>{displayDeadline(next)}</p></div><ChevronRight size={20}/></button> : <p>Nu există încă o acțiune planificată.</p>}</section>
+    <div className="autoSummaryGrid"><button type="button" onClick={() => onTab('Documente')}><div className="autoRoundIcon"><FileText size={22}/></div><div><span>Documente</span><strong>{documentsLoading ? '…' : `${documents.length} documente`}</strong><small>Toate fișierele sunt aici</small></div><ChevronRight size={18}/></button><button type="button" onClick={() => onTab('Date')}><div className="autoRoundIcon"><Gauge size={22}/></div><div><span>Date mașină</span><strong>{text(vehicle.extra?.mileage_km) ? `${Number(text(vehicle.extra?.mileage_km)).toLocaleString('ro-RO')} km` : 'Nesetat'}</strong><small>Kilometraj actual</small></div><ChevronRight size={18}/></button></div>
+    <section className="autoListCard"><header><h3>Scadențe</h3><button type="button" onClick={() => onTab('Date')}>Vezi toate <ChevronRight size={16}/></button></header>{deadlines.filter(item => item.record).slice(0, 3).map(item => <button type="button" className="autoSimpleRow" key={item.key} onClick={() => onDeadline(item)}><span className={statusClass(item.status.tone)}/><strong>{item.label}</strong><span>{displayDeadline(item)}</span><ChevronRight size={17}/></button>)}</section>
+  </div>
+}
+
+function DocumentsTab({ documents, loading, today, onSelect, onCreate }: { documents: DocumentRow[]; loading: boolean; today: string; onSelect: (document: DocumentRow) => void; onCreate: () => void }) {
+  return <div className="autoAppleContent"><section className="autoListCard autoDocumentsCard"><header><h3>Toate documentele</h3><button type="button" className="autoPrimaryMini" onClick={onCreate}><Plus size={16}/> Adaugă</button></header>{loading ? <p className="autoMutedLight">Se încarcă documentele…</p> : !documents.length ? <div className="autoEmptyLight"><FileText size={34}/><h3>Niciun document</h3><p>Adaugă primul fișier al mașinii.</p><button type="button" className="autoPrimaryButton" onClick={onCreate}><Plus size={18}/> Adaugă document</button></div> : documents.map(document => { const status = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'; const tone = status === 'Expirat' ? 'danger' : status === 'Expiră curând' || status === 'Fără fișier' ? 'attention' : 'ok'; return <button type="button" className="autoDocumentRow" key={document.id} onClick={() => onSelect(document)}><div className="autoDocIcon"><FileText size={21}/></div><div><strong>{documentLabel(document.document_type)}</strong><span>{documentHelper(document.document_type)}</span></div><em className={`autoPill ${tone}`}>{status === 'Fără dată expirare' ? 'Salvat' : status}</em><ChevronRight size={18}/></button>})}</section>{documents.length > 0 && <button type="button" className="autoPrimaryButton autoAddDocument" onClick={onCreate}><Plus size={19}/> Adaugă document</button>}</div>
+}
+
+function DataTab({ vehicle, deadlines, onField, onDeadline }: { vehicle: Vehicle; deadlines: DeadlineItem[]; onField: (field: VehicleDataField) => void; onDeadline: (item: DeadlineItem) => void }) {
+  return <div className="autoAppleContent"><section className="autoListCard"><header><h3>Date principale</h3><span>Apasă pentru editare</span></header>{dataFields.map(field => <button type="button" className="autoDataRow" key={field.key} onClick={() => onField(field)}><span>{field.label}</span><strong>{text(vehicle.extra?.[field.key]) ? `${field.numeric ? Number(text(vehicle.extra?.[field.key])).toLocaleString('ro-RO') : text(vehicle.extra?.[field.key])}${field.unit ? ` ${field.unit}` : ''}` : 'Nesetat'}</strong><ChevronRight size={17}/></button>)}</section><section className="autoListCard"><header><h3>Scadențe</h3><span>Apasă pentru CRUD</span></header>{deadlines.map(item => <button type="button" className="autoSimpleRow" key={item.key} onClick={() => onDeadline(item)}><span className={statusClass(item.status.tone)}/><strong>{item.label}</strong><span>{displayDeadline(item)}</span><ChevronRight size={17}/></button>)}</section><div className="autoInfoNote"><span>i</span><p>Fișierele se găsesc doar în tabul <strong>Documente</strong>. Aici sunt doar date și scadențe.</p></div></div>
+}
+
+type HistoryEvent = { id: string; date: string; title: string; subtitle?: string | null; future: boolean; document?: DocumentRow; record?: VehicleRecord }
+function HistoryTab({ records, documents, today, onDocument, onRecord }: { records: VehicleRecord[]; documents: DocumentRow[]; today: string; onDocument: (document: DocumentRow) => void; onRecord: (record: VehicleRecord) => void }) {
+  const events = useMemo(() => {
+    const result: HistoryEvent[] = []
+    for (const record of records) {
+      if (record.record_type === 'mileage' && record.issued_at) result.push({ id: `mileage-${record.id}`, date: record.issued_at, title: 'Kilometraj actualizat', subtitle: text(record.extra?.mileage_km) ? `${Number(text(record.extra?.mileage_km)).toLocaleString('ro-RO')} km` : null, future: false, recor
