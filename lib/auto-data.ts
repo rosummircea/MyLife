@@ -39,7 +39,20 @@ export function photos(vehicle: Vehicle): VehiclePhoto[] {
 }
 export function vehicleDocuments(vehicleId: string, documents: DocumentRow[]) {
   // Explicit metadata link only; no guesses based on plates, names or PDF titles.
-  return documents.filter(document => document.extra?.vehicle_id === vehicleId)
+  // Keep the user's manual Auto order in document metadata.
+  return documents
+    .map((document,index)=>({document,index}))
+    .filter(item=>item.document.extra?.vehicle_id===vehicleId)
+    .sort((a,b)=>{
+      const aOrder=Number(a.document.extra?.auto_order)
+      const bOrder=Number(b.document.extra?.auto_order)
+      const aHas=Number.isFinite(aOrder)
+      const bHas=Number.isFinite(bOrder)
+      if(aHas&&bHas&&aOrder!==bOrder)return aOrder-bOrder
+      if(aHas!==bHas)return aHas?-1:1
+      return a.index-b.index
+    })
+    .map(item=>item.document)
 }
 export function recordCost(record: VehicleRecord) {
   const value = record.extra?.cost
