@@ -47,3 +47,11 @@
 .transactionList button.listRow { width:100%; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--text); font:inherit; text-align:left; }
 .transactionList button.listRow:hover,.transactionList .listRow.transactionFocused { background:rgba(118,168,255,.12); }
 .transactionList button.listRow:focus-visible { outline:2px solid var(--blue); outline-offset:-2px; }
+
+
+.documentsHeadingActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.documentsDeleteButton{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(248,113,113,.34);background:rgba(127,29,29,.14);color:#fca5a5;border-radius:10px;padding:8px 11px;font:inherit;font-size:.84rem;font-weight:700;cursor:pointer}
+.documentsDeleteButton:hover{background:rgba(127,29,29,.24);border-color:rgba(248,113,113,.5)}
+.documentsDeleteButton:disabled{opacity:.55;cursor:wait}
+.documentsDeleteError{margin:10px 0 0;color:#fca5a5;font-size:.9rem}
+@media(max-width:720px){.documentsDetailHeading{align-items:flex-start}.documentsHeadingActions{width:100%;justify-content:space-between}.documentsDeleteButton{min-height:40px}}
