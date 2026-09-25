@@ -14,6 +14,7 @@ export default function HealthModule({connected,refreshVersion,documents,documen
   const [loading,setLoading]=useState(connected)
   const [error,setError]=useState('')
   const [visitEditor,setVisitEditor]=useState<HealthVisit|null|'new'>(null)
+  const [metricEditor,setMetricEditor]=useState<HealthMeasurement|null|'new'>(null)
   const medicalDocuments=useMemo(()=>healthDocuments(documents),[documents])
 
   useEffect(()=>{
@@ -29,19 +30,21 @@ export default function HealthModule({connected,refreshVersion,documents,documen
   useEffect(()=>{
     registerMobileBack(()=>{
       if(visitEditor){setVisitEditor(null);return true}
+      if(metricEditor){setMetricEditor(null);return true}
       if(tab!=='overview'){setTab('overview');return true}
       return false
     })
     return()=>registerMobileBack(null)
-  },[registerMobileBack,setTab,tab,visitEditor])
+  },[metricEditor,registerMobileBack,setTab,tab,visitEditor])
 
   return <section className="healthModule">
     {error&&<div className="healthError">{error}</div>}
     {tab==='overview'&&<Overview data={data} documents={medicalDocuments} loading={loading||documentsLoading} setTab={setTab}/>}
     {tab==='visits'&&<VisitsTab visits={data.visits} loading={loading} onAdd={()=>setVisitEditor('new')} onOpen={visit=>setVisitEditor(visit)}/>}
-    {tab==='data'&&<DataReadOnly measurements={data.measurements} loading={loading}/>}
+    {tab==='data'&&<MetricsTab measurements={data.measurements} loading={loading} onAdd={()=>setMetricEditor('new')} onOpen={measurement=>setMetricEditor(measurement)}/>}
     {tab==='documents'&&<Documents documents={medicalDocuments} loading={documentsLoading}/>}
     {visitEditor&&<VisitSheet visit={visitEditor==='new'?null:visitEditor} onClose={()=>setVisitEditor(null)} onSaved={()=>{setVisitEditor(null);onChanged()}}/>}
+    {metricEditor&&<MetricSheet measurement={metricEditor==='new'?null:metricEditor} onClose={()=>setMetricEditor(null)} onSaved={()=>{setMetricEditor(null);onChanged()}}/>}
   </section>
 }
 
@@ -164,8 +167,120 @@ function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>
   </div></Sheet>
 }
 
-function DataReadOnly({measurements,loading}:{measurements:HealthMeasurement[];loading:boolean}){
-  return <div className="healthPage"><Header title="Date" subtitle="Valori și tendințe, fără interpretări medicale."/><section className="healthDocumentList">{loading?<p className="healthMuted">Se încarcă…</p>:measurements.length?measurements.slice(0,20).map(row=><button key={row.id}><div className="healthSquareIcon"><Activity size={21}/></div><div><strong>{metricMeta[row.metric_type].label}</strong><span>{Number(row.value).toLocaleString('ro-RO',{maximumFractionDigits:1})} {row.unit}</span></div><ChevronRight size={18}/></button>):<div className="healthEmptyPanel"><Activity size={34}/><strong>Nicio valoare încă</strong></div>}</section></div>
+function metricUnit(type:HealthMetricType){
+  if(type==='resting_heart_rate')return 'bpm'
+  if(type==='sleep_duration')return 'h'
+  if(type==='respiratory_rate')return 'rpm'
+  if(type==='vo2_max')return 'ml/kg/min'
+  if(type==='steps')return 'pași'
+  if(type==='weight')return 'kg'
+  if(type==='spo2')return '%'
+  return 'mmHg'
+}
+
+function metricValue(row:HealthMeasurement){
+  if(row.metric_type==='sleep_duration'){
+    const hours=Math.floor(row.value)
+    const minutes=Math.round((row.value-hours)*60)
+    return hours+' h'+(minutes?' '+minutes+' min':'')
+  }
+  if(row.metric_type==='blood_pressure')return Math.round(row.value)+'/'+Math.round(row.secondary_value??0)
+  return Number(row.value).toLocaleString('ro-RO',{maximumFractionDigits:1})
+}
+
+function MetricsTab({measurements,loading,onAdd,onOpen}:{measurements:HealthMeasurement[];loading:boolean;onAdd:()=>void;onOpen:(measurement:HealthMeasurement)=>void}){
+  const [period,setPeriod]=useState<'week'|'month'|'all'>('week')
+  const days=period==='week'?7:period==='month'?30:36500
+  const cutoff=Date.now()-days*86400000
+  const scoped=measurements.filter(item=>new Date(item.measured_at).getTime()>=cutoff)
+  const latest=new Map<HealthMetricType,HealthMeasurement>()
+  for(const item of measurements)if(!latest.has(item.metric_type))latest.set(item.metric_type,item)
+  const cards:HealthMetricType[]=['resting_heart_rate','sleep_duration','vo2_max','steps']
+  const chartRows=measurements.filter(item=>item.metric_type==='resting_heart_rate'&&new Date(item.measured_at).getTime()>=Date.now()-30*86400000).slice().reverse()
+
+  return <div className="healthPage">
+    <Header title="Date" subtitle="Valori și tendințe, fără interpretări medicale."/>
+    <div className="healthSegmented three"><button className={period==='week'?'active':''} onClick={()=>setPeriod('week')}>Săptămână</button><button className={period==='month'?'active':''} onClick={()=>setPeriod('month')}>Lună</button><button className={period==='all'?'active':''} onClick={()=>setPeriod('all')}>Tot</button></div>
+    <section className="healthPeriodSummary"><Activity size={22}/><div><strong>{period==='week'?'Ultimele 7 zile':period==='month'?'Ultimele 30 zile':'Toate datele'}</strong><span>{loading?'Se încarcă…':scoped.length+' înregistrări'}</span></div><button className="healthAddButton" onClick={onAdd}><Plus size={17}/> Adaugă</button></section>
+    <div className="healthMetricGrid">{cards.map(type=>{const row=latest.get(type);return <button className={'healthMetricCard metric-'+type} key={type} onClick={()=>row?onOpen(row):onAdd()}><div className="healthMetricIcon"><Activity size={23}/></div><div className="healthMetricCopy"><span>{metricMeta[type].label}</span><strong>{row?metricValue(row):'—'} {row&&type!=='sleep_duration'&&<small>{row.unit}</small>}</strong><em>{row?'Ultima valoare':'Fără date'}</em></div><ChevronRight size={18}/></button>})}</div>
+    <section className="healthCard healthChartCard"><header><div><h3>Tendință 30 zile</h3><span>Puls în repaus</span></div><em>{chartRows.length>1?'Evoluție disponibilă':'Mai sunt necesare date'}</em></header><TrendChart rows={chartRows}/></section>
+    <section className="healthCard healthSources"><header><h3>Surse de date</h3></header><div><div className="healthSquareIcon"><Activity size={21}/></div><div><strong>Manual</strong><small>{measurements.filter(item=>item.source==='manual').length} valori introduse</small></div></div><div><div className="healthSquareIcon"><Activity size={21}/></div><div><strong>Apple Health / Watch</strong><small>Neconectat · necesită integrare iOS</small></div></div></section>
+    <section className="healthDocumentList">{measurements.slice(0,20).map(row=><button key={row.id} onClick={()=>onOpen(row)}><div className="healthSquareIcon"><Activity size={21}/></div><div><strong>{metricMeta[row.metric_type].label}</strong><span>{metricValue(row)} {row.metric_type==='sleep_duration'?'':row.unit} · {new Date(row.measured_at).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',day:'2-digit',month:'short',year:'numeric'})}</span></div><ChevronRight size={18}/></button>)}</section>
+  </div>
+}
+
+function TrendChart({rows}:{rows:HealthMeasurement[]}){
+  if(rows.length<2)return <div className="healthChartEmpty">Adaugă cel puțin două valori pentru a vedea tendința.</div>
+  const values=rows.map(row=>row.value)
+  const min=Math.min(...values)
+  const max=Math.max(...values)
+  const range=Math.max(1,max-min)
+  const points=rows.map((row,index)=>String((index/(rows.length-1))*100)+','+String(88-((row.value-min)/range)*68)).join(' ')
+  return <svg className="healthChart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Grafic tendință"><line x1="0" y1="88" x2="100" y2="88"/><line x1="0" y1="54" x2="100" y2="54"/><line x1="0" y1="20" x2="100" y2="20"/><polyline points={points}/></svg>
+}
+
+function MetricSheet({measurement,onClose,onSaved}:{measurement:HealthMeasurement|null;onClose:()=>void;onSaved:()=>void}){
+  const types:HealthMetricType[]=['resting_heart_rate','sleep_duration','respiratory_rate','vo2_max','steps','weight','spo2','blood_pressure']
+  const [type,setType]=useState<HealthMetricType>(measurement?.metric_type??'resting_heart_rate')
+  const [value,setValue]=useState(measurement?String(measurement.value):'')
+  const [secondary,setSecondary]=useState(measurement?.secondary_value===null||measurement?.secondary_value===undefined?'':String(measurement.secondary_value))
+  const toLocal=(dateValue:string)=>{const date=new Date(dateValue);const shifted=new Date(date.getTime()-date.getTimezoneOffset()*60000);return shifted.toISOString().slice(0,16)}
+  const [measuredAt,setMeasuredAt]=useState(measurement?.measured_at?toLocal(measurement.measured_at):toLocal(new Date().toISOString()))
+  const [notes,setNotes]=useState(measurement?.notes??'')
+  const [busy,setBusy]=useState(false)
+  const [error,setError]=useState('')
+
+  async function save(){
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      const numeric=Number(value.replace(',','.'))
+      if(!Number.isFinite(numeric))throw new Error('Introdu o valoare numerică.')
+      const second=secondary?Number(secondary.replace(',','.')):null
+      if(type==='blood_pressure'&&(second===null||!Number.isFinite(second)))throw new Error('Introdu și valoarea diastolică.')
+      const payload={metric_type:type,value:numeric,secondary_value:second,unit:metricUnit(type),measured_at:new Date(measuredAt).toISOString(),source:'manual',notes:notes.trim()||null,updated_at:new Date().toISOString()}
+      const result=measurement
+        ?await client.from('health_measurements').update(payload).eq('id',measurement.id).eq('user_id',auth.user.id)
+        :await client.from('health_measurements').insert({user_id:auth.user.id,...payload})
+      if(result.error)throw new Error(result.error.message)
+      onSaved()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Salvarea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  async function remove(){
+    if(!measurement||!window.confirm('Ștergi această valoare?'))return
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      const {error:deleteError}=await client.from('health_measurements').delete().eq('id',measurement.id).eq('user_id',auth.user.id)
+      if(deleteError)throw new Error(deleteError.message)
+      onSaved()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Ștergerea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  return <Sheet title={measurement?'Editează valoare':'Adaugă valoare'} onClose={onClose}><div className="healthForm">
+    <label>Indicator<select value={type} onChange={event=>setType(event.target.value as HealthMetricType)}>{types.map(key=><option key={key} value={key}>{metricMeta[key].label}</option>)}</select></label>
+    <label>{type==='blood_pressure'?'Sistolică':'Valoare'}<input inputMode="decimal" value={value} onChange={event=>setValue(event.target.value)} placeholder={metricUnit(type)}/></label>
+    {type==='blood_pressure'&&<label>Diastolică<input inputMode="decimal" value={secondary} onChange={event=>setSecondary(event.target.value)} placeholder="mmHg"/></label>}
+    <label>Data și ora<input type="datetime-local" value={measuredAt} onChange={event=>setMeasuredAt(event.target.value)}/></label>
+    <label>Note<textarea value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Opțional"/></label>
+    {error&&<p className="healthFormError">{error}</p>}
+    <div className="healthFormActions">{measurement&&<button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
+  </div></Sheet>
 }
 
 function Documents({documents,loading}:{documents:DocumentRow[];loading:boolean}){
