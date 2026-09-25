@@ -1,7 +1,7 @@
 'use client'
 
 import {useEffect,useMemo,useState,type ReactNode} from 'react'
-import {Activity,CalendarDays,ChevronRight,ExternalLink,FileText,HeartPulse,Pencil,Plus,Save,Search,Stethoscope,Trash2,Upload,X} from 'lucide-react'
+import {Activity,CalendarDays,ChevronRight,ExternalLink,FileText,HeartPulse,Pencil,Plus,Save,Search,Sparkles,Stethoscope,Trash2,Upload,X} from 'lucide-react'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {DocumentRow} from '@/lib/mylife-data'
 import {healthDocumentCategory,healthDocuments,healthDocumentTitle,loadHealthData,metricMeta,type HealthData,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
@@ -111,6 +111,23 @@ function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>
   const [notes,setNotes]=useState(visit?.notes??'')
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
+
+  async function analyzeWithAi(documentId:string){
+    const client=getSupabaseClient()
+    if(!client)return
+    const {data:session}=await client.auth.getSession()
+    const accessToken=session.session?.access_token
+    if(!accessToken)return
+    const response=await fetch('/api/health/document-analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+accessToken},
+      body:JSON.stringify({documentId}),
+    })
+    if(!response.ok){
+      const payload=await response.json().catch(()=>({})) as {error?:string}
+      throw new Error(payload.error||'Analiza AI nu a reușit.')
+    }
+  }
 
   async function save(){
     setBusy(true);setError('')
@@ -313,6 +330,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
   const [issuer,setIssuer]=useState(document?.issuer??'')
   const [date,setDate]=useState(document?.document_date?.slice(0,10)??'')
   const [file,setFile]=useState<File|null>(null)
+  const [useAi,setUseAi]=useState(false)
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
 
@@ -349,6 +367,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
         if(uploadError){await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(uploadError.message)}
         const {error:linkError}=await client.from('documents').update({storage_path:path}).eq('id',id).eq('user_id',auth.user.id)
         if(linkError){await client.storage.from('mylife-documents').remove([path]);await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(linkError.message)}
+        if(useAi)await analyzeWithAi(id)
       }else{
         let newPath:string|null=null
         if(file){
@@ -367,6 +386,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
         const {error:updateError}=await client.from('documents').update(update).eq('id',document.id).eq('user_id',auth.user.id)
         if(updateError){if(newPath)await client.storage.from('mylife-documents').remove([newPath]);throw new Error(updateError.message)}
         if(newPath&&document.storage_path)await client.storage.from('mylife-documents').remove([document.storage_path.replace(/^mylife-documents\//,'')])
+        if(useAi&&file)await analyzeWithAi(document.id)
       }
       onSaved()
     }catch(reason){
@@ -378,6 +398,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
 
   return <Sheet title={document?'Editează document':'Adaugă document'} onClose={onClose}><div className="healthForm">
     <label>Fișier<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={event=>setFile(event.target.files?.[0]??null)}/></label>
+    <label className="healthAiConsent"><input type="checkbox" checked={useAi} onChange={event=>setUseAi(event.target.checked)}/><span><Sparkles size={18}/><strong>Completează metadatele cu AI</strong><small>Opțional. Fișierul este analizat doar pentru tip, titlu, emitent și dată; nu se generează diagnostic.</small></span></label>
     <label>Tip<select value={type} onChange={event=>setType(event.target.value)}><option value="health_lab">Analize</option><option value="health_imaging">Imagistică</option><option value="health_prescription">Rețetă</option><option value="health_discharge">Bilet externare</option><option value="health_consultation">Raport consultație</option><option value="health_other">Alt document</option></select></label>
     <label>Titlu<input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Opțional"/></label>
     <label>Emitent<input value={issuer} onChange={event=>setIssuer(event.target.value)} placeholder="Opțional"/></label>
