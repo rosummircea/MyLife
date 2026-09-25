@@ -178,15 +178,16 @@ Răspunde EXCLUSIV cu JSON valid:
       ...(textOrNull(parsed.vin)?{vin:textOrNull(parsed.vin)}:{}),
     }
 
+    const detectedType=autoType(parsed.document_type)
     const update={
-      document_type:autoType(parsed.document_type),
-      issued_at:dateOrNull(parsed.issued_at),
-      expires_at:dateOrNull(parsed.expires_at),
-      document_date:dateOrNull(parsed.document_date),
-      issuer:textOrNull(parsed.issuer),
-      issuing_country:textOrNull(parsed.issuing_country)?.toUpperCase()??null,
-      issuing_authority:textOrNull(parsed.issuing_authority),
-      notes:textOrNull(parsed.notes),
+      document_type:detectedType==='document_auto'&&document.document_type!=='document_auto'?document.document_type:detectedType,
+      issued_at:dateOrNull(parsed.issued_at)??document.issued_at,
+      expires_at:dateOrNull(parsed.expires_at)??document.expires_at,
+      document_date:dateOrNull(parsed.document_date)??document.document_date,
+      issuer:textOrNull(parsed.issuer)??document.issuer,
+      issuing_country:textOrNull(parsed.issuing_country)?.toUpperCase()??document.issuing_country,
+      issuing_authority:textOrNull(parsed.issuing_authority)??document.issuing_authority,
+      notes:textOrNull(parsed.notes)??document.notes,
       extra:nextExtra,
     }
 
