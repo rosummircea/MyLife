@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AlertCircle, ArrowLeft, Car, ChevronRight, ExternalLink, FileText, Gauge, Home, Pencil, Plus, Save, Settings, Trash2, Wrench, X, Zap } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Car, ChevronRight, ExternalLink, FileText, Gauge, GripVertical, Home, Pencil, Plus, Save, Settings, Sparkles, Trash2, Wrench, X, Zap } from 'lucide-react'
 import { getSupabaseClient } from '@/lib/supabase'
 import { bucharestDay } from '@/lib/expense-report'
 import type { DocumentRow } from '@/lib/mylife-data'
@@ -169,13 +169,32 @@ function VehicleWorkspace({ vehicle, allVehicles, records, documents, documentsL
     Istoric: ['Istoric', 'Ce s-a întâmplat și ce urmează.'],
   }
 
+  async function reorderDocuments(ids:string[]) {
+    const client=getSupabaseClient()
+    if(!client)throw new Error('Supabase nu este disponibil.')
+    const {data:auth,error:authError}=await client.auth.getUser()
+    if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+    const byId=new Map(documents.map(document=>[document.id,document]))
+    const results=await Promise.all(ids.map((id,index)=>{
+      const document=byId.get(id)
+      if(!document)return Promise.resolve({error:null})
+      return client.from('documents')
+        .update({extra:{...(document.extra??{}),auto_order:index}})
+        .eq('id',id)
+        .eq('user_id',auth.user.id)
+    }))
+    const failed=results.find(result=>result.error)
+    if(failed?.error)throw new Error(failed.error.message)
+    onChanged()
+  }
+
   return <div className="autoWorkspace">
     <header className="autoPageHeader"><div>{allVehicles > 1 && <button type="button" className="autoBackLink" onClick={onBack}><ArrowLeft size={16}/> Vehicule</button>}<span>MYLIFE AUTO</span><h1>{titles[tab][0]}</h1><p>{titles[tab][1]}</p></div><button type="button" className="autoIconButton" onClick={() => setTab('Date')} aria-label="Datele mașinii"><Settings size={20}/></button></header>
     <nav className="autoSegmented" aria-label="Secțiuni Auto">{tabs.map(item => <button type="button" key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>{item}</button>)}</nav>
     <VehicleHero vehicle={vehicle}/>
 
     {tab === 'Overview' && <OverviewTab vehicle={vehicle} documents={documents} documentsLoading={documentsLoading} deadlines={deadlines} onTab={setTab} onDeadline={setRecordEditor}/>} 
-    {tab === 'Documente' && <DocumentsTab documents={documents} loading={documentsLoading} today={today} onSelect={setSelectedDoc} onCreate={() => setDocEditor({ mode: 'create' })}/>} 
+    {tab === 'Documente' && <DocumentsTab documents={documents} loading={documentsLoading} today={today} onSelect={setSelectedDoc} onCreate={() => setDocEditor({ mode: 'create' })} onReorder={reorderDocuments}/>} 
     {tab === 'Date' && <DataTab vehicle={vehicle} deadlines={deadlines} onField={setFieldEditor} onDeadline={setRecordEditor}/>} 
     {tab === 'Istoric' && <HistoryTab records={records} documents={documents} today={today} onDocument={setSelectedDoc} onRecord={item => setRecordEditor(deadlines.find(deadline => deadline.record?.id === item.id) ?? { key: item.record_type === 'service' ? 'service' : (item.record_type as DeadlineKey), label: item.record_type.replace(/_/g, ' '), recordType: item.record_type, record: item, due: item.expires_at, remainingKm: text(item.extra?.remaining_km), dueMonth: text(item.extra?.next_due_month), status: deadlineStatus(item.expires_at, today) })}/>} 
 
@@ -220,8 +239,67 @@ function OverviewTab({ vehicle, documents, documentsLoading, deadlines, onTab, o
   </div>
 }
 
-function DocumentsTab({ documents, loading, today, onSelect, onCreate }: { documents: DocumentRow[]; loading: boolean; today: string; onSelect: (document: DocumentRow) => void; onCreate: () => void }) {
-  return <div className="autoAppleContent"><section className="autoListCard autoDocumentsCard"><header><h3>Toate documentele</h3><button type="button" className="autoPrimaryMini" onClick={onCreate}><Plus size={16}/> Adaugă</button></header>{loading ? <p className="autoMutedLight">Se încarcă documentele…</p> : !documents.length ? <div className="autoEmptyLight"><FileText size={34}/><h3>Niciun document</h3><p>Adaugă primul fișier al mașinii.</p><button type="button" className="autoPrimaryButton" onClick={onCreate}><Plus size={18}/> Adaugă document</button></div> : documents.map(document => { const status = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'; const tone = status === 'Expirat' ? 'danger' : status === 'Expiră curând' || status === 'Fără fișier' ? 'attention' : 'ok'; return <button type="button" className="autoDocumentRow" key={document.id} onClick={() => onSelect(document)}><div className="autoDocIcon"><FileText size={21}/></div><div><strong>{documentLabel(document.document_type)}</strong><span>{documentHelper(document.document_type)}</span></div><em className={`autoPill ${tone}`}>{status === 'Fără dată expirare' ? 'Salvat' : status}</em><ChevronRight size={18}/></button>})}</section>{documents.length > 0 && <button type="button" className="autoPrimaryButton autoAddDocument" onClick={onCreate}><Plus size={19}/> Adaugă document</button>}</div>
+function DocumentsTab({ documents, loading, today, onSelect, onCreate, onReorder }: { documents: DocumentRow[]; loading: boolean; today: string; onSelect: (document: DocumentRow) => void; onCreate: () => void; onReorder: (ids:string[]) => Promise<void> }) {
+  const [ordered,setOrdered]=useState(documents)
+  const [draggingId,setDraggingId]=useState<string|null>(null)
+  const [orderError,setOrderError]=useState('')
+  const orderRef=useRef(documents)
+  const draggingRef=useRef<string|null>(null)
+
+  useEffect(()=>{ setOrdered(documents); orderRef.current=documents },[documents])
+  useEffect(()=>{ orderRef.current=ordered },[ordered])
+
+  function moveOver(targetId:string){
+    const id=draggingRef.current
+    if(!id||id===targetId)return
+    setOrdered(current=>{
+      const from=current.findIndex(item=>item.id===id)
+      const to=current.findIndex(item=>item.id===targetId)
+      if(from<0||to<0||from===to)return current
+      const next=[...current]
+      const [moved]=next.splice(from,1)
+      next.splice(to,0,moved)
+      orderRef.current=next
+      return next
+    })
+  }
+
+  function startDrag(event:React.PointerEvent<HTMLButtonElement>,id:string){
+    event.preventDefault()
+    draggingRef.current=id
+    setDraggingId(id)
+    setOrderError('')
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function dragMove(event:React.PointerEvent<HTMLButtonElement>){
+    if(!draggingRef.current)return
+    const target=document.elementFromPoint(event.clientX,event.clientY)?.closest<HTMLElement>('[data-auto-doc-id]')
+    const targetId=target?.dataset.autoDocId
+    if(targetId)moveOver(targetId)
+  }
+
+  async function endDrag(){
+    if(!draggingRef.current)return
+    draggingRef.current=null
+    setDraggingId(null)
+    try{await onReorder(orderRef.current.map(document=>document.id))}
+    catch(error){
+      setOrderError(error instanceof Error?error.message:'Ordinea nu a putut fi salvată.')
+      setOrdered(documents)
+      orderRef.current=documents
+    }
+  }
+
+  return <div className="autoAppleContent"><section className="autoListCard autoDocumentsCard"><header><div><h3>Toate documentele</h3>{documents.length>1&&<span>Trage de mâner pentru a schimba ordinea</span>}</div><button type="button" className="autoPrimaryMini" onClick={onCreate}><Plus size={16}/> Adaugă</button></header>{orderError&&<p className="autoFormError">{orderError}</p>}{loading ? <p className="autoMutedLight">Se încarcă documentele…</p> : !ordered.length ? <div className="autoEmptyLight"><FileText size={34}/><h3>Niciun document</h3><p>Adaugă primul fișier al mașinii. AI-ul va completa automat datele pe care le găsește.</p><button type="button" className="autoPrimaryButton" onClick={onCreate}><Plus size={18}/> Adaugă document</button></div> : <div className="autoDocumentsList">{ordered.map(document => {
+    const rawStatus=document.storage_path?documentStatus(document.expires_at,today):'Fără fișier'
+    const status=rawStatus==='Fără dată expirare'?'Fără expirare':rawStatus
+    const tone=status==='Expirat'?'danger':status==='Expiră curând'||status==='Fără fișier'?'attention':status==='Fără expirare'?'neutral':'ok'
+    return <div className={`autoDocumentSortableRow ${draggingId===document.id?'dragging':''}`} data-auto-doc-id={document.id} key={document.id}>
+      <button type="button" className="autoDragHandle" aria-label={`Mută ${documentLabel(document.document_type)}`} onPointerDown={event=>startDrag(event,document.id)} onPointerMove={dragMove} onPointerUp={()=>void endDrag()} onPointerCancel={()=>void endDrag()}><GripVertical size={19}/></button>
+      <button type="button" className="autoDocumentRow" onClick={() => onSelect(document)}><div className="autoDocIcon"><FileText size={21}/></div><div><strong>{documentLabel(document.document_type)}</strong><span>{documentHelper(document.document_type)}</span></div><em className={`autoPill ${tone}`}>{status}</em><ChevronRight size={18}/></button>
+    </div>
+  })}</div>}</section></div>
 }
 
 function DataTab({ vehicle, deadlines, onField, onDeadline }: { vehicle: Vehicle; deadlines: DeadlineItem[]; onField: (field: VehicleDataField) => void; onDeadline: (item: DeadlineItem) => void }) {
