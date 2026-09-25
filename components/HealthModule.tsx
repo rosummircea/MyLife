@@ -1,5 +1,6 @@
 'use client'
 
+import {type ReactNode} from 'react'
 import {Activity,CalendarDays,ChevronRight,FileText,HeartPulse,Plus} from 'lucide-react'
 import type {DocumentRow} from '@/lib/mylife-data'
 import {healthDocuments,healthDocumentTitle,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
@@ -34,7 +35,7 @@ function Overview({documents,loading,setTab}:{documents:DocumentRow[];loading:bo
   </div>
 }
 
-function Simple({title,subtitle,icon}:{title:string;subtitle:string;icon:React.ReactNode}){
+function Simple({title,subtitle,icon}:{title:string;subtitle:string;icon:ReactNode}){
   return <div className="healthPage"><Header title={title} subtitle={subtitle}/><div className="healthEmptyPanel">{icon}<strong>Modul pregătit</strong><button><Plus size={17}/>Adaugă</button></div></div>
 }
 
