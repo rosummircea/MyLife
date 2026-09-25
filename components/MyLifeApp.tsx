@@ -317,7 +317,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   if (!userEmail && (!developmentAccess || connecting)) return <LoginCard onError={setLoginError} error={loginError} onCancel={developmentAccess ? () => setConnecting(false) : undefined} />
 
   return (
-    <div className="shell">
+    <div className={`shell ${active === 'auto' ? 'autoShell' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brandMark">M</div>
@@ -371,7 +371,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)} onDeleted={documentId => setData(previous => previous ? { ...previous, documents: previous.documents.filter(item => item.id !== documentId), transactions: previous.transactions.map(item => item.attachment_document_id === documentId ? { ...item, attachment_document_id: null } : item) } : previous)}/></section>
         ) : active === 'auto' ? (
-          <AutoModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} registerMobileBack={registerMobileBack} onHome={() => setActive('home')} onOpenDocument={openDocument}/>
+          <AutoModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} registerMobileBack={registerMobileBack} onHome={() => setActive('home')} onOpenDocument={openDocument} onChanged={() => setRefresh(value => value + 1)}/>
         ) : (
           <section className="modulePage">
             <ModuleHeader title={activeArea?.label ?? 'MyLife'} onHome={() => setActive('home')} />
