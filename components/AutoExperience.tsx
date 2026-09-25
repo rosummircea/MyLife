@@ -442,8 +442,7 @@ function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehi
 
       if (!document) {
         const id = crypto.randomUUID()
-        const currentOrder=Number.isFinite(Number(vehicle.extra?.document_order_seed))?Number(vehicle.extra?.document_order_seed):Date.now()
-        const { error: insertError } = await client.from('documents').insert({ id, user_id: auth.user.id, ...payload, source_filename: file!.name, mime_type: file!.type, extra: { domain: 'auto', vehicle_id: vehicle.id, auto_order: currentOrder } })
+        const { error: insertError } = await client.from('documents').insert({ id, user_id: auth.user.id, ...payload, source_filename: file!.name, mime_type: file!.type, extra: { domain: 'auto', vehicle_id: vehicle.id } })
         if (insertError) throw new Error('Documentul nu a putut fi creat.')
         const ext = file!.type === 'application/pdf' ? 'pdf' : file!.type.split('/')[1]
         const path = `${auth.user.id}/${id}/${crypto.randomUUID()}.${ext}`
