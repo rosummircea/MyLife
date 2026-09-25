@@ -126,4 +126,67 @@ export default function AutoModule({ connected, refreshVersion, documents, docum
       if (cancelled) return
       setData(result)
       setSelectedId(current => current && result.vehicles.some(vehicle => vehicle.id === current) ? current : result.vehicles.length === 1 ? result.vehicles[0].id : current)
- 
+    }).catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Datele Auto nu pot fi încărcate.') }).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [connected, revision, refreshVersion])
+
+  useEffect(() => {
+    registerMobileBack(() => {
+      if (selectedId && data.vehicles.length > 1) { setSelectedId(null); return true }
+      return false
+    })
+    return () => registerMobileBack(null)
+  }, [data.vehicles.length, registerMobileBack, selectedId])
+
+  const refreshAll = () => { setRevision(value => value + 1); onChanged() }
+  const vehicle = data.vehicles.find(item => item.id === selectedId) ?? null
+
+  return <section className="modulePage autoModule">
+    {loading ? <div className="autoLoading">Se încarcă mașina…</div> : error ? <div className="autoError" role="alert"><AlertCircle size={20}/><span>{error}</span><button type="button" onClick={() => setRevision(value => value + 1)}>Reîncearcă</button></div> : !vehicle ? <VehiclePicker vehicles={data.vehicles} documents={documents} documentsLoading={documentsLoading} onSelect={setSelectedId} onHome={onHome}/> : <VehicleWorkspace vehicle={vehicle} allVehicles={data.vehicles.length} records={data.records.filter(item => item.vehicle_id === vehicle.id)} documents={vehicleDocuments(vehicle.id, documents)} documentsLoading={documentsLoading} today={bucharestDay(new Date())} onBack={() => setSelectedId(null)} onOpenDocument={onOpenDocument} onChanged={refreshAll}/>} 
+  </section>
+}
+
+function VehiclePicker({ vehicles, documents, documentsLoading, onSelect, onHome }: { vehicles: Vehicle[]; documents: DocumentRow[]; documentsLoading: boolean; onSelect: (id: string) => void; onHome: () => void }) {
+  return <div className="autoPicker">
+    <header className="autoPageHeader"><div><span>MYLIFE AUTO</span><h1>Mașinile mele</h1><p>Alege vehiculul pe care vrei să-l vezi.</p></div><button type="button" className="autoIconButton" onClick={onHome} aria-label="Acasă"><Home size={20}/></button></header>
+    {!vehicles.length ? <div className="autoEmptyLight"><Car size={42}/><h2>Nu există vehicule</h2><p>Vehiculele adăugate în MyLife vor apărea aici.</p></div> : <div className="autoPickerGrid">{vehicles.map(vehicle => <button type="button" className="autoPickerCard" key={vehicle.id} onClick={() => onSelect(vehicle.id)}><VehiclePhoto vehicle={vehicle}/><div><h2>{vehicleTitle(vehicle)}</h2><p>{vehicle.registration_number || 'Fără număr'}</p><span>{documentsLoading ? 'Se încarcă…' : `${vehicleDocuments(vehicle.id, documents).length} documente`}</span></div><ChevronRight size={20}/></button>)}</div>}
+  </div>
+}
+
+function VehicleWorkspace({ vehicle, allVehicles, records, documents, documentsLoading, today, onBack, onOpenDocument, onChanged }: { vehicle: Vehicle; allVehicles: number; records: VehicleRecord[]; documents: DocumentRow[]; documentsLoading: boolean; today: string; onBack: () => void; onOpenDocument: (id: string) => void; onChanged: () => void }) {
+  const [tab, setTab] = useState<AutoTab>('Overview')
+  const [selectedDoc, setSelectedDoc] = useState<DocumentRow | null>(null)
+  const [docEditor, setDocEditor] = useState<{ mode: 'create' | 'edit'; document?: DocumentRow } | null>(null)
+  const [fieldEditor, setFieldEditor] = useState<VehicleDataField | null>(null)
+  const [recordEditor, setRecordEditor] = useState<DeadlineItem | null>(null)
+  const deadlines = useMemo(() => deadlineItems(records, today), [records, today])
+
+  const titles: Record<AutoTab, [string, string]> = {
+    Overview: ['Mașina mea', 'Totul despre mașină, simplu și clar.'],
+    Documente: ['Documente', 'Toate fișierele mașinii, într-un singur loc.'],
+    Date: ['Date', 'Metadate și scadențe, separate de documente.'],
+    Istoric: ['Istoric', 'Ce s-a întâmplat și ce urmează.'],
+  }
+
+  return <div className="autoWorkspace">
+    <header className="autoPageHeader"><div>{allVehicles > 1 && <button type="button" className="autoBackLink" onClick={onBack}><ArrowLeft size={16}/> Vehicule</button>}<span>MYLIFE AUTO</span><h1>{titles[tab][0]}</h1><p>{titles[tab][1]}</p></div><button type="button" className="autoIconButton" onClick={() => setTab('Date')} aria-label="Datele mașinii"><Settings size={20}/></button></header>
+    <nav className="autoSegmented" aria-label="Secțiuni Auto">{tabs.map(item => <button type="button" key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>{item}</button>)}</nav>
+    <VehicleHero vehicle={vehicle}/>
+
+    {tab === 'Overview' && <OverviewTab vehicle={vehicle} documents={documents} documentsLoading={documentsLoading} deadlines={deadlines} onTab={setTab} onDeadline={setRecordEditor}/>} 
+    {tab === 'Documente' && <DocumentsTab documents={documents} loading={documentsLoading} today={today} onSelect={setSelectedDoc} onCreate={() => setDocEditor({ mode: 'create' })}/>} 
+    {tab === 'Date' && <DataTab vehicle={vehicle} deadlines={deadlines} onField={setFieldEditor} onDeadline={setRecordEditor}/>} 
+    {tab === 'Istoric' && <HistoryTab records={records} documents={documents} today={today} onDocument={setSelectedDoc} onRecord={item => setRecordEditor(deadlines.find(deadline => deadline.record?.id === item.id) ?? { key: item.record_type === 'service' ? 'service' : (item.record_type as DeadlineKey), label: item.record_type.replace(/_/g, ' '), recordType: item.record_type, record: item, due: item.expires_at, remainingKm: text(item.extra?.remaining_km), dueMonth: text(item.extra?.next_due_month), status: deadlineStatus(item.expires_at, today) })}/>} 
+
+    {selectedDoc && <DocumentSheet document={selectedDoc} today={today} onClose={() => setSelectedDoc(null)} onOpen={() => onOpenDocument(selectedDoc.id)} onEdit={() => { setDocEditor({ mode: 'edit', document: selectedDoc }); setSelectedDoc(null) }} onDeleted={() => { setSelectedDoc(null); onChanged() }}/>} 
+    {docEditor && <DocumentEditor vehicle={vehicle} document={docEditor.document} onClose={() => setDocEditor(null)} onSaved={() => { setDocEditor(null); onChanged() }}/>} 
+    {fieldEditor && <VehicleFieldEditor vehicle={vehicle} field={fieldEditor} onClose={() => setFieldEditor(null)} onSaved={() => { setFieldEditor(null); onChanged() }}/>} 
+    {recordEditor && <RecordEditor vehicle={vehicle} item={recordEditor} onClose={() => setRecordEditor(null)} onSaved={() => { setRecordEditor(null); onChanged() }}/>} 
+  </div>
+}
+
+function VehicleHero({ vehicle }: { vehicle: Vehicle }) {
+  return <section className="autoVehicleHero"><div className="autoVehicleHeroCopy"><h2>{vehicleTitle(vehicle)}</h2><strong>{vehicle.registration_number || 'Fără număr'}</strong><div className="autoHeroPills">{text(vehicle.extra?.fuel) && <span><Zap size={15}/>{text(vehicle.extra?.fuel)}</span>}{text(vehicle.extra?.power_kw) && <span><Gauge size={15}/>{Number(text(vehicle.extra?.power_kw)).toLocaleString('ro-RO')} kW</span>}</div></div><VehiclePhoto vehicle={vehicle}/></section>
+}
+
+function Vehi
