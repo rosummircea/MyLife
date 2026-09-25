@@ -358,4 +358,32 @@ function RecordEditor({ vehicle, item, onClose, onSaved }: { vehicle: Vehicle; i
         const { error: updateError } = await client.from('vehicle_records').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', item.record.id).eq('user_id', auth.user.id)
         if (updateError) throw new Error('Scadența nu a putut fi actualizată.')
       } else {
-        const { error: insertError } 
+        const { error: insertError } = await client.from('vehicle_records').insert({ user_id: auth.user.id, vehicle_id: vehicle.id, record_type: item.recordType, ...payload })
+        if (insertError) throw new Error('Scadența nu a putut fi creată.')
+      }
+      onSaved()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Salvarea nu a reușit.') } finally { setBusy(false) }
+  }
+  async function remove() {
+    if (!item.record || !window.confirm(`Ștergi înregistrarea „${item.label}”?`)) return
+    setBusy(true); setError('')
+    try {
+      const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth } = await client.auth.getUser(); if (!auth.user) throw new Error('Sesiunea nu este validă.')
+      const { error: deleteError } = await client.from('vehicle_records').delete().eq('id', item.record.id).eq('user_id', auth.user.id)
+      if (deleteError) throw new Error('Înregistrarea nu a putut fi ștearsă.')
+      onSaved()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Ștergerea nu a reușit.') } finally { setBusy(false) }
+  }
+  return <Sheet title={item.label} onClose={onClose}><div className="autoForm">{item.key === 'service' ? <><label>Km rămași<input type="number" value={remainingKm} onChange={event => setRemainingKm(event.target.value)} placeholder="ex. 2400"/></label><label>Luna recomandată<input type="month" value={dueMonth} onChange={event => setDueMonth(event.target.value)}/></label></> : <label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label>}<label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label>{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions">{item.record && <button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={17}/>{busy ? 'Se salvează…' : item.record ? 'Salvează' : 'Creează'}</button></div></div></Sheet>
+}
+
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
+  }, [onClose])
+  return <div className="autoSheetBackdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><div className="autoSheet" role="dialog" aria-modal="true" aria-label={title} ref={ref}><header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Închide"><X size={20}/></button></header>{children}</div></div>
+}
