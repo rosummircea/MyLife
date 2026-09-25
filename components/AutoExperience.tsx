@@ -156,6 +156,7 @@ function VehiclePicker({ vehicles, documents, documentsLoading, onSelect, onHome
 function VehicleWorkspace({ vehicle, allVehicles, records, documents, documentsLoading, today, onBack, onOpenDocument, onChanged }: { vehicle: Vehicle; allVehicles: number; records: VehicleRecord[]; documents: DocumentRow[]; documentsLoading: boolean; today: string; onBack: () => void; onOpenDocument: (id: string) => void; onChanged: () => void }) {
   const [tab, setTab] = useState<AutoTab>('Overview')
   const [selectedDoc, setSelectedDoc] = useState<DocumentRow | null>(null)
+  const [viewingDoc, setViewingDoc] = useState<DocumentRow | null>(null)
   const [docEditor, setDocEditor] = useState<{ mode: 'create' | 'edit'; document?: DocumentRow } | null>(null)
   const [fieldEditor, setFieldEditor] = useState<VehicleDataField | null>(null)
   const [recordEditor, setRecordEditor] = useState<DeadlineItem | null>(null)
@@ -178,7 +179,8 @@ function VehicleWorkspace({ vehicle, allVehicles, records, documents, documentsL
     {tab === 'Date' && <DataTab vehicle={vehicle} deadlines={deadlines} onField={setFieldEditor} onDeadline={setRecordEditor}/>} 
     {tab === 'Istoric' && <HistoryTab records={records} documents={documents} today={today} onDocument={setSelectedDoc} onRecord={item => setRecordEditor(deadlines.find(deadline => deadline.record?.id === item.id) ?? { key: item.record_type === 'service' ? 'service' : (item.record_type as DeadlineKey), label: item.record_type.replace(/_/g, ' '), recordType: item.record_type, record: item, due: item.expires_at, remainingKm: text(item.extra?.remaining_km), dueMonth: text(item.extra?.next_due_month), status: deadlineStatus(item.expires_at, today) })}/>} 
 
-    {selectedDoc && <DocumentSheet document={selectedDoc} today={today} onClose={() => setSelectedDoc(null)} onOpen={() => onOpenDocument(selectedDoc.id)} onEdit={() => { setDocEditor({ mode: 'edit', document: selectedDoc }); setSelectedDoc(null) }} onDeleted={() => { setSelectedDoc(null); onChanged() }}/>} 
+    {selectedDoc && <DocumentSheet document={selectedDoc} today={today} onClose={() => setSelectedDoc(null)} onOpen={() => { setViewingDoc(selectedDoc); setSelectedDoc(null) }} onEdit={() => { setDocEditor({ mode: 'edit', document: selectedDoc }); setSelectedDoc(null) }} onDeleted={() => { setSelectedDoc(null); onChanged() }}/>} 
+    {viewingDoc && <DocumentFileViewer document={viewingDoc} onClose={() => setViewingDoc(null)}/>}
     {docEditor && <DocumentEditor vehicle={vehicle} document={docEditor.document} onClose={() => setDocEditor(null)} onSaved={() => { setDocEditor(null); onChanged() }}/>} 
     {fieldEditor && <VehicleFieldEditor vehicle={vehicle} field={fieldEditor} onClose={() => setFieldEditor(null)} onSaved={() => { setFieldEditor(null); onChanged() }}/>} 
     {recordEditor && <RecordEditor vehicle={vehicle} item={recordEditor} onClose={() => setRecordEditor(null)} onSaved={() => { setRecordEditor(null); onChanged() }}/>} 
@@ -263,7 +265,48 @@ function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: 
       onDeleted()
     } catch (err) { setError(err instanceof Error ? err.message : 'Ștergerea nu a reușit.') } finally { setBusy(false) }
   }
-  return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions"><button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide</button><button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div></Sheet>
+  return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{!document.storage_path && <p className="autoMissingFileNote">Există doar metadatele acestui document. Fișierul PDF/JPG nu este atașat în Storage.</p>}{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions">{document.storage_path ? <button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide fișierul</button> : <button type="button" className="autoPrimaryButton" onClick={onEdit}><Plus size={18}/> Atașează fișier</button>}<button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div></Sheet>
+}
+
+function DocumentFileViewer({ document, onClose }: { document: DocumentRow; onClose: () => void }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(true)
+  const [error, setError] = useState('')
+  const [revision, setRevision] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function sign() {
+      if (!document.storage_path) throw new Error('Fișierul nu este atașat acestui document.')
+      const client = getSupabaseClient()
+      if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth, error: authError } = await client.auth.getUser()
+      if (authError || !auth.user) throw new Error('Sesiunea nu este validă.')
+      const path = document.storage_path.replace(/^mylife-documents\//, '')
+      const { data, error: storageError } = await client.storage.from('mylife-documents').createSignedUrl(path, 300)
+      if (storageError || !data?.signedUrl) throw new Error('Fișierul nu poate fi deschis.')
+      if (!cancelled) {
+        setUrl(data.signedUrl)
+        timer = setTimeout(() => setRevision(value => value + 1), 240000)
+      }
+    }
+    setBusy(true); setError(''); setUrl(null)
+    sign().catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Fișierul nu poate fi deschis.') }).finally(() => { if (!cancelled) setBusy(false) })
+    return () => { cancelled = true; if (timer) clearTimeout(timer) }
+  }, [document.storage_path, revision])
+
+  const mime = document.mime_type?.toLowerCase()
+  const extension = (document.source_filename || document.storage_path || '').split('.').pop()?.toLowerCase()
+  const image = mime ? ['image/jpeg','image/png','image/webp','image/gif','image/avif'].includes(mime) : ['jpg','jpeg','png','webp','gif','avif'].includes(extension ?? '')
+  const pdf = mime ? mime === 'application/pdf' : extension === 'pdf'
+
+  return <Sheet title={document.source_filename || documentLabel(document.document_type)} onClose={onClose}>
+    <div className="autoFileViewer">
+      {busy ? <div className="autoFileViewerMessage">Se deschide fișierul…</div> : error ? <div className="autoFileViewerMessage"><p>{error}</p><button type="button" className="autoSecondaryButton" onClick={() => setRevision(value => value + 1)}>Reîncearcă</button></div> : url && image ? <img src={url} alt={document.source_filename || 'Document'}/> : url && pdf ? <iframe src={url + '#view=FitH'} title={document.source_filename || 'Document PDF'}/> : url ? <div className="autoFileViewerMessage"><p>Acest format nu are preview integrat.</p><a className="autoPrimaryButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={18}/> Deschide în browser</a></div> : null}
+      {url && <a className="autoOpenFullButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={17}/> Deschide pe tot ecranul</a>}
+    </div>
+  </Sheet>
 }
 
 function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehicle; document?: DocumentRow; onClose: () => void; onSaved: () => void }) {
