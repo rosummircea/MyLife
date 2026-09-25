@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { FileText, ExternalLink, Expand, X } from 'lucide-react'
+import { FileText, ExternalLink, Expand, Trash2, X } from 'lucide-react'
 import type { DocumentRow, Transaction } from '@/lib/mylife-data'
 import { getSupabaseClient } from '@/lib/supabase'
 import './DocumentsWorkspace.css'
@@ -18,7 +18,7 @@ function expiry(value: string | null) {
 }
 function readable(value: string) { return value.replace(/_/g, ' ') }
 
-export default function DocumentsWorkspace({ documents, loading, onUpdated, initialSelectedId, transactions, onOpenTransaction }: { initialSelectedId: string | null; transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; documents: DocumentRow[]; loading: boolean; onUpdated: (document: DocumentRow) => void }) {
+export default function DocumentsWorkspace({ documents, loading, onUpdated, onDeleted, initialSelectedId, transactions, onOpenTransaction }: { initialSelectedId: string | null; transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; documents: DocumentRow[]; loading: boolean; onUpdated: (document: DocumentRow) => void; onDeleted: (documentId: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId)
   const selected = documents.find(doc => doc.id === selectedId) ?? documents[0]
   return <div className="documentsWorkspace">
@@ -27,15 +27,41 @@ export default function DocumentsWorkspace({ documents, loading, onUpdated, init
       <nav className="documentsList" aria-label="Lista documentelor">{documents.map(doc => <button type="button" key={doc.id} aria-pressed={selected.id === doc.id} onClick={() => setSelectedId(doc.id)}>
         <FileText size={20} aria-hidden="true"/><div><strong>{doc.source_filename || readable(doc.document_type)}</strong><span>{readable(doc.document_type)}</span>{doc.issuer && <span>{doc.issuer}</span>}{doc.expires_at && <span>Expiră {date(doc.expires_at)}</span>}<small>{doc.storage_path ? 'Fișier asociat · acces verificat la deschidere' : 'Doar metadata'}</small></div>
       </button>)}</nav>
-      <DocumentDetail key={selected.id + (selected.storage_path ?? '')} document={selected} transactions={transactions.filter(tx => tx.attachment_document_id === selected.id)} onOpenTransaction={onOpenTransaction} onUpdated={onUpdated}/>
+      <DocumentDetail key={selected.id + (selected.storage_path ?? '')} document={selected} transactions={transactions.filter(tx => tx.attachment_document_id === selected.id)} onOpenTransaction={onOpenTransaction} onUpdated={onUpdated} onDeleted={documentId => { setSelectedId(null); onDeleted(documentId) }}/>
     </div>}
   </div>
 }
 
-function DocumentDetail({ document: initialDoc, onUpdated, transactions, onOpenTransaction }: { transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; document: DocumentRow; onUpdated: (document: DocumentRow) => void }) {
+function DocumentDetail({ document: initialDoc, onUpdated, onDeleted, transactions, onOpenTransaction }: { transactions: Transaction[]; onOpenTransaction: (transaction: Transaction) => void; document: DocumentRow; onUpdated: (document: DocumentRow) => void; onDeleted: (documentId: string) => void }) {
   const [doc, setDoc] = useState(initialDoc)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  async function removeDocument() {
+    const confirmed = window.confirm(`Ștergi definitiv documentul „${doc.source_filename || readable(doc.document_type)}”? Această acțiune nu poate fi anulată.`)
+    if (!confirmed) return
+    setDeleting(true); setDeleteError('')
+    try {
+      const client = getSupabaseClient()
+      if (!client) throw new Error('Conectează contul Supabase.')
+      const { data: auth, error: authError } = await client.auth.getUser()
+      if (authError || !auth.user) throw new Error('Autentifică-te înainte de ștergere.')
+      const storagePath = doc.storage_path?.replace(/^mylife-documents\//, '') || null
+      const { data: deleted, error: deleteDbError } = await client.from('documents')
+        .delete().eq('id', doc.id).eq('user_id', auth.user.id).select('id').maybeSingle()
+      if (deleteDbError || !deleted) throw new Error('Documentul nu a putut fi șters. Verifică sesiunea și permisiunile.')
+      if (storagePath) {
+        const { error: storageDeleteError } = await client.storage.from('mylife-documents').remove([storagePath])
+        if (storageDeleteError) console.warn('Document metadata deleted, but storage cleanup failed.', storageDeleteError)
+      }
+      onDeleted(doc.id)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Ștergerea nu a reușit.')
+    } finally {
+      setDeleting(false)
+    }
+  }
   async function attach(file: File) {
     setUploading(true); setUploadError('')
     try {
@@ -96,7 +122,7 @@ function DocumentDetail({ document: initialDoc, onUpdated, transactions, onOpenT
   const status = expiry(doc.expires_at)
   return <div className="documentsDetail">
     <section className="documentsMetadata" aria-label="Detalii document">
-      <div className="documentsDetailHeading"><h2>{doc.source_filename || readable(doc.document_type)}</h2><span className={`documentsBadge ${status === 'Expirat' ? 'expired' : status === 'Expiră curând' ? 'soon' : ''}`}>{status}</span></div>
+      <div className="documentsDetailHeading"><h2>{doc.source_filename || readable(doc.document_type)}</h2><div className="documentsHeadingActions"><span className={`documentsBadge ${status === 'Expirat' ? 'expired' : status === 'Expiră curând' ? 'soon' : ''}`}>{status}</span><button type="button" className="documentsDeleteButton" disabled={deleting} onClick={() => void removeDocument()}><Trash2 size={16} aria-hidden="true"/>{deleting ? 'Se șterge…' : 'Șterge'}</button></div></div>{deleteError && <p className="documentsDeleteError" role="alert">{deleteError}</p>}
       <dl>{fields.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       {transactions.length > 0 && <div className="documentsLinkedTransactions"><h3>Tranzacții asociate</h3>{transactions.map(tx => <button type="button" key={tx.id} onClick={() => onOpenTransaction(tx)}><span>{tx.description || tx.merchant || 'Tranzacție'} · {date(tx.transaction_date)}</span><strong>{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(Number(tx.amount))} →</strong></button>)}</div>}
       {extra.length > 0 && <><h3>Alte date</h3><dl>{extra.map(([key,value]) => <div key={key}><dt>{readable(key)}</dt><dd>{key === 'Prima RCA (RON)' && transactions.length ? <button type="button" className="documentsAmountLink" onClick={() => onOpenTransaction(transactions[0])}>{Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2 })} RON · Vezi tranzacția</button> : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></>}
