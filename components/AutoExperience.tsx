@@ -266,7 +266,7 @@ function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: 
   return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions"><button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide</button><button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div></Sheet>
 }
 
-function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehicle; document?: DocumentRow; onClose: () => void; onClose: () => void; onSaved: () => void }) {
+function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehicle; document?: DocumentRow; onClose: () => void; onSaved: () => void }) {
   const [type, setType] = useState(document?.document_type ?? 'document_auto')
   const [issuedAt, setIssuedAt] = useState(document?.issued_at?.slice(0, 10) ?? '')
   const [expiresAt, setExpiresAt] = useState(document?.expires_at?.slice(0, 10) ?? '')
