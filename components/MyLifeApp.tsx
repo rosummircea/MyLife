@@ -9,8 +9,6 @@ import TransactionsCalendar from '@/components/TransactionsCalendar'
 import { bucharestDay } from '@/lib/expense-report'
 
 import {
-  Activity,
-  CalendarDays,
   Car,
   FileText,
   HeartPulse,
@@ -37,7 +35,6 @@ import { flushSync } from 'react-dom'
 import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
-import HealthModule, {type HealthTab} from './HealthModule'
 import AccountsWorkspace from './AccountsWorkspace'
 import LoansWorkspace from './LoansWorkspace'
 import TransactionDetails from './TransactionDetails'
@@ -92,7 +89,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   const mobileBackHandler = useRef<(() => boolean) | null>(null)
   const registerMobileBack = useCallback((handler: (() => boolean) | null) => { mobileBackHandler.current = handler }, [])
   const [financeTab, setFinanceTab] = useState<FinanceTab>('overview')
-  const [healthTab, setHealthTab] = useState<HealthTab>('overview')
   const [financeNavVersion, setFinanceNavVersion] = useState(0)
   const navigateFinance = (tab: FinanceTab) => { setFinanceTab(tab); setFinanceNavVersion(value => value + 1) }
   const [documentTarget, setDocumentTarget] = useState<string | null>(null)
@@ -321,7 +317,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
   if (!userEmail && (!developmentAccess || connecting)) return <LoginCard onError={setLoginError} error={loginError} onCancel={developmentAccess ? () => setConnecting(false) : undefined} />
 
   return (
-    <div className={`shell ${active === 'auto' ? 'autoShell' : ''} ${active === 'health' ? 'healthShell' : ''}`}>
+    <div className={`shell ${active === 'auto' ? 'autoShell' : ''}`}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brandMark">M</div>
@@ -372,8 +368,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
           </>
         ) : active === 'finance' ? (
           <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
-        ) : active === 'health' ? (
-          <HealthModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} tab={healthTab} setTab={setHealthTab} registerMobileBack={registerMobileBack} onChanged={() => setRefresh(value => value + 1)}/>
         ) : active === 'documents' ? (
           <section className="modulePage"><ModuleHeader title="Documente" onHome={() => setActive('home')}/><DocumentsWorkspace key={documentTarget ?? 'documents'} initialSelectedId={documentTarget} transactions={transactions} onOpenTransaction={openTransaction} documents={documents} loading={loadingData} onUpdated={document => setData(previous => previous ? { ...previous, documents: previous.documents.map(item => item.id === document.id ? document : item) } : previous)} onDeleted={documentId => setData(previous => previous ? { ...previous, documents: previous.documents.filter(item => item.id !== documentId), transactions: previous.transactions.map(item => item.attachment_document_id === documentId ? { ...item, attachment_document_id: null } : item) } : previous)}/></section>
         ) : active === 'auto' ? (
@@ -395,11 +389,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
           <button type="button" className="aiMobile" aria-label="Adaugă în MyLife" aria-expanded={quickAddOpen} onClick={()=>setQuickAddOpen(true)}><Sparkles size={21}/></button>
           <button className={financeTab === 'accounts' ? 'active' : ''} onClick={() => navigateFinance('accounts')}><WalletCards size={20}/><span>Conturi</span></button>
           <button className={financeTab === 'reports' ? 'active' : ''} onClick={() => navigateFinance('reports')}><ChartPie size={20}/><span>Rapoarte</span></button>
-        </> : active === 'health' ? <>
-          <button className={healthTab === 'overview' ? 'active' : ''} onClick={() => setHealthTab('overview')}><HeartPulse size={20}/><span>Overview</span></button>
-          <button className={healthTab === 'visits' ? 'active' : ''} onClick={() => setHealthTab('visits')}><CalendarDays size={20}/><span>Vizite</span></button>
-          <button className={healthTab === 'data' ? 'active' : ''} onClick={() => setHealthTab('data')}><Activity size={20}/><span>Date</span></button>
-          <button className={healthTab === 'documents' ? 'active' : ''} onClick={() => setHealthTab('documents')}><FileText size={20}/><span>Documente</span></button>
         </> : <>
           <button className={active === 'home' ? 'active' : ''} onClick={() => setActive('home')}><Home size={20}/><span>Acasă</span></button>
           <button className={active === 'documents' ? 'active' : ''} onClick={() => setActive('documents')}><FileText size={20}/><span>Documente</span></button>
