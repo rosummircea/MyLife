@@ -326,8 +326,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
       if(!document&&!file)throw new Error('Alege un fișier.')
       if(file&&file.size>20*1024*1024)throw new Error('Fișierul trebuie să fie sub 20 MB.')
       if(file&&!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Folosește PDF, JPG, PNG sau WebP.')
-      const extra={...(document?.extra??{}),domain:'health',health_category:type.replace(/^health_/,'other'===type?'other':'') as string}
-      extra.health_category=type.replace(/^health_/,'')
+      const extra:Record<string,unknown>={...(document?.extra??{}),domain:'health',health_category:type.replace(/^health_/,'')}
       if(title.trim())extra.health_title=title.trim()
       else delete extra.health_title
 
