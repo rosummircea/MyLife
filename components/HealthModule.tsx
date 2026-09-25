@@ -1,7 +1,7 @@
 'use client'
 
 import {useEffect,useMemo,useState,type ReactNode} from 'react'
-import {Activity,CalendarDays,ChevronRight,FileText,HeartPulse,Plus} from 'lucide-react'
+import {Activity,CalendarDays,ChevronRight,FileText,HeartPulse,Plus,Save,Stethoscope,Trash2,X} from 'lucide-react'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {DocumentRow} from '@/lib/mylife-data'
 import {healthDocuments,healthDocumentTitle,loadHealthData,metricMeta,type HealthData,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
@@ -9,10 +9,11 @@ import './HealthModule.css'
 
 export type HealthTab='overview'|'visits'|'data'|'documents'
 
-export default function HealthModule({connected,refreshVersion,documents,documentsLoading,tab,setTab,registerMobileBack}:{connected:boolean;refreshVersion:number;documents:DocumentRow[];documentsLoading:boolean;tab:HealthTab;setTab:(tab:HealthTab)=>void;registerMobileBack:(handler:(()=>boolean)|null)=>void;onChanged:()=>void}){
+export default function HealthModule({connected,refreshVersion,documents,documentsLoading,tab,setTab,registerMobileBack,onChanged}:{connected:boolean;refreshVersion:number;documents:DocumentRow[];documentsLoading:boolean;tab:HealthTab;setTab:(tab:HealthTab)=>void;registerMobileBack:(handler:(()=>boolean)|null)=>void;onChanged:()=>void}){
   const [data,setData]=useState<HealthData>({visits:[],measurements:[]})
   const [loading,setLoading]=useState(connected)
   const [error,setError]=useState('')
+  const [visitEditor,setVisitEditor]=useState<HealthVisit|null|'new'>(null)
   const medicalDocuments=useMemo(()=>healthDocuments(documents),[documents])
 
   useEffect(()=>{
@@ -26,16 +27,21 @@ export default function HealthModule({connected,refreshVersion,documents,documen
   },[connected,refreshVersion])
 
   useEffect(()=>{
-    registerMobileBack(()=>{if(tab!=='overview'){setTab('overview');return true}return false})
+    registerMobileBack(()=>{
+      if(visitEditor){setVisitEditor(null);return true}
+      if(tab!=='overview'){setTab('overview');return true}
+      return false
+    })
     return()=>registerMobileBack(null)
-  },[registerMobileBack,setTab,tab])
+  },[registerMobileBack,setTab,tab,visitEditor])
 
   return <section className="healthModule">
     {error&&<div className="healthError">{error}</div>}
     {tab==='overview'&&<Overview data={data} documents={medicalDocuments} loading={loading||documentsLoading} setTab={setTab}/>}
-    {tab==='visits'&&<VisitsReadOnly visits={data.visits} loading={loading}/>}
+    {tab==='visits'&&<VisitsTab visits={data.visits} loading={loading} onAdd={()=>setVisitEditor('new')} onOpen={visit=>setVisitEditor(visit)}/>}
     {tab==='data'&&<DataReadOnly measurements={data.measurements} loading={loading}/>}
     {tab==='documents'&&<Documents documents={medicalDocuments} loading={documentsLoading}/>}
+    {visitEditor&&<VisitSheet visit={visitEditor==='new'?null:visitEditor} onClose={()=>setVisitEditor(null)} onSaved={()=>{setVisitEditor(null);onChanged()}}/>}
   </section>
 }
 
@@ -59,8 +65,103 @@ function Overview({data,documents,loading,setTab}:{data:HealthData;documents:Doc
   </div>
 }
 
-function VisitsReadOnly({visits,loading}:{visits:HealthVisit[];loading:boolean}){
-  return <div className="healthPage"><Header title="Vizite" subtitle="Programări și istoricul consultațiilor."/><section className="healthDocumentList">{loading?<p className="healthMuted">Se încarcă…</p>:visits.length?visits.map(visit=><button key={visit.id}><div className="healthSquareIcon"><CalendarDays size={21}/></div><div><strong>{visit.specialty}</strong><span>{visit.doctor_name||visit.clinic||new Date(visit.scheduled_at).toLocaleDateString('ro-RO')}</span></div><ChevronRight size={18}/></button>):<div className="healthEmptyPanel"><CalendarDays size={34}/><strong>Nicio vizită încă</strong></div>}</section></div>
+function VisitsTab({visits,loading,onAdd,onOpen}:{visits:HealthVisit[];loading:boolean;onAdd:()=>void;onOpen:(visit:HealthVisit)=>void}){
+  const [mode,setMode]=useState<'upcoming'|'history'>('upcoming')
+  const now=Date.now()
+  const upcoming=visits.filter(visit=>visit.status==='planned'&&new Date(visit.scheduled_at).getTime()>=now).sort((a,b)=>a.scheduled_at.localeCompare(b.scheduled_at))
+  const history=visits.filter(visit=>visit.status!=='planned'||new Date(visit.scheduled_at).getTime()<now).sort((a,b)=>b.scheduled_at.localeCompare(a.scheduled_at))
+  const rows=mode==='upcoming'?upcoming:history
+
+  return <div className="healthPage">
+    <Header title="Vizite" subtitle="Programări și istoricul consultațiilor."/>
+    <div className="healthSegmented"><button className={mode==='upcoming'?'active':''} onClick={()=>setMode('upcoming')}>Următoare</button><button className={mode==='history'?'active':''} onClick={()=>setMode('history')}>Istoric</button></div>
+    <section className="healthInfoCard"><div className="healthSquareIcon blue"><CalendarDays size={22}/></div><div><strong>Ține aici toate vizitele și recomandările.</strong><p>Programările viitoare și istoricul consultațiilor, într-un singur loc.</p></div></section>
+    <div className="healthSectionHeading"><h2>{mode==='upcoming'?'Următoarele vizite':'Istoric vizite'}</h2><button className="healthAddButton" onClick={onAdd}><Plus size={17}/> Adaugă</button></div>
+    <div className="healthVisitList">
+      {loading?<p className="healthMuted">Se încarcă…</p>:rows.length?rows.map(visit=><button key={visit.id} onClick={()=>onOpen(visit)}><div className="healthSquareIcon visit"><Stethoscope size={22}/></div><div><strong>{visit.specialty}</strong><span>{visit.doctor_name||visit.clinic||'Fără medic setat'}</span><small><CalendarDays size={14}/>{new Date(visit.scheduled_at).toLocaleString('ro-RO',{timeZone:'Europe/Bucharest',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>{visit.summary&&<p>{visit.summary}</p>}</div><ChevronRight size={18}/></button>):<div className="healthEmptyPanel"><CalendarDays size={34}/><strong>{mode==='upcoming'?'Nicio vizită programată':'Niciun istoric încă'}</strong><button onClick={onAdd}><Plus size={17}/> Adaugă vizită</button></div>}
+    </div>
+  </div>
+}
+
+function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){
+  return <div className="healthSheetBackdrop" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}><div className="healthSheet" role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Închide"><X size={20}/></button></header>{children}</div></div>
+}
+
+function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>void;onSaved:()=>void}){
+  const localDateTime=(value:string)=>{
+    const date=new Date(value)
+    const shifted=new Date(date.getTime()-date.getTimezoneOffset()*60000)
+    return shifted.toISOString().slice(0,16)
+  }
+  const [specialty,setSpecialty]=useState(visit?.specialty??'')
+  const [doctor,setDoctor]=useState(visit?.doctor_name??'')
+  const [clinic,setClinic]=useState(visit?.clinic??'')
+  const [scheduled,setScheduled]=useState(visit?.scheduled_at?localDateTime(visit.scheduled_at):'')
+  const [status,setStatus]=useState<HealthVisit['status']>(visit?.status??'planned')
+  const [summary,setSummary]=useState(visit?.summary??'')
+  const [notes,setNotes]=useState(visit?.notes??'')
+  const [busy,setBusy]=useState(false)
+  const [error,setError]=useState('')
+
+  async function save(){
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      if(!specialty.trim()||!scheduled)throw new Error('Completează specialitatea și data.')
+      const payload={
+        specialty:specialty.trim(),
+        doctor_name:doctor.trim()||null,
+        clinic:clinic.trim()||null,
+        scheduled_at:new Date(scheduled).toISOString(),
+        status,
+        summary:summary.trim()||null,
+        notes:notes.trim()||null,
+        updated_at:new Date().toISOString(),
+      }
+      const result=visit
+        ?await client.from('health_visits').update(payload).eq('id',visit.id).eq('user_id',auth.user.id)
+        :await client.from('health_visits').insert({user_id:auth.user.id,...payload})
+      if(result.error)throw new Error(result.error.message)
+      onSaved()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Salvarea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  async function remove(){
+    if(!visit||!window.confirm('Ștergi această vizită?'))return
+    setBusy(true);setError('')
+    try{
+      const client=getSupabaseClient()
+      if(!client)throw new Error('Supabase nu este disponibil.')
+      const {data:auth,error:authError}=await client.auth.getUser()
+      if(authError||!auth.user)throw new Error('Sesiunea nu este validă.')
+      const {error:deleteError}=await client.from('health_visits').delete().eq('id',visit.id).eq('user_id',auth.user.id)
+      if(deleteError)throw new Error(deleteError.message)
+      onSaved()
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:'Ștergerea nu a reușit.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  return <Sheet title={visit?'Editează vizită':'Adaugă vizită'} onClose={onClose}><div className="healthForm">
+    <label>Specialitate<input value={specialty} onChange={event=>setSpecialty(event.target.value)} placeholder="ex. Cardiologie"/></label>
+    <label>Medic<input value={doctor} onChange={event=>setDoctor(event.target.value)} placeholder="Opțional"/></label>
+    <label>Clinică<input value={clinic} onChange={event=>setClinic(event.target.value)} placeholder="Opțional"/></label>
+    <label>Data și ora<input type="datetime-local" value={scheduled} onChange={event=>setScheduled(event.target.value)}/></label>
+    <label>Status<select value={status} onChange={event=>setStatus(event.target.value as HealthVisit['status'])}><option value="planned">Programată</option><option value="completed">Finalizată</option><option value="cancelled">Anulată</option></select></label>
+    <label>Rezumat<textarea value={summary} onChange={event=>setSummary(event.target.value)} placeholder="Ce s-a discutat sau recomandat"/></label>
+    <label>Note<textarea value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Opțional"/></label>
+    {error&&<p className="healthFormError">{error}</p>}
+    <div className="healthFormActions">{visit&&<button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
+  </div></Sheet>
 }
 
 function DataReadOnly({measurements,loading}:{measurements:HealthMeasurement[];loading:boolean}){
