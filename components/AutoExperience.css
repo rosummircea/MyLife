@@ -19,3 +19,25 @@
 .autoFileViewerMessage .autoPrimaryButton{text-decoration:none}
 .autoOpenFullButton{display:inline-flex;align-items:center;justify-content:center;gap:8px;justify-self:center;color:var(--auto-blue);font-weight:700;text-decoration:none;padding:10px 14px}
 @media(max-width:760px){.autoFileViewer iframe{height:62dvh}.autoFileViewer>img{max-height:62dvh}}
+
+.autoListCard>header>div>span{display:block;margin-top:4px;color:var(--auto-secondary);font-size:13px}
+.autoDocumentsList{display:grid}
+.autoDocumentSortableRow{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:stretch;border-top:1px solid var(--auto-line);transition:background .15s ease,transform .15s ease}
+.autoDocumentSortableRow:first-child{border-top:0}
+.autoDocumentSortableRow.dragging{background:#f2f7ff;border-radius:16px;transform:scale(.995)}
+.autoDocumentSortableRow .autoDocumentRow{border-top:0}
+.autoDragHandle{display:grid;place-items:center;width:34px;border:0;background:transparent;color:#a0a4ad;cursor:grab;touch-action:none}
+.autoDragHandle:active{cursor:grabbing;color:var(--auto-blue)}
+.autoPill.neutral{background:#f1f1f3;color:#6e6e73}
+.autoAiDocumentHint{display:flex;gap:13px;align-items:flex-start;padding:16px;border:1px solid #dcecff;border-radius:16px;background:#eef6ff;color:#2d4d6c}
+.autoAiDocumentHint strong{display:block;color:#173e65;font-size:16px}
+.autoAiDocumentHint p{margin:5px 0 0;color:#55718d;font-size:14px;line-height:1.45}
+.autoAiDocumentIcon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:12px;background:#fff;color:var(--auto-blue);box-shadow:0 4px 12px rgba(0,122,255,.08)}
+.autoFilePicker small{color:var(--auto-secondary);font-weight:500;overflow-wrap:anywhere}
+.autoManualToggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--auto-line);border-radius:12px;background:#f7f7f9;color:#4c4f57;font-weight:650}
+.autoManualToggle svg{transition:transform .15s ease}
+.autoManualFields{display:grid;gap:14px}
+.autoAiAnalyzing{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:12px;background:#f2f7ff;color:#2b5d92;font-size:14px;font-weight:650}
+.autoAiAnalyzing svg{animation:autoAiPulse 1.1s ease-in-out infinite}
+@keyframes autoAiPulse{0%,100%{opacity:.45;transform:scale(.94)}50%{opacity:1;transform:scale(1.05)}}
+@media(max-width:760px){.autoDocumentSortableRow{grid-template-columns:30px minmax(0,1fr)}.autoDragHandle{width:30px}.autoDocumentSortableRow .autoDocumentRow{padding-left:4px}}
