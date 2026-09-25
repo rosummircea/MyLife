@@ -18,9 +18,10 @@ export default function TransactionsCalendar({ transactions, selectedDay, onSele
     for (const transaction of transactions) {
       const day = bucharestDay(new Date(transaction.transaction_date))
       if (transaction.status && transaction.status !== 'posted' || Number(transaction.amount) <= 0) continue
+      if (transaction.transaction_type === 'transfer') continue
       const activity = result.get(day) ?? { incoming: false, outgoing: false }
-      activity.incoming ||= ['income', 'adjustment', 'transfer'].includes(transaction.transaction_type)
-      activity.outgoing ||= ['expense', 'transfer'].includes(transaction.transaction_type)
+      activity.incoming ||= ['income', 'adjustment'].includes(transaction.transaction_type)
+      activity.outgoing ||= transaction.transaction_type === 'expense'
       result.set(day, activity)
     }
     return result
