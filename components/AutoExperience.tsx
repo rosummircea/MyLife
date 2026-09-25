@@ -394,20 +394,56 @@ function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehi
   const [issuer, setIssuer] = useState(document?.issuer ?? '')
   const [notes, setNotes] = useState(document?.notes ?? '')
   const [file, setFile] = useState<File | null>(null)
+  const [showManual,setShowManual]=useState(Boolean(document))
   const [busy, setBusy] = useState(false)
+  const [analyzing,setAnalyzing]=useState(false)
+  const [createdId,setCreatedId]=useState<string|null>(null)
   const [error, setError] = useState('')
+
+  async function analyzeWithAi(documentId:string,client:ReturnType<typeof getSupabaseClient>){
+    if(!client)throw new Error('Supabase nu este disponibil.')
+    setAnalyzing(true)
+    try{
+      const {data:sessionData,error:sessionError}=await client.auth.getSession()
+      const accessToken=sessionData.session?.access_token
+      if(sessionError||!accessToken)throw new Error('Sesiunea nu este validă pentru analiza AI.')
+      const response=await fetch('/api/auto/document-analyze',{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`},
+        body:JSON.stringify({documentId}),
+      })
+      const payload=await response.json() as {error?:string}
+      if(!response.ok)throw new Error(payload.error??'AI nu a putut analiza documentul.')
+    }finally{
+      setAnalyzing(false)
+    }
+  }
+
   async function save() {
     setBusy(true); setError('')
     try {
       const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
       const { data: auth, error: authError } = await client.auth.getUser(); if (authError || !auth.user) throw new Error('Sesiunea nu este validă.')
+
+      if(createdId){
+        try{
+          await analyzeWithAi(createdId,client)
+          onSaved()
+        }catch(err){
+          setError(`Documentul este salvat, dar analiza AI nu a reușit: ${err instanceof Error?err.message:'eroare necunoscută'}. Poți reîncerca.`)
+        }
+        return
+      }
+
       if (!document && !file) throw new Error('Alege un fișier pentru document.')
       if (file && file.size > 20 * 1024 * 1024) throw new Error('Fișierul trebuie să fie mai mic de 20 MB.')
       if (file && !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) throw new Error('Folosește JPG, PNG, WebP sau PDF.')
       const payload = { document_type: type, issued_at: issuedAt || null, expires_at: expiresAt || null, issuer: issuer.trim() || null, notes: notes.trim() || null }
+
       if (!document) {
         const id = crypto.randomUUID()
-        const { error: insertError } = await client.from('documents').insert({ id, user_id: auth.user.id, ...payload, source_filename: file!.name, mime_type: file!.type, extra: { domain: 'auto', vehicle_id: vehicle.id } })
+        const currentOrder=Number.isFinite(Number(vehicle.extra?.document_order_seed))?Number(vehicle.extra?.document_order_seed):Date.now()
+        const { error: insertError } = await client.from('documents').insert({ id, user_id: auth.user.id, ...payload, source_filename: file!.name, mime_type: file!.type, extra: { domain: 'auto', vehicle_id: vehicle.id, auto_order: currentOrder } })
         if (insertError) throw new Error('Documentul nu a putut fi creat.')
         const ext = file!.type === 'application/pdf' ? 'pdf' : file!.type.split('/')[1]
         const path = `${auth.user.id}/${id}/${crypto.randomUUID()}.${ext}`
@@ -415,6 +451,14 @@ function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehi
         if (uploadError) { await client.from('documents').delete().eq('id', id).eq('user_id', auth.user.id); throw new Error('Fișierul nu a putut fi încărcat.') }
         const { error: linkError } = await client.from('documents').update({ storage_path: path }).eq('id', id).eq('user_id', auth.user.id)
         if (linkError) { await client.storage.from('mylife-documents').remove([path]); await client.from('documents').delete().eq('id', id).eq('user_id', auth.user.id); throw new Error('Fișierul nu a putut fi asociat.') }
+
+        setCreatedId(id)
+        try{
+          await analyzeWithAi(id,client)
+          onSaved()
+        }catch(err){
+          setError(`Documentul a fost salvat. AI-ul nu a reușit să completeze metadatele: ${err instanceof Error?err.message:'eroare necunoscută'}. Apasă din nou pentru reîncercare sau închide și completează manual ulterior.`)
+        }
       } else {
         let newPath: string | null = null
         if (file) {
@@ -427,11 +471,20 @@ function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehi
         const { error: updateError } = await client.from('documents').update(update).eq('id', document.id).eq('user_id', auth.user.id)
         if (updateError) { if (newPath) await client.storage.from('mylife-documents').remove([newPath]); throw new Error('Documentul nu a putut fi actualizat.') }
         if (newPath && document.storage_path) await client.storage.from('mylife-documents').remove([document.storage_path.replace(/^mylife-documents\//, '')])
+        onSaved()
       }
-      onSaved()
     } catch (err) { setError(err instanceof Error ? err.message : 'Salvarea nu a reușit.') } finally { setBusy(false) }
   }
-  return <Sheet title={document ? 'Editează document' : 'Adaugă document'} onClose={onClose}><div className="autoForm"><label>Tip document<select value={type} onChange={event => setType(event.target.value)}>{documentTypeOptions.map(([code, label]) => <option value={code} key={code}>{label}</option>)}</select></label><label>Data emiterii<input type="date" value={issuedAt} onChange={event => setIssuedAt(event.target.value)}/></label><label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label><label>Emitent<input value={issuer} onChange={event => setIssuer(event.target.value)} placeholder="Opțional"/></label><label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label><label>{document ? 'Înlocuiește / atașează fișier' : 'Fișier'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => setFile(event.target.files?.[0] ?? null)}/></label>{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions"><button type="button" className="autoSecondaryButton" onClick={onClose}>Anulează</button><button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={18}/>{busy ? 'Se salvează…' : 'Salvează'}</button></div></div></Sheet>
+
+  return <Sheet title={document ? 'Editează document' : 'Adaugă document'} onClose={onClose}><div className="autoForm">
+    {!document&&<div className="autoAiDocumentHint"><div className="autoAiDocumentIcon"><Sparkles size={21}/></div><div><strong>Completez datele automat cu AI</strong><p>Alege PDF-ul sau poza. MyLife citește documentul și încearcă să completeze tipul, emitentul, data emiterii și expirarea. Tu doar verifici.</p></div></div>}
+    <label className="autoFilePicker">{document ? 'Înlocuiește / atașează fișier' : 'Fișier'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => setFile(event.target.files?.[0] ?? null)}/>{file&&<small>{file.name}</small>}</label>
+    {!document&&<button type="button" className="autoManualToggle" onClick={()=>setShowManual(value=>!value)}>{showManual?'Ascunde detaliile manuale':'Completează manual (opțional)'} <ChevronRight size={16}/></button>}
+    {(document||showManual)&&<div className="autoManualFields"><label>Tip document<select value={type} onChange={event => setType(event.target.value)}>{documentTypeOptions.map(([code, label]) => <option value={code} key={code}>{label}</option>)}</select></label><label>Data emiterii<input type="date" value={issuedAt} onChange={event => setIssuedAt(event.target.value)}/></label><label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label><label>Emitent<input value={issuer} onChange={event => setIssuer(event.target.value)} placeholder="Opțional"/></label><label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label></div>}
+    {analyzing&&<div className="autoAiAnalyzing"><Sparkles size={18}/><span>AI-ul citește documentul și completează datele…</span></div>}
+    {error && <p className="autoFormError">{error}</p>}
+    <div className="autoFormActions"><button type="button" className="autoSecondaryButton" onClick={onClose}>{createdId?'Închide':'Anulează'}</button><button type="button" className="autoPrimaryButton" disabled={busy||(!document&&!file&&!createdId)} onClick={() => void save()}><Save size={18}/>{busy ? (analyzing?'AI analizează…':'Se salvează…') : createdId ? 'Reîncearcă analiza AI' : document ? 'Salvează' : 'Salvează și analizează'}</button></div>
+  </div></Sheet>
 }
 
 function VehicleFieldEditor({ vehicle, field, onClose, onSaved }: { vehicle: Vehicle; field: VehicleDataField; onClose: () => void; onSaved: () => void }) {
