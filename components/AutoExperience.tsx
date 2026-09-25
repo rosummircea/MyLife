@@ -231,4 +231,65 @@ function HistoryTab({ records, documents, today, onDocument, onRecord }: { recor
   const events = useMemo(() => {
     const result: HistoryEvent[] = []
     for (const record of records) {
-      if (record.record_type === 'mileage' && record.issued_at) result.push({ id: `mileage-${record.id}`, date: record.issued_at, title: 'Kilometraj actualizat', subtitle: text(record.extra?.mileage_km) ? `${Number(text(record.extra?.mileage_km)).toLocaleString('ro-RO')} km` : null, future: false, recor
+      if (record.record_type === 'mileage' && record.issued_at) result.push({ id: `mileage-${record.id}`, date: record.issued_at, title: 'Kilometraj actualizat', subtitle: text(record.extra?.mileage_km) ? `${Number(text(record.extra?.mileage_km)).toLocaleString('ro-RO')} km` : null, future: false, record })
+      if (record.expires_at) result.push({ id: `due-${record.id}`, date: record.expires_at, title: `${deadlineSpecs.find(spec => spec.types.includes(record.record_type))?.label ?? record.record_type} expiră`, future: record.expires_at > today, record })
+      if (record.record_type === 'service' && text(record.extra?.next_due_month)) result.push({ id: `service-${record.id}`, date: `${text(record.extra?.next_due_month)}-01`, title: 'Revizie recomandată', subtitle: text(record.extra?.remaining_km) ? `sau peste ${Number(text(record.extra?.remaining_km)).toLocaleString('ro-RO')} km` : null, future: `${text(record.extra?.next_due_month)}-01` > today, record })
+    }
+    for (const document of documents) if (document.issued_at) result.push({ id: `doc-${document.id}`, date: document.issued_at, title: `${documentLabel(document.document_type)} emis`, future: document.issued_at > today, document })
+    const unique = new Map<string, HistoryEvent>()
+    result.forEach(event => unique.set(`${event.date}-${event.title}`, event))
+    return [...unique.values()]
+  }, [documents, records, today])
+  const past = events.filter(event => !event.future).sort((a, b) => b.date.localeCompare(a.date))
+  const future = events.filter(event => event.future).sort((a, b) => a.date.localeCompare(b.date))
+  const row = (event: HistoryEvent) => <button type="button" className="autoTimelineRow" key={event.id} onClick={() => event.document ? onDocument(event.document) : event.record && onRecord(event.record)}><span className={`autoTimelineDot ${event.future ? 'future' : 'past'}`}/><time>{event.date.endsWith('-01') && event.title.startsWith('Revizie') ? monthLabel(event.date.slice(0, 7)) : formatDate(event.date)}</time><div><strong>{event.title}</strong>{event.subtitle && <span>{event.subtitle}</span>}</div><ChevronRight size={17}/></button>
+  return <div className="autoAppleContent"><section className="autoListCard autoTimelineCard"><header><h3>Timeline</h3><span>{events.length} evenimente</span></header><h4>Trecut</h4>{past.length ? past.map(row) : <p className="autoMutedLight">Nu există evenimente trecute.</p>}<div className="autoTimelineDivider"/><h4>Urmează</h4>{future.length ? future.map(row) : <p className="autoMutedLight">Nu există evenimente planificate.</p>}</section></div>
+}
+
+function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: { document: DocumentRow; today: string; onClose: () => void; onOpen: () => void; onEdit: () => void; onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const status = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'
+  async function remove() {
+    if (!window.confirm(`Ștergi definitiv documentul „${documentLabel(document.document_type)}”?`)) return
+    setBusy(true); setError('')
+    try {
+      const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth } = await client.auth.getUser(); if (!auth.user) throw new Error('Sesiunea nu este validă.')
+      const storagePath = document.storage_path?.replace(/^mylife-documents\//, '') ?? null
+      const { data: deleted, error: dbError } = await client.from('documents').delete().eq('id', document.id).eq('user_id', auth.user.id).select('id').maybeSingle()
+      if (dbError || !deleted) throw new Error('Documentul nu a putut fi șters.')
+      if (storagePath) await client.storage.from('mylife-documents').remove([storagePath])
+      onDeleted()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Ștergerea nu a reușit.') } finally { setBusy(false) }
+  }
+  return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions"><button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide</button><button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div></Sheet>
+}
+
+function DocumentEditor({ vehicle, document, onClose, onSaved }: { vehicle: Vehicle; document?: DocumentRow; onClose: () => void; onClose: () => void; onSaved: () => void }) {
+  const [type, setType] = useState(document?.document_type ?? 'document_auto')
+  const [issuedAt, setIssuedAt] = useState(document?.issued_at?.slice(0, 10) ?? '')
+  const [expiresAt, setExpiresAt] = useState(document?.expires_at?.slice(0, 10) ?? '')
+  const [issuer, setIssuer] = useState(document?.issuer ?? '')
+  const [notes, setNotes] = useState(document?.notes ?? '')
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function save() {
+    setBusy(true); setError('')
+    try {
+      const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
+      const { data: auth, error: authError } = await client.auth.getUser(); if (authError || !auth.user) throw new Error('Sesiunea nu este validă.')
+      if (!document && !file) throw new Error('Alege un fișier pentru document.')
+      if (file && file.size > 20 * 1024 * 1024) throw new Error('Fișierul trebuie să fie mai mic de 20 MB.')
+      if (file && !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) throw new Error('Folosește JPG, PNG, WebP sau PDF.')
+      const payload = { document_type: type, issued_at: issuedAt || null, expires_at: expiresAt || null, issuer: issuer.trim() || null, notes: notes.trim() || null }
+      if (!document) {
+        const id = crypto.randomUUID()
+        const { error: insertError } = await client.from('documents').insert({ id, user_id: auth.user.id, ...payload, source_filename: file!.name, mime_type: file!.type, extra: { domain: 'auto', vehicle_id: vehicle.id } })
+        if (insertError) throw new Error('Documentul nu a putut fi creat.')
+        const ext = file!.type === 'application/pdf' ? 'pdf' : file!.type.split('/')[1]
+        const path = `${auth.user.id}/${id}/${crypto.randomUUID()}.${ext}`
+        const { error: uploadError } = await client.storage.from('mylife-documents').upload(path, file!, { contentType: file!.type, upsert: false })
+        if (uploadError) { await client.from('documents').delete().eq('id', id).eq('user_id', auth.user.id); throw new Error('Fișierul nu a putut fi încărcat.') }
+        const { error: linkError } = await clien
