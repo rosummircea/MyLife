@@ -96,6 +96,23 @@ function Sheet({title,onClose,children}:{title:string;onClose:()=>void;children:
   return <div className="healthSheetBackdrop" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}><div className="healthSheet" role="dialog" aria-modal="true" aria-label={title}><header><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Închide"><X size={20}/></button></header>{children}</div></div>
 }
 
+async function analyzeHealthDocumentWithAi(documentId:string){
+  const client=getSupabaseClient()
+  if(!client)return
+  const {data:session}=await client.auth.getSession()
+  const accessToken=session.session?.access_token
+  if(!accessToken)return
+  const response=await fetch('/api/health/document-analyze',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:'Bearer '+accessToken},
+    body:JSON.stringify({documentId}),
+  })
+  if(!response.ok){
+    const payload=await response.json().catch(()=>({})) as {error?:string}
+    throw new Error(payload.error||'Analiza AI nu a reușit.')
+  }
+}
+
 function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>void;onSaved:()=>void}){
   const localDateTime=(value:string)=>{
     const date=new Date(value)
@@ -111,23 +128,6 @@ function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>
   const [notes,setNotes]=useState(visit?.notes??'')
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
-
-  async function analyzeWithAi(documentId:string){
-    const client=getSupabaseClient()
-    if(!client)return
-    const {data:session}=await client.auth.getSession()
-    const accessToken=session.session?.access_token
-    if(!accessToken)return
-    const response=await fetch('/api/health/document-analyze',{
-      method:'POST',
-      headers:{'Content-Type':'application/json',Authorization:'Bearer '+accessToken},
-      body:JSON.stringify({documentId}),
-    })
-    if(!response.ok){
-      const payload=await response.json().catch(()=>({})) as {error?:string}
-      throw new Error(payload.error||'Analiza AI nu a reușit.')
-    }
-  }
 
   async function save(){
     setBusy(true);setError('')
@@ -367,7 +367,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
         if(uploadError){await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(uploadError.message)}
         const {error:linkError}=await client.from('documents').update({storage_path:path}).eq('id',id).eq('user_id',auth.user.id)
         if(linkError){await client.storage.from('mylife-documents').remove([path]);await client.from('documents').delete().eq('id',id).eq('user_id',auth.user.id);throw new Error(linkError.message)}
-        if(useAi)await analyzeWithAi(id)
+        if(useAi)await analyzeHealthDocumentWithAi(id)
       }else{
         let newPath:string|null=null
         if(file){
@@ -386,7 +386,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
         const {error:updateError}=await client.from('documents').update(update).eq('id',document.id).eq('user_id',auth.user.id)
         if(updateError){if(newPath)await client.storage.from('mylife-documents').remove([newPath]);throw new Error(updateError.message)}
         if(newPath&&document.storage_path)await client.storage.from('mylife-documents').remove([document.storage_path.replace(/^mylife-documents\//,'')])
-        if(useAi&&file)await analyzeWithAi(document.id)
+        if(useAi&&file)await analyzeHealthDocumentWithAi(document.id)
       }
       onSaved()
     }catch(reason){
@@ -453,4 +453,3 @@ function MedicalDocumentDetail({document,onClose,onEdit,onDeleted}:{document:Doc
     <div className="healthFormActions">{url&&<a className="healthLinkButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={17}/> Deschide fișierul</a>}<button type="button" className="secondary" onClick={onEdit}><Pencil size={17}/> Editează</button><button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button></div>
   </div></Sheet>
 }
-
