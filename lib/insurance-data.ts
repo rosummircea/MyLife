@@ -29,7 +29,7 @@ export type InsurancePolicy={
 }
 
 const norm=(value:string|undefined|null)=>(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
-const day=(value:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value))
+const day=(value:string)=>{const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const get=(type:string)=>parts.find(part=>part.type===type)?.value??'';return get('year')+'-'+get('month')+'-'+get('day')}
 const parseDate=(value:string)=>Date.parse(value.slice(0,10)+'T12:00:00Z')
 const daysBetween=(a:string,b:string)=>Math.round((parseDate(b)-parseDate(a))/86400000)
 const numberValue=(value:unknown)=>typeof value==='number'&&Number.isFinite(value)?value:typeof value==='string'&&Number.isFinite(Number(value))?Number(value):null
