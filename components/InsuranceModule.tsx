@@ -11,7 +11,9 @@ const kindIcons:Record<InsuranceKind,React.ComponentType<{size?:number;strokeWid
 }
 
 function todayBucharest(){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date())
+  const get=(type:string)=>parts.find(part=>part.type===type)?.value??''
+  return get('year')+'-'+get('month')+'-'+get('day')
 }
 function date(value:string){
   return new Date(value.slice(0,10)+'T12:00:00Z').toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})
