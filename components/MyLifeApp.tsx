@@ -14,6 +14,7 @@ import {
   Car,
   FileText,
   HeartPulse,
+  ShieldCheck,
   Home,
   ArrowLeft,
   House,
@@ -38,6 +39,7 @@ import { getSupabaseClient } from '@/lib/supabase'
 import DocumentsWorkspace from './DocumentsWorkspace'
 import AutoModule from './AutoModule'
 import HealthModule, {type HealthTab} from './HealthModule'
+import InsuranceModule from './InsuranceModule'
 import AccountsWorkspace from './AccountsWorkspace'
 import LoansWorkspace from './LoansWorkspace'
 import TransactionDetails from './TransactionDetails'
@@ -46,7 +48,7 @@ import DailyTransactionSummary from './DailyTransactionSummary'
 import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from '@/lib/mylife-data'
 import './MyLifeData.css'
 
-type AreaKey = 'documents' | 'finance' | 'health' | 'auto' | 'homeLife' | 'travel' | 'family' | 'notes'
+type AreaKey = 'documents' | 'finance' | 'insurance' | 'health' | 'auto' | 'homeLife' | 'travel' | 'family' | 'notes'
 type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'
 
 type LifeArea = {
@@ -60,9 +62,10 @@ type LifeArea = {
 const areas: LifeArea[] = [
   { key: 'documents', label: 'Documente', icon: FileText, accent: 'blue', meta: 'Acte, polițe, contracte' },
   { key: 'finance', label: 'Finanțe', icon: WalletCards, accent: 'mint', meta: 'Conturi și tranzacții' },
+  { key: 'insurance', label: 'Asigurări', icon: ShieldCheck, accent: 'purple', meta: 'Polițe, rate și scadențe' },
   { key: 'health', label: 'Sănătate', icon: HeartPulse, accent: 'pink', meta: 'Analize și indicatori' },
   { key: 'auto', label: 'Auto', icon: Car, accent: 'blue', meta: 'Mașini și mentenanță' },
-  { key: 'homeLife', label: 'Locuință', icon: House, accent: 'mint', meta: 'Casă, utilități, asigurări' },
+  { key: 'homeLife', label: 'Locuință', icon: House, accent: 'mint', meta: 'Casă și utilități' },
   { key: 'travel', label: 'Călătorii', icon: Plane, accent: 'cyan', meta: 'Planuri și documente' },
   { key: 'family', label: 'Familie', icon: Users, accent: 'purple', meta: 'Profiluri și informații' },
   { key: 'notes', label: 'Notițe', icon: NotebookPen, accent: 'amber', meta: 'Idei și lucruri de ținut minte' },
@@ -72,6 +75,7 @@ const nav = [
   ['home', 'Acasă', Home],
   ['documents', 'Documente', FileText],
   ['finance', 'Finanțe', WalletCards],
+  ['insurance', 'Asigurări', ShieldCheck],
   ['health', 'Sănătate', HeartPulse],
   ['auto', 'Auto', Car],
   ['homeLife', 'Locuință', House],
@@ -372,6 +376,8 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
           </>
         ) : active === 'finance' ? (
           <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+        ) : active === 'insurance' ? (
+          <section className="modulePage"><ModuleHeader title="Asigurări" onHome={() => setActive('home')}/><InsuranceModule data={data} loading={loadingData} onOpenDocument={openDocument} onOpenTransaction={openTransaction}/></section>
         ) : active === 'health' ? (
           <HealthModule key={userEmail ?? 'anonymous'} connected={Boolean(userEmail)} refreshVersion={refresh} documents={documents} documentsLoading={loadingData} tab={healthTab} setTab={setHealthTab} registerMobileBack={registerMobileBack} onChanged={() => setRefresh(value => value + 1)}/>
         ) : active === 'documents' ? (
