@@ -1,12 +1,12 @@
 'use client'
 
 import {CalendarDays,Car,Check,Clock3,FileText,HeartPulse,House,ReceiptText,ShieldCheck} from 'lucide-react'
-import {useMemo} from 'react'
+import {useMemo,type ComponentType} from 'react'
 import type {MyLifeData,Transaction} from '@/lib/mylife-data'
 import {insurancePolicies,type InsuranceKind,type InsurancePolicy} from '@/lib/insurance-data'
 import './InsuranceModule.css'
 
-const kindIcons:Record<InsuranceKind,React.ComponentType<{size?:number;strokeWidth?:number}>>={
+const kindIcons:Record<InsuranceKind,ComponentType<{size?:number;strokeWidth?:number}>>={
   health:HeartPulse,casco:Car,rca:ShieldCheck,home:House,other:ShieldCheck,
 }
 
