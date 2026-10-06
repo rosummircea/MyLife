@@ -508,7 +508,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
       </div>
 
-      {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
+      {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} initialDay={creating.mode==='standard'?selectedDay:null} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>

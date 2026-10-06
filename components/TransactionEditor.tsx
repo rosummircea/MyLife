@@ -164,7 +164,7 @@ export default function TransactionEditor({
     }
   }
 
-  const deltas = balanceDelta(creating ? {...tx,status:'void'} : tx, form)
+  const deltas = Number.isFinite(form.amount) ? balanceDelta(creating ? {...tx,status:'void'} : tx, form) : {}
   const categories = data.categories.filter(category =>
     category.kind === form.transaction_type &&
     (categoryRoot(category.id,data.categories)?.is_active || form.splits.some(split => categoryRoot(split.category_id,data.categories)?.id === categoryRoot(category.id,data.categories)?.id)) &&
