@@ -12,6 +12,22 @@ import {balanceDelta,initialAllocations,resizeAllocations,type TransactionEdit} 
 
 export type TransactionCreateMode = 'standard' | 'transfer' | 'adjustment'
 
+function validMoneyInput(value:string){
+  return /^\\d*(?:[.,]\\d{0,2})?$/.test(value.trim())
+}
+function parsedMoneyInput(value:string){
+  const normalized=value.trim().replace(',','.')
+  if(!normalized||normalized==='.')return Number.NaN
+  const amount=Number(normalized)
+  return Number.isFinite(amount)?amount:Number.NaN
+}
+function normalizedMoneyInput(value:string){
+  return value.trim().replace(',','.')
+}
+function moneyInputDisplay(value:number|string){
+  return String(value).replace('.',',')
+}
+
 
 function defaultCategoryId(data:MyLifeData,type:string){
   const rows=data.categories.filter(category=>category.kind===type&&category.is_active)
@@ -103,6 +119,7 @@ export default function TransactionEditor({
   })
   const [saving,setSaving] = useState(false)
   const [error,setError] = useState('')
+  const [amountInput,setAmountInput] = useState(() => Number.isFinite(form.amount) ? moneyInputDisplay(form.amount) : '')
   const [splitMode,setSplitMode] = useState(
     creating ? (initialValues?.splits?.length??0)>1 : originalAllocations.length>1
   )
@@ -183,6 +200,12 @@ export default function TransactionEditor({
     })
   }
 
+  const changeAmountInput = (value:string) => {
+    if(!validMoneyInput(value))return
+    setAmountInput(value)
+    changeAmount(parsedMoneyInput(value))
+  }
+
   const setPrimaryCategory = (categoryId:string|null) => {
     const resolvedCategoryId=categoryId??defaultCategoryId(data,form.transaction_type)
     if(!resolvedCategoryId)return
@@ -245,7 +268,7 @@ export default function TransactionEditor({
       </label>}
 
       <label className="transactionAmountField">Suma · {form.currency}
-        <input className={'transactionAmountInput ' + amountTone} required type="number" inputMode="decimal" step="0.01" min="0" value={Number.isFinite(form.amount) ? form.amount : ''} onChange={event => changeAmount(event.target.valueAsNumber)}/>
+        <input className={'transactionAmountInput ' + amountTone} required type="text" inputMode="decimal" autoComplete="off" value={amountInput} onChange={event => changeAmountInput(event.target.value)} onBlur={() => { if(Number.isFinite(form.amount))setAmountInput(moneyInputDisplay(form.amount)) }}/>
       </label>
 
       <label className="transactionTitleField">Denumire / Titlu
@@ -295,7 +318,7 @@ export default function TransactionEditor({
         <div className="transactionPrimarySplit">
           <CategoryPicker label="Categorie" rows={categories} value={primary?.category_id ?? null} onChange={setPrimaryCategory}/>
           {splitMode && primary ? <label className="transactionSplitAmount">Sumă categorie
-            <input required min="0" step="0.01" type="number" value={primary.amount} onChange={event => patch({splits:form.splits.map((split,index) => index === 0 ? {...split,amount:event.target.value} : split)})}/>
+            <input required type="text" inputMode="decimal" autoComplete="off" value={moneyInputDisplay(primary.amount)} onChange={event => { const value=event.target.value; if(validMoneyInput(value))patch({splits:form.splits.map((split,index) => index === 0 ? {...split,amount:normalizedMoneyInput(value)} : split)}) }}/>
           </label> : null}
         </div>
 
@@ -303,7 +326,7 @@ export default function TransactionEditor({
           const index = offset + 1
           return <div className="transactionEditSplit" key={split.id ?? 'new-' + index}>
             <CategoryPicker label={'Categoria ' + (index + 1)} rows={categories} value={split.category_id} onChange={id => patch({splits:form.splits.map((item,itemIndex) => itemIndex === index ? {...item,category_id:id} : item)})}/>
-            <label>Sumă categorie<input required min="0" step="0.01" type="number" value={split.amount} onChange={event => patch({splits:form.splits.map((item,itemIndex) => itemIndex === index ? {...item,amount:event.target.value} : item)})}/></label>
+            <label>Sumă categorie<input required type="text" inputMode="decimal" autoComplete="off" value={moneyInputDisplay(split.amount)} onChange={event => { const value=event.target.value; if(validMoneyInput(value))patch({splits:form.splits.map((item,itemIndex) => itemIndex === index ? {...item,amount:normalizedMoneyInput(value)} : item)}) }}/></label>
             <button type="button" onClick={() => patch({splits:form.splits.filter((_,itemIndex) => itemIndex !== index)})}>Elimină</button>
           </div>
         }) : null}
