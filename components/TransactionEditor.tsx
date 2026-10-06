@@ -13,7 +13,7 @@ import {balanceDelta,initialAllocations,resizeAllocations,type TransactionEdit} 
 export type TransactionCreateMode = 'standard' | 'transfer' | 'adjustment'
 
 function validMoneyInput(value:string){
-  return /^\\d*(?:[.,]\\d{0,2})?$/.test(value.trim())
+  return /^\d*(?:[.,]\d{0,2})?$/.test(value.trim())
 }
 function parsedMoneyInput(value:string){
   const normalized=value.trim().replace(',','.')
