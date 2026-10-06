@@ -1,7 +1,7 @@
 'use client'
 
 import CategoryIcon from './CategoryIcon'
-import { CalendarRange, ChevronRight } from 'lucide-react'
+import { CalendarRange, ChevronRight, ChevronsUp } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
@@ -92,7 +92,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
 
       {!loading && data && !invalidRange && !report.error && <>
       {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total cheltuieli</h3><p>{range.from} – {range.to} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>setShowAllTransactions(false)}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
-      <div className="sectionTitle reportListTitle"><h2>Cheltuieli pe categorii</h2></div>
+      <div className="sectionTitle reportListTitle"><h2>Cheltuieli pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
         {categories.length === 0 && <div className="emptyState">Nu există cheltuieli în RON în perioada selectată.</div>}
         {categories.map((item) => {
