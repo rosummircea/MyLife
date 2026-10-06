@@ -128,3 +128,9 @@
   .expenseSubcategoryTrend { margin-top:12px; }
   .expenseSubcategoryTrend .expenseTrend { padding:12px 8px; }
 }
+
+
+.expenseCollapseAllButton{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.025);color:var(--muted);font:inherit;font-size:11px;cursor:pointer}
+.expenseCollapseAllButton:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.045)}
+.expenseCollapseAllButton:disabled{opacity:.38;cursor:default}
+.expenseCollapseAllButton:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
