@@ -6,6 +6,7 @@ import type { MyLifeData } from '@/lib/mylife-data'
 import './ExpenseTrendChart.css'
 
 const money = (amount: number) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(amount)
+const expenseAmountClass = (amount:number) => amount === 0 ? 'reportMoneyNeutral' : 'reportMoneyExpense'
 
 export default function ExpenseTrendChart({ data, range, period, target, name, color, onSelectPoint, onSelectTotal, compact = false }: {
   onSelectPoint?:(key:string,unit:string,label:string)=>void;onSelectTotal?:()=>void
@@ -29,15 +30,15 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
     <section className="expenseTrend" aria-label={`Evoluția cheltuielilor pentru ${name}`}>
       {!compact && <div className="expenseTrendHeader">
         <div><p className="expenseTrendEyebrow">EVOLUȚIA CHELTUIELILOR</p><h3>{name}</h3><p>{range.from} – {range.to} · pe {unitLabel}</p></div>
-        <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong>{money(total)}</strong></button><div className="expenseTrendAverage"><span>Medie pe lună</span><strong>{money(monthlyAverage)}</strong></div></div>
+        <div className="expenseTrendTotal"><span>Total în perioadă</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${name}`} onClick={onSelectTotal}><strong className={expenseAmountClass(total)}>{money(total)}</strong></button><div className="expenseTrendAverage"><span>Medie pe lună</span><strong className={expenseAmountClass(monthlyAverage)}>{money(monthlyAverage)}</strong></div></div>
       </div>}
       {result.error ? <p role="alert" className="expenseTrendHint">{result.error}</p> : <>
         <div className="expenseTrendReadout" aria-live="polite">
-          {active ? <><span>{active.fullLabel}</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${active.fullLabel}`} onClick={()=>onSelectPoint?.(active.key,result.unit,active.fullLabel)}><strong>{money(active.amount)}</strong></button></> : <span>Apasă pe o bară pentru sumă și tranzacțiile care o compun.</span>}
+          {active ? <><span>{active.fullLabel}</span><button type="button" className="expenseTotalButton" aria-label={`Vezi tranzacțiile pentru ${active.fullLabel}`} onClick={()=>onSelectPoint?.(active.key,result.unit,active.fullLabel)}><strong className={expenseAmountClass(active.amount)}>{money(active.amount)}</strong></button></> : <span>Apasă pe o bară pentru sumă și tranzacțiile care o compun.</span>}
         </div>
         {maximum === 0 && <p className="expenseTrendHint">Nu există cheltuieli în această perioadă.</p>}
         <div className="expenseTrendPlot">
-          <div className="expenseTrendAxis" aria-hidden="true"><span>{money(maximum)}</span><span>{money(maximum / 2)}</span><span>0 RON</span></div>
+          <div className="expenseTrendAxis" aria-hidden="true"><span className={expenseAmountClass(maximum)}>{money(maximum)}</span><span className={expenseAmountClass(maximum/2)}>{money(maximum / 2)}</span><span className="reportMoneyNeutral">0 RON</span></div>
           <div className="expenseTrendScroll" tabIndex={0} role="group" aria-label="Grafic de cheltuieli; derulează orizontal pentru toate valorile">
             <div className="expenseTrendBars" style={{ minWidth: `${points.length * 30}px` }}>
               {points.map((point) => (
