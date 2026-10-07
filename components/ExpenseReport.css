@@ -143,40 +143,40 @@
 
 
 /* Make expanded subcategories read as a child layer of the parent category. */
-.expenseCategory > .expenseDetails{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails{
   margin:0 10px 14px 26px;
   padding:14px 14px 18px;
   border:1px solid rgba(255,255,255,.045);
-  border-left:2px solid rgba(118,168,255,.28);
+  border-left:2px solid rgba(118,168,255,.42);
   border-radius:0 0 14px 14px;
-  background:rgba(255,255,255,.035);
+  background:rgba(255,255,255,.055);
 }
-.expenseCategory > .expenseDetails .expenseSubcategories{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategories{
   margin:-2px 0 0;
   padding:6px 10px 4px;
   border-radius:12px;
-  background:rgba(255,255,255,.028);
+  background:rgba(255,255,255,.04);
 }
-.expenseCategory > .expenseDetails .expenseSubcategory{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategory{
   border-bottom-color:rgba(255,255,255,.075);
 }
-.expenseCategory > .expenseDetails .expenseSubcategoryButton{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategoryButton{
   padding:12px 8px;
   border-radius:10px;
 }
-.expenseCategory > .expenseDetails .expenseSubcategoryButton:hover,
-.expenseCategory > .expenseDetails .expenseSubcategoryButton[aria-expanded="true"]{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategoryButton:hover,
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategoryButton[aria-expanded="true"]{
   background:rgba(255,255,255,.05);
 }
-.expenseCategory > .expenseDetails .expenseReportDeck{
+.expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseReportDeck{
   margin-top:16px;
 }
 @media(max-width:600px){
-  .expenseCategory > .expenseDetails{
+  .expenseCategory > [id^="expense-details-"] > .expenseDetails{
     margin:0 8px 12px 18px;
     padding:10px 8px 14px;
   }
-  .expenseCategory > .expenseDetails .expenseSubcategories{
+  .expenseCategory > [id^="expense-details-"] > .expenseDetails .expenseSubcategories{
     padding:4px 6px 2px;
   }
 }
