@@ -153,9 +153,6 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
   return (
     <section className="expenseDetails" aria-labelledby={`expense-trigger-${category.id}`}>
       <div className="expenseSubcategories">
-        <div className="expenseSubcategoryToolbar">
-          <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru tranzacțiile care compun suma.</p>
-        </div>
         <ul>
           {distribution.map((item) => {
             const expanded = expandedSubcategories.has(item.id)
