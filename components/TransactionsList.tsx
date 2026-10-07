@@ -2,14 +2,15 @@
 
 import Image from 'next/image'
 import CategoryIcon from './CategoryIcon'
-import { ArrowRight, Banknote, Landmark, UserRound } from 'lucide-react'
+import { ArrowRight, Banknote, GripVertical, Landmark, UserRound } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { Account, CategoryRow, SplitRow, Transaction } from '@/lib/mylife-data'
 import { accountBank, accountOwner } from '@/lib/account-display'
 import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true }: {
+export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true, reorderMode = false, onMove }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
@@ -20,7 +21,38 @@ export default function TransactionsList({ accounts, transactions, categories, s
   showDate?: boolean
   contextAccountId?: string
   contributionAmounts?: Record<string,number>
+  reorderMode?: boolean
+  onMove?: (draggedId:string,overId:string)=>void
 }) {
+  const [draggingId,setDraggingId] = useState<string|null>(null)
+  const draggingIdRef = useRef<string|null>(null)
+  const beginDrag = (event:React.PointerEvent<HTMLButtonElement>,id:string) => {
+    if(!reorderMode||!onMove)return
+    event.preventDefault()
+    draggingIdRef.current=id
+    setDraggingId(id)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const moveDrag = (event:React.PointerEvent<HTMLButtonElement>,id:string) => {
+    if(draggingIdRef.current!==id||!onMove)return
+    event.preventDefault()
+    const element=document.elementFromPoint(event.clientX,event.clientY)
+    const target=element?.closest<HTMLElement>('[data-transaction-id]')
+    const overId=target?.dataset.transactionId
+    if(overId&&overId!==id)onMove(id,overId)
+  }
+  const endDrag = (event:React.PointerEvent<HTMLButtonElement>) => {
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId)
+    draggingIdRef.current=null
+    setDraggingId(null)
+  }
+  const keyboardMove = (event:React.KeyboardEvent<HTMLButtonElement>,id:string) => {
+    if(!onMove)return
+    const index=transactions.findIndex(item=>item.id===id)
+    if(event.key==='ArrowUp'&&index>0){event.preventDefault();onMove(id,transactions[index-1].id)}
+    if(event.key==='ArrowDown'&&index>=0&&index<transactions.length-1){event.preventDefault();onMove(id,transactions[index+1].id)}
+  }
+
   const categoriesById = new Map(categories.map(category => [category.id, category]))
   const allocations = new Map<string, SplitRow[]>()
   for (const split of splits) {
@@ -54,7 +86,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const outgoing = tx.transaction_type === 'expense' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.account_id === contextAccountId)
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
-      return <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} onClick={() => onSelect(tx)}>
+      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={() => { if(!reorderMode)onSelect(tx) }}>
         {route ? <span className="transactionTransferAccounts">
           <AccountIdentity account={account} direction="Din contul"/>
           <ArrowRight className="transactionTransferArrow" size={18} aria-hidden="true"/>
@@ -71,6 +103,12 @@ export default function TransactionsList({ accounts, transactions, categories, s
           {contributionAmounts?.[tx.id] !== undefined && Math.round(contributionAmounts[tx.id]*100)!==Math.round(Number(tx.amount)*100) && <small className="transactionContributionTotal">din {new Intl.NumberFormat('ro-RO',{style:'currency',currency:tx.currency.trim()}).format(Number(tx.amount))}</small>}
         </strong>
       </button>
+      return reorderMode ? <div className={`transactionReorderItem ${draggingId===tx.id?'dragging':''}`} data-transaction-id={tx.id} key={tx.id}>
+        <button type="button" className="transactionDragHandle" aria-label={`Mută ${title}. Folosește drag sau săgețile sus și jos.`} onPointerDown={event=>beginDrag(event,tx.id)} onPointerMove={event=>moveDrag(event,tx.id)} onPointerUp={endDrag} onPointerCancel={endDrag} onKeyDown={event=>keyboardMove(event,tx.id)}>
+          <GripVertical size={20} aria-hidden="true"/>
+        </button>
+        {row}
+      </div> : row
     })}
   </div>
 }
