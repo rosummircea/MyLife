@@ -6,13 +6,13 @@ export function sortDailyTransactions(rows:Transaction[]){
   return [...rows].sort((a,b)=>{
     const aManual=orderValue(a.day_sort_order),bManual=orderValue(b.day_sort_order)
     if(aManual!==null&&bManual!==null&&aManual!==bManual)return aManual-bManual
-    if(aManual!==null&&bManual===null)return -1
-    if(aManual===null&&bManual!==null)return 1
-    const byTime=Date.parse(a.transaction_date)-Date.parse(b.transaction_date)
+    if(aManual!==null&&bManual===null)return 1
+    if(aManual===null&&bManual!==null)return -1
+    const byTime=Date.parse(b.transaction_date)-Date.parse(a.transaction_date)
     if(byTime)return byTime
     const aCreated=a.created_at?Date.parse(a.created_at):0,bCreated=b.created_at?Date.parse(b.created_at):0
-    if(aCreated!==bCreated)return aCreated-bCreated
-    return a.id.localeCompare(b.id)
+    if(aCreated!==bCreated)return bCreated-aCreated
+    return b.id.localeCompare(a.id)
   })
 }
 
