@@ -134,3 +134,9 @@
 .expenseCollapseAllButton:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.045)}
 .expenseCollapseAllButton:disabled{opacity:.38;cursor:default}
 .expenseCollapseAllButton:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+
+.reportMoneyExpense{color:#ff8797!important}
+.reportMoneyIncome{color:#6bddad!important}
+.reportMoneyNeutral{color:var(--text)!important}
+.expenseReportDeckTotals small b{font:inherit;font-weight:700}
