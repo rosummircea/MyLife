@@ -152,6 +152,45 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
 
   return (
     <section className="expenseDetails" aria-labelledby={`expense-trigger-${category.id}`}>
+      <div className="expenseSubcategories">
+        <div className="expenseSubcategoryToolbar">
+          <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru tranzacțiile care compun suma.</p>
+        </div>
+        <ul>
+          {distribution.map((item) => {
+            const expanded = expandedSubcategories.has(item.id)
+            const rows = subcategoryContributions.get(item.id) ?? []
+            return (
+            <li key={item.id} className="expenseSubcategory">
+              <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
+                <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
+                <span className="expenseSubcategoryName">{item.name}</span>
+                <strong className={expenseAmountClass(item.amount)}>{money(item.amount)}</strong>
+                <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
+              </button>
+              <div id={`expense-transactions-${item.id}`} hidden={!expanded} className="expenseSubcategoryTransactions" role="region" aria-labelledby={`expense-subcategory-${item.id}`} style={{borderLeftColor:item.color}}>
+                {expanded && <>
+                  <p className="expenseInlineCaption">{rows.length} tranzacții · {range.from} – {range.to} · Apasă pentru detalii și editare.</p>
+                  <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={rows.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(rows.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
+                  {rows.length>0&&<div className="expenseSubcategoryTrend"><ExpenseTrendChart
+                    compact
+                    key={`subcategory-${item.id}-${range.from}-${range.to}-${period}`}
+                    data={data}
+                    range={range}
+                    period={period}
+                    target={{categoryId:category.id,subcategoryId:item.id}}
+                    name={`${category.name} · ${item.name}`}
+                    color={item.color}
+                  /></div>}
+                  {rows.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele reprezintă partea repartizată aici; suma integrală este indicată separat.</p>}
+                </>}
+              </div>
+            </li>
+            )
+          })}
+        </ul>
+      </div>
       <div className="expenseReportDeck">
         <header className="expenseReportDeckHeader">
           <div><p className="expenseTrendEyebrow">RAPOARTE CATEGORIE</p><h3>{category.name}</h3><p>Glisează pentru a schimba reprezentarea.</p></div>
@@ -200,45 +239,6 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
         </header>
         <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={categoryContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(categoryContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru intervalul selectat."/>
       </section>}
-      <div className="expenseSubcategories">
-        <div className="expenseSubcategoryToolbar">
-          <p className="expenseDetailsCaption">Subcategorii · % din {category.name}<br/>Apasă pentru tranzacțiile care compun suma.</p>
-        </div>
-        <ul>
-          {distribution.map((item) => {
-            const expanded = expandedSubcategories.has(item.id)
-            const rows = subcategoryContributions.get(item.id) ?? []
-            return (
-            <li key={item.id} className="expenseSubcategory">
-              <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
-                <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
-                <span className="expenseSubcategoryName">{item.name}</span>
-                <strong className={expenseAmountClass(item.amount)}>{money(item.amount)}</strong>
-                <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
-                <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
-              </button>
-              <div id={`expense-transactions-${item.id}`} hidden={!expanded} className="expenseSubcategoryTransactions" role="region" aria-labelledby={`expense-subcategory-${item.id}`} style={{borderLeftColor:item.color}}>
-                {expanded && <>
-                  <p className="expenseInlineCaption">{rows.length} tranzacții · {range.from} – {range.to} · Apasă pentru detalii și editare.</p>
-                  <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={rows.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(rows.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru suma și perioada selectate."/>
-                  {rows.length>0&&<div className="expenseSubcategoryTrend"><ExpenseTrendChart
-                    compact
-                    key={`subcategory-${item.id}-${range.from}-${range.to}-${period}`}
-                    data={data}
-                    range={range}
-                    period={period}
-                    target={{categoryId:category.id,subcategoryId:item.id}}
-                    name={`${category.name} · ${item.name}`}
-                    color={item.color}
-                  /></div>}
-                  {rows.some(row=>Math.round(row.amount*100)!==Math.round(Number(row.transaction.amount)*100)) && <p className="expenseReportNote">Sumele reprezintă partea repartizată aici; suma integrală este indicată separat.</p>}
-                </>}
-              </div>
-            </li>
-            )
-          })}
-        </ul>
-      </div>
     </section>
   )
 }
