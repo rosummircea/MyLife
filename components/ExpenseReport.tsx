@@ -13,6 +13,9 @@ import './ExpenseReport.css'
 function money(value: number) {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(value)
 }
+function expenseAmountClass(value:number) {
+  return value === 0 ? 'reportMoneyNeutral' : 'reportMoneyExpense'
+}
 
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [showAllTransactions,setShowAllTransactions]=useState(false)
@@ -63,7 +66,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       <div className="reportHero">
         <div className="pieStage">
           {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }} aria-label="Distribuția cheltuielilor">
-            <div className="pieHole"><span>Total cheltuieli</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label="Vezi tranzacțiile din totalul cheltuielilor" onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong>{money(total)}</strong></button><small>{period}</small></div>
+            <div className="pieHole"><span>Total cheltuieli</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label="Vezi tranzacțiile din totalul cheltuielilor" onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong className={expenseAmountClass(total)}>{money(total)}</strong></button><small>{period}</small></div>
           </div>}
         </div>
         <div className="reportSummary">
@@ -102,7 +105,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
                 <CategoryIcon category={item}/>
                 <div className="expenseName"><strong>{item.name}</strong><span>{percent(item.percent)} din total</span></div>
-                <div className="expenseValue"><strong>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
+                <div className="expenseValue"><strong className={expenseAmountClass(item.amount)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-details-${item.id}`} hidden={!expanded}>
@@ -152,7 +155,7 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
       <div className="expenseReportDeck">
         <header className="expenseReportDeckHeader">
           <div><p className="expenseTrendEyebrow">RAPOARTE CATEGORIE</p><h3>{category.name}</h3><p>Glisează pentru a schimba reprezentarea.</p></div>
-          <div className="expenseReportDeckTotals"><span>Total în perioadă</span><strong>{money(category.amount)}</strong><small>Medie pe lună · {money(monthlyAverage)}</small></div>
+          <div className="expenseReportDeckTotals"><span>Total în perioadă</span><strong className={expenseAmountClass(category.amount)}>{money(category.amount)}</strong><small>Medie pe lună · <b className={expenseAmountClass(monthlyAverage)}>{money(monthlyAverage)}</b></small></div>
         </header>
         <div className="expenseReportViewSwitch" role="tablist" aria-label="Tipul graficului">
           <button type="button" role="tab" aria-selected={reportView===0} onClick={()=>showReport(0)}>Distribuție</button>
@@ -165,7 +168,7 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
         }}>
           <section className="expenseReportSlide expenseReportPieSlide" aria-label={`Distribuția subcategoriilor pentru ${category.name}`}>
             <div className="expenseSubchart" role="img" aria-label={`Distribuția subcategoriilor pentru ${category.name}: ${distribution.map((item) => `${item.name} ${item.percent.toLocaleString('ro-RO')}%`).join(', ')}`} style={{ background: `conic-gradient(${gradient})` }}>
-              <div className="expenseSubchartHole"><span>Total categorie</span><strong>{money(category.amount)}</strong></div>
+              <div className="expenseSubchartHole"><span>Total categorie</span><strong className={expenseAmountClass(category.amount)}>{money(category.amount)}</strong></div>
             </div>
           </section>
           <section className="expenseReportSlide expenseReportTrendSlide" aria-label={`Evoluția cheltuielilor pentru ${category.name}`}>
@@ -193,7 +196,7 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
       {showCategoryTransactions && <section className="expenseContributionList expenseCategoryPeriodTransactions" aria-label={`Tranzacțiile ${category.name}`}>
         <header>
           <div><h3>Tranzacții · {category.name}</h3><p>{selectedBucket?.label ?? `${range.from} – ${range.to}`} · {categoryContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div>
-          <div className="expenseContributionActions"><strong>{money(categoryContributionTotal)}</strong><button type="button" className="expenseCategoryTrendButton" onClick={()=>{setShowCategoryTransactions(false);setSelectedBucket(null)}}>Închide</button></div>
+          <div className="expenseContributionActions"><strong className={expenseAmountClass(categoryContributionTotal)}>{money(categoryContributionTotal)}</strong><button type="button" className="expenseCategoryTrendButton" onClick={()=>{setShowCategoryTransactions(false);setSelectedBucket(null)}}>Închide</button></div>
         </header>
         <TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={categoryContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(categoryContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction} emptyMessage="Nu există tranzacții pentru intervalul selectat."/>
       </section>}
@@ -210,7 +213,7 @@ function SubcategoryDetails({ category, data, range, period, onSelectTransaction
               <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
                 <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
                 <span className="expenseSubcategoryName">{item.name}</span>
-                <strong>{money(item.amount)}</strong>
+                <strong className={expenseAmountClass(item.amount)}>{money(item.amount)}</strong>
                 <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                 <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
               </button>
