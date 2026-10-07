@@ -525,7 +525,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   }
   const dayActions = selectedDay ? <div className="financeDayActions">
     {reorderIds ? <>
-      <button type="button" className="financeOrderButton secondary" disabled={savingOrder} onClick={()=>void saveDayOrder(true)}><RotateCcw size={16}/><span>Cronologic</span></button>
+      <button type="button" className="financeOrderButton secondary" disabled={savingOrder} onClick={()=>void saveDayOrder(true)}><RotateCcw size={16}/><span>Cele mai noi</span></button>
       <button type="button" className="financeOrderButton primary" disabled={savingOrder} onClick={()=>void saveDayOrder(false)}><Check size={16}/><span>{savingOrder?'Se salvează…':'Gata'}</span></button>
     </> : <>
       {chronologicalDailyTransactions.length>1&&<button type="button" className="financeOrderButton" disabled={data?.source!=='live'} onClick={()=>{setOrderError('');setReorderIds(chronologicalDailyTransactions.map(transaction=>transaction.id))}}><GripVertical size={16}/><span>Ordonează</span></button>}
