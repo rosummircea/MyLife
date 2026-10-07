@@ -39,3 +39,17 @@
 .transactionList .transactionCategoryLabel {display:inline;min-width:0;overflow-wrap:anywhere;text-align:left}
 
 .transactionList .transactionRowInfo>.transactionRowCategories {display:flex}
+
+
+.transactionReorderItem{display:grid;grid-template-columns:46px minmax(0,1fr);align-items:stretch;border-bottom:1px solid var(--line);background:var(--panel)}
+.transactionReorderItem:last-child{border-bottom:0}
+.transactionReorderItem .transactionRow{border-bottom:0!important;border-radius:0}
+.transactionDragHandle{display:grid;place-items:center;min-width:46px;border:0;border-right:1px solid var(--line);background:rgba(118,168,255,.035);color:var(--muted);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.transactionDragHandle:active,.transactionReorderItem.dragging .transactionDragHandle{cursor:grabbing;color:var(--blue);background:rgba(118,168,255,.12)}
+.transactionDragHandle:focus-visible{outline:2px solid var(--blue);outline-offset:-3px}
+.transactionReorderItem.dragging{position:relative;z-index:2;background:#17263a;box-shadow:0 12px 28px rgba(0,0,0,.25)}
+.transactionReorderItem .transactionRow[aria-disabled=true]{cursor:default}
+@media(max-width:600px){
+  .transactionReorderItem{grid-template-columns:42px minmax(0,1fr)}
+  .transactionDragHandle{min-width:42px}
+}
