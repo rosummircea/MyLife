@@ -84,6 +84,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
       }
       const incoming = tx.transaction_type === 'income' || tx.transaction_type === 'adjustment' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.transfer_account_id === contextAccountId)
       const outgoing = tx.transaction_type === 'expense' || (tx.transaction_type === 'transfer' && !!contextAccountId && tx.account_id === contextAccountId)
+      const displayedAmount = contributionAmounts?.[tx.id] ?? Number(tx.amount)
+      const hasAmount = Math.abs(displayedAmount) > 0.000001
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={() => { if(!reorderMode)onSelect(tx) }}>
@@ -98,8 +100,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
           {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}
         </div>
-        <strong className={`transactionRowAmount ${outgoing ? 'transactionRowAmount-outgoing' : incoming ? 'transactionRowAmount-incoming' : ''}`}>
-          {outgoing ? '−' : incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(contributionAmounts?.[tx.id] ?? Number(tx.amount))}
+        <strong className={`transactionRowAmount ${hasAmount&&outgoing ? 'transactionRowAmount-outgoing' : hasAmount&&incoming ? 'transactionRowAmount-incoming' : ''}`}>
+          {hasAmount&&outgoing ? '−' : hasAmount&&incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(displayedAmount)}
           {contributionAmounts?.[tx.id] !== undefined && Math.round(contributionAmounts[tx.id]*100)!==Math.round(Number(tx.amount)*100) && <small className="transactionContributionTotal">din {new Intl.NumberFormat('ro-RO',{style:'currency',currency:tx.currency.trim()}).format(Number(tx.amount))}</small>}
         </strong>
       </button>
