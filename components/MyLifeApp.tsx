@@ -7,6 +7,7 @@ import QuickAddSheet from './QuickAddSheet'
 import ExpenseReport from '@/components/ExpenseReport'
 import TransactionsCalendar from '@/components/TransactionsCalendar'
 import { bucharestDay } from '@/lib/expense-report'
+import { moveTransactionId, sortDailyTransactions } from '@/lib/transaction-order'
 
 import {
   Activity,
@@ -30,6 +31,9 @@ import {
   ListTree,
   ReceiptText,
   HandCoins,
+  GripVertical,
+  Check,
+  RotateCcw,
   Users,
   WalletCards,
 } from 'lucide-react'
@@ -491,9 +495,43 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
   const monthlyTransactions = useMemo(() => transactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [transactions, calendarMonth])
   const monthLabel = new Date(`${calendarMonth}-01T12:00:00Z`).toLocaleDateString('ro-RO', {month:'long',year:'numeric',timeZone:'UTC'})
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
-  const dailyTransactions = useMemo(() => transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay), [transactions, selectedDay])
-  const selectedDayLabel = new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'standard'})}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
+  const [reorderIds,setReorderIds]=useState<string[]|null>(null)
+  const [savingOrder,setSavingOrder]=useState(false)
+  const [orderError,setOrderError]=useState('')
+  useEffect(()=>{setReorderIds(null);setOrderError('')},[selectedDay])
+  const chronologicalDailyTransactions = useMemo(() => sortDailyTransactions(transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay)), [transactions, selectedDay])
+  const dailyTransactions = useMemo(() => {
+    if(!reorderIds)return chronologicalDailyTransactions
+    const byId=new Map(chronologicalDailyTransactions.map(transaction=>[transaction.id,transaction]))
+    const arranged=reorderIds.map(id=>byId.get(id)).filter((transaction):transaction is Transaction=>Boolean(transaction))
+    const arrangedIds=new Set(arranged.map(transaction=>transaction.id))
+    return [...arranged,...chronologicalDailyTransactions.filter(transaction=>!arrangedIds.has(transaction.id))]
+  },[chronologicalDailyTransactions,reorderIds])
+  const selectedDayLabel = selectedDay ? new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
+  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'||Boolean(reorderIds)} onClick={()=>setCreating({mode:'standard'})}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
+  const saveDayOrder=async(reset=false)=>{
+    if(!data||data.source!=='live'||!selectedDay||savingOrder)return
+    const client=getSupabaseClient()
+    if(!client)return
+    setSavingOrder(true);setOrderError('')
+    try{
+      const {error}=await client.rpc('finance_set_day_transaction_order',{p_household_id:data.profile.householdId,p_day:selectedDay,p_transaction_ids:reset?null:reorderIds})
+      if(error)throw new Error(error.message)
+      setReorderIds(null)
+      onSaved()
+    }catch(error){
+      setOrderError(error instanceof Error?error.message:'Ordinea nu a putut fi salvată.')
+    }finally{setSavingOrder(false)}
+  }
+  const dayActions = selectedDay ? <div className="financeDayActions">
+    {reorderIds ? <>
+      <button type="button" className="financeOrderButton secondary" disabled={savingOrder} onClick={()=>void saveDayOrder(true)}><RotateCcw size={16}/><span>Cronologic</span></button>
+      <button type="button" className="financeOrderButton primary" disabled={savingOrder} onClick={()=>void saveDayOrder(false)}><Check size={16}/><span>{savingOrder?'Se salvează…':'Gata'}</span></button>
+    </> : <>
+      {chronologicalDailyTransactions.length>1&&<button type="button" className="financeOrderButton" disabled={data?.source!=='live'} onClick={()=>{setOrderError('');setReorderIds(chronologicalDailyTransactions.map(transaction=>transaction.id))}}><GripVertical size={16}/><span>Ordonează</span></button>}
+      {addTransactionAction}
+    </>}
+  </div> : addTransactionAction
 
   return (
     <section className="modulePage financeModule">
@@ -518,9 +556,10 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
           <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay} month={calendarMonth} onMonthChange={month=>{setCalendarMonth(month);setSelectedDay(null)}}/>
-          {selectedDay && <DailyTransactionSummary action={addTransactionAction} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
+          {selectedDay && <DailyTransactionSummary action={dayActions} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
           {!selectedDay && addTransactionAction}
-          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {orderError&&<div className="financeOrderError" role="alert">{orderError}</div>}
+          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} reorderMode={Boolean(reorderIds)} onMove={(draggedId,overId)=>setReorderIds(current=>current?moveTransactionId(current,draggedId,overId):current)} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
         <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountRecord(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>
