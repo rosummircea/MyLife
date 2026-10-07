@@ -20,3 +20,21 @@
 @media(max-width:360px) { .dailyTransactionSummary strong { font-size:12px; } }
 
 .dailyTransactionHeaderWithAction .dailyTransactionHeading{min-width:0}.dailyTransactionHeading>span{display:block;font-size:11px;color:var(--muted);margin-top:4px}.dailyTransactionSummary .dailyTransactionHeaderWithAction{flex-wrap:nowrap;gap:12px}.dailyTransactionHeaderWithAction .financeCreateAction{margin:0;flex-shrink:0}.transactionAddLabelMobile{display:none}@media(max-width:600px){.transactionAddLabelDesktop{display:none}.transactionAddLabelMobile{display:inline}.dailyTransactionHeaderWithAction .financeCreateAction button{min-height:44px;padding:10px 12px}}
+
+
+.financeDayActions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.financeDayActions .financeCreateAction{margin:0}
+.financeOrderButton{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025);color:var(--muted);font:inherit;font-size:11px;cursor:pointer}
+.financeOrderButton:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.05)}
+.financeOrderButton.primary{color:#07101c;background:linear-gradient(145deg,#74adff,#71e0c6);border-color:transparent;font-weight:800}
+.financeOrderButton.secondary{color:var(--text)}
+.financeOrderButton:disabled{opacity:.5;cursor:default}
+.financeOrderButton:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.financeOrderError{margin:8px 0 12px;padding:10px 12px;border:1px solid rgba(255,126,145,.24);border-radius:11px;background:rgba(255,126,145,.07);color:#ff8797;font-size:11px}
+@media(max-width:600px){
+  .dailyTransactionSummary .dailyTransactionHeaderWithAction{align-items:flex-start}
+  .financeDayActions{gap:6px}
+  .financeOrderButton{min-height:42px;padding:9px 10px}
+  .financeOrderButton span{display:none}
+  .financeOrderButton.primary span{display:inline}
+}
