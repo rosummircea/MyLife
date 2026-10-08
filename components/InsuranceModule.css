@@ -80,3 +80,11 @@ button.insuranceMilestone{cursor:pointer}
 
 .insuranceMilestone.overdue .insuranceDot{background:#7c3440;color:#fff;box-shadow:0 0 0 1px rgba(255,100,120,.55)}
 .insuranceMilestone.overdue small{color:#ff8496}
+
+/* Annual RCA: one payment at the start, today in the middle, expiry at the end. */
+.insuranceTimelineAnnual{width:100%;justify-content:space-between;overflow-x:visible}
+.insuranceTimelineAnnual>.insuranceMilestone{flex:0 0 auto;min-width:0;width:33.333%;box-sizing:border-box}
+.insuranceTimelineAnnual>.insuranceMilestone:first-child{justify-items:start;text-align:left;padding-left:0}
+.insuranceTimelineAnnual>.insuranceMilestone.now{justify-items:center;text-align:center}
+.insuranceTimelineAnnual>.insuranceMilestone.expiry{justify-items:end;text-align:right;padding-right:0}
+.insuranceTimelineAnnual>.insuranceLine{left:12px;right:12px}
