@@ -111,7 +111,7 @@ function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:I
 
     <div className="insuranceProgress"><span>{paidSummary}</span>{policy.remainingInstallments!==null&&policy.remainingInstallments>0&&<strong>{policy.remainingInstallments} {policy.remainingInstallments===1?'rată rămasă':'rate rămase'}</strong>}</div>
 
-    <div className="insuranceTimeline" aria-label={'Timeline '+policy.title}>
+    <div className={'insuranceTimeline'+(policy.kind==='rca'?' insuranceTimelineAnnual':'')} aria-label={'Timeline '+policy.title}>
       {policy.installments?.filter(item=>item.date<=today).map(item=><div className={'insuranceMilestone '+(item.paid===true?'paid':item.date<today?'overdue':'next')} key={'installment-'+item.number} title={`Rata ${item.number} · ${money(item.amount,item.currency)}`}><span className="insuranceDot">{item.paid===true?<Check size={12}/>:item.date<today?'!':<ReceiptText size={12}/>}</span><strong>{timelineDate(item.date,today)}</strong><small>{`Rata ${item.number} · ${item.paid===true?'Plătită':item.date<today?'Neconfirmată':'Scadentă'}`}</small></div>)}
       {paidEvents.map(payment=>{
         const installment=policy.payments.findIndex(item=>item.id===payment.id)+1
