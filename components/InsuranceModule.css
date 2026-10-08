@@ -45,8 +45,8 @@ button.insuranceMilestone{cursor:pointer}
 .insuranceMilestone.now .insuranceDot{width:27px;height:27px;margin-top:-2px;background:var(--blue);box-shadow:0 0 0 4px rgba(90,125,255,.12)}
 .insuranceMilestone.now strong{color:var(--blue)}
 .insuranceMilestone.next .insuranceDot{background:#66512e;color:#ffbf5b;box-shadow:0 0 0 1px rgba(255,191,91,.35)}
-.insuranceMilestone.expiry .insuranceDot{background:#45343d;box-shadow:0 0 0 1px rgba(255,132,150,.30)}
-.insuranceMilestone.expiry small{color:#ff8496}
+.insuranceMilestone.expiry .insuranceDot{background:#293448;box-shadow:0 0 0 1px rgba(156,174,196,.28)}
+.insuranceMilestone.expiry small{color:var(--muted)}
 .insuranceEmpty{margin-top:24px;min-height:180px;display:grid;place-items:center;align-content:center;gap:8px;padding:28px;text-align:center;border:1px dashed var(--line);border-radius:20px;color:var(--muted)}
 .insuranceEmpty strong{color:var(--text)}
 .insuranceEmpty span{font-size:12px;max-width:420px;line-height:1.5}
