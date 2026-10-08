@@ -80,12 +80,12 @@ export default function InsuranceModule({data,loading,onOpenDocument,onOpenTrans
 function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:InsurancePolicy;today:string;onOpenDocument:(id:string)=>void;onOpenTransaction:(transaction:Transaction)=>void}){
   const Icon=kindIcons[policy.kind]
   const latest=policy.payments.at(-1)
-  const paidEvents=policy.payments.slice(-4)
+  const paidEvents=policy.installments?.length?[]:policy.payments.slice(-4)
   const future=[
     ...(policy.nextPayment&&policy.nextPayment.date>today?[{kind:'next' as const,date:policy.nextPayment.date,label:'Rată',estimated:policy.nextPayment.estimated}]:[]),
     ...(policy.expiry&&policy.expiry>today?[{kind:'expiry' as const,date:policy.expiry,label:'Expiră',estimated:false}]:[]),
   ].sort((a,b)=>a.date.localeCompare(b.date))
-  const paidSummary=frequencyLabel(policy)
+  const paidSummary=policy.installments?.length?`${policy.installments.filter(item=>item.paid===true).length}/${policy.installments.length} rate plătite`:frequencyLabel(policy)
   const nextText=policy.remainingInstallments===0&&policy.totalInstallments!==null
     ? 'Achitată'
     : policy.nextPayment?date(policy.nextPayment.date):'—'
@@ -111,6 +111,7 @@ function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:I
     <div className="insuranceProgress"><span>{paidSummary}</span>{policy.remainingInstallments!==null&&policy.remainingInstallments>0&&<strong>{policy.remainingInstallments} {policy.remainingInstallments===1?'rată rămasă':'rate rămase'}</strong>}</div>
 
     <div className="insuranceTimeline" aria-label={'Timeline '+policy.title}>
+      {policy.installments?.map(item=><div className={'insuranceMilestone '+(item.paid===true?'paid':item.date<today?'overdue':'next')} key={'installment-'+item.number} title={`Rata ${item.number} · ${money(item.amount,item.currency)}`}><span className="insuranceDot">{item.paid===true?<Check size={12}/>:item.date<today?'!':<ReceiptText size={12}/>}</span><strong>{timelineDate(item.date,today)}</strong><small>{`Rata ${item.number} · ${item.paid===true?'Plătită':item.date<today?'Neconfirmată':'Scadentă'}`}</small></div>)}
       {paidEvents.map(payment=>{
         const installment=policy.payments.findIndex(item=>item.id===payment.id)+1
         const showInstallment=policy.kind==='casco'||policy.kind==='home'
@@ -118,7 +119,7 @@ function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:I
       })}
       <div className="insuranceLine" aria-hidden="true"/>
       <div className="insuranceMilestone now" aria-current="date"><span className="insuranceDot"/><strong>Acum</strong><small>{shortDate(today)}</small></div>
-      {future.map(event=><div className={'insuranceMilestone '+event.kind} key={event.kind+event.date}><span className="insuranceDot">{event.kind==='next'?<ReceiptText size={12}/>:null}</span><strong>{timelineDate(event.date,today)}</strong><small>{event.label}{event.estimated?' ~':''}</small></div>)}
+      {(policy.installments?.length?future.filter(event=>event.kind!=='next'):future).map(event=><div className={'insuranceMilestone '+event.kind} key={event.kind+event.date}><span className="insuranceDot">{event.kind==='next'?<ReceiptText size={12}/>:null}</span><strong>{timelineDate(event.date,today)}</strong><small>{event.label}{event.estimated?' ~':''}</small></div>)}
     </div>
   </article>
 }
