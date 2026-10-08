@@ -77,3 +77,6 @@ button.insuranceMilestone{cursor:pointer}
   .insuranceIdentity p{max-width:180px}
   .insuranceIntro h2{font-size:18px}
 }
+
+.insuranceMilestone.overdue .insuranceDot{background:#7c3440;color:#fff;box-shadow:0 0 0 1px rgba(255,100,120,.55)}
+.insuranceMilestone.overdue small{color:#ff8496}
