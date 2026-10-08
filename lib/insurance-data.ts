@@ -180,8 +180,8 @@ export function insurancePolicies(data:Pick<MyLifeData,'categories'|'splits'|'tr
     const kind=key as InsuranceKind
     const payments=group.map(row=>({id:row.transaction.id,date:day(row.transaction.transaction_date),amount:row.amount,currency:row.transaction.currency.trim(),transaction:row.transaction})).sort((a,b)=>a.date.localeCompare(b.date))
     const document=matchingDocument(kind,payments,data.documents)
-    const rawInstallments=(kind==='home'||kind==='casco')&&Array.isArray(document?.extra?.installments)?document.extra.installments:[]
-    const installments:PolicyInstallment[]=rawInstallments.flatMap((item:unknown)=>{if(!item||typeof item!=='object')return [];const x=item as Record<string,unknown>;return typeof x.due_date==='string'&&typeof x.amount==='number'&&typeof x.number==='number'?[{number:x.number,date:x.due_date,amount:x.amount,currency:typeof document?.extra?.currency==='string'?document.extra.currency:'RON',paid:x.paid===true?true:x.paid===false?false:null}]:[]}).sort((a,b)=>a.date.localeCompare(b.date))
+    const rawInstallments=kind==='casco'&&Array.isArray(document?.extra?.display_installments)?document.extra.display_installments:(kind==='home'||kind==='casco')&&Array.isArray(document?.extra?.installments)?document.extra.installments:[]
+    const installments:PolicyInstallment[]=rawInstallments.flatMap((item:unknown)=>{if(!item||typeof item!=='object')return [];const x=item as Record<string,unknown>;return typeof x.due_date==='string'&&typeof x.amount==='number'&&typeof x.number==='number'?[{number:x.number,date:x.due_date,amount:x.amount,currency:kind==='casco'&&Array.isArray(document?.extra?.display_installments)?'RON':typeof document?.extra?.currency==='string'?document.extra.currency:'RON',paid:x.paid===true?true:x.paid===false?false:null}]:[]}).sort((a,b)=>a.date.localeCompare(b.date))
     const frequency=installments.length?null:recurrence(payments)
     const totalInstallments=installments.length||extraNumber(document,'Număr rate')
     const uniquePaid=new Set(payments.map(payment=>payment.date)).size
