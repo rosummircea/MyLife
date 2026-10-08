@@ -11,7 +11,10 @@ export type InsurancePayment={
   transaction:Transaction
 }
 
+export type PolicyInstallment={number:number;date:string;amount:number;currency:string;paid:boolean|null}
+
 export type InsurancePolicy={
+  installments?:PolicyInstallment[]
   id:string
   kind:InsuranceKind
   title:string
@@ -102,6 +105,7 @@ function matchingDocument(kind:InsuranceKind,payments:InsurancePayment[],documen
   const attached=payments.map(payment=>payment.transaction.attachment_document_id).filter(Boolean) as string[]
   const direct=documents.find(document=>attached.includes(document.id))
   if(direct)return direct
+  if(kind==='home')return documents.filter(document=>document.document_type==='asigurare_locuinta_facultativa').sort((a,b)=>(b.issued_at??'').localeCompare(a.issued_at??''))[0]??null
   if(kind!=='rca'&&kind!=='casco')return null
   const candidates=documents.filter(document=>{
     const subtype=documentSubtype(document)
@@ -176,20 +180,23 @@ export function insurancePolicies(data:Pick<MyLifeData,'categories'|'splits'|'tr
     const kind=key as InsuranceKind
     const payments=group.map(row=>({id:row.transaction.id,date:day(row.transaction.transaction_date),amount:row.amount,currency:row.transaction.currency.trim(),transaction:row.transaction})).sort((a,b)=>a.date.localeCompare(b.date))
     const document=matchingDocument(kind,payments,data.documents)
-    const frequency=recurrence(payments)
-    const totalInstallments=extraNumber(document,'Număr rate')
+    const rawInstallments=kind==='home'&&Array.isArray(document?.extra?.installments)?document.extra.installments:[]
+    const installments:PolicyInstallment[]=rawInstallments.flatMap((item:unknown)=>{if(!item||typeof item!=='object')return [];const x=item as Record<string,unknown>;return typeof x.due_date==='string'&&typeof x.amount==='number'&&typeof x.number==='number'?[{number:x.number,date:x.due_date,amount:x.amount,currency:'RON',paid:x.paid===true?true:x.paid===false?false:null}]:[]}).sort((a,b)=>a.date.localeCompare(b.date))
+    const frequency=installments.length?null:recurrence(payments)
+    const totalInstallments=installments.length||extraNumber(document,'Număr rate')
     const uniquePaid=new Set(payments.map(payment=>payment.date)).size
-    const remainingInstallments=totalInstallments===null?null:Math.max(0,totalInstallments-uniquePaid)
+    const remainingInstallments=installments.length?installments.filter(item=>item.paid!==true).length:totalInstallments===null?null:Math.max(0,totalInstallments-uniquePaid)
     const coverageStart=extraText(document,'Valabilă de la')??document?.issued_at??document?.document_date??null
     const expiry=document?.expires_at??extraText(document,'Valabilă până la')
     const due=extraText(document,'Scadență rată')
     const exactDue=due&&due>today&&(!totalInstallments||remainingInstallments===null||remainingInstallments>0)
       ? {date:due,amount:payments.at(-1)?.amount??0,currency:payments.at(-1)?.currency??'RON',estimated:false}
       : null
-    const nextPayment=exactDue??nextRecurringPayment(payments,frequency,today)
+    const scheduled=installments.find(item=>item.paid!==true&&item.date>=today)
+    const nextPayment=installments.length?(scheduled?{date:scheduled.date,amount:scheduled.amount,currency:scheduled.currency,estimated:false}:null):exactDue??nextRecurringPayment(payments,frequency,today)
     const categoryName=group.find(row=>!row.root)?.category.name??group[0]?.category.name??'Asigurări'
     return {
-      id:key,kind,title:policyTitle(kind,payments,document),subtitle:policySubtitle(kind,document),categoryName,payments,document,frequency,nextPayment,
+      id:key,kind,installments,title:policyTitle(kind,payments,document),subtitle:policySubtitle(kind,document),categoryName,payments,document,frequency,nextPayment,
       expiry:expiry??null,coverageStart,totalInstallments,remainingInstallments,status:statusFor(expiry??null,today),
     }
   }).sort((a,b)=>{
