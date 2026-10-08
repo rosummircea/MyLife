@@ -21,6 +21,15 @@ function date(value:string){
 function shortDate(value:string){
   return new Date(value.slice(0,10)+'T12:00:00Z').toLocaleDateString('ro-RO',{day:'2-digit',month:'short',timeZone:'UTC'})
 }
+function timelineDate(value:string,today:string){
+  const differentYear=value.slice(0,4)!==today.slice(0,4)
+  return new Date(value.slice(0,10)+'T12:00:00Z').toLocaleDateString('ro-RO',{
+    day:'2-digit',
+    month:'short',
+    ...(differentYear?{year:'2-digit' as const}:{}),
+    timeZone:'UTC',
+  })
+}
 function money(amount:number,currency:string){
   try{return new Intl.NumberFormat('ro-RO',{style:'currency',currency,maximumFractionDigits:2}).format(amount)}
   catch{return amount.toLocaleString('ro-RO',{maximumFractionDigits:2})+' '+currency}
@@ -102,10 +111,14 @@ function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:I
     <div className="insuranceProgress"><span>{paidSummary}</span>{policy.remainingInstallments!==null&&policy.remainingInstallments>0&&<strong>{policy.remainingInstallments} {policy.remainingInstallments===1?'rată rămasă':'rate rămase'}</strong>}</div>
 
     <div className="insuranceTimeline" aria-label={'Timeline '+policy.title}>
-      {paidEvents.map(payment=><button type="button" className="insuranceMilestone paid" key={payment.id} onClick={()=>onOpenTransaction(payment.transaction)} title="Deschide plata în Finanțe"><span className="insuranceDot"><Check size={12}/></span><strong>{shortDate(payment.date)}</strong><small>Plătit</small></button>)}
+      {paidEvents.map(payment=>{
+        const installment=policy.payments.findIndex(item=>item.id===payment.id)+1
+        const showInstallment=policy.kind==='casco'||policy.kind==='home'
+        return <button type="button" className="insuranceMilestone paid" key={payment.id} onClick={()=>onOpenTransaction(payment.transaction)} title="Deschide plata în Finanțe"><span className="insuranceDot"><Check size={12}/></span><strong>{timelineDate(payment.date,today)}</strong><small>{showInstallment?`Rata ${installment} · Plătit`:'Plătit'}</small></button>
+      })}
       <div className="insuranceLine" aria-hidden="true"/>
       <div className="insuranceMilestone now" aria-current="date"><span className="insuranceDot"/><strong>Acum</strong><small>{shortDate(today)}</small></div>
-      {future.map(event=><div className={'insuranceMilestone '+event.kind} key={event.kind+event.date}><span className="insuranceDot">{event.kind==='next'?<ReceiptText size={12}/>:null}</span><strong>{shortDate(event.date)}</strong><small>{event.label}{event.estimated?' ~':''}</small></div>)}
+      {future.map(event=><div className={'insuranceMilestone '+event.kind} key={event.kind+event.date}><span className="insuranceDot">{event.kind==='next'?<ReceiptText size={12}/>:null}</span><strong>{timelineDate(event.date,today)}</strong><small>{event.label}{event.estimated?' ~':''}</small></div>)}
     </div>
   </article>
 }
