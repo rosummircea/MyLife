@@ -88,3 +88,22 @@ button.insuranceMilestone{cursor:pointer}
 .insuranceTimelineAnnual>.insuranceMilestone.now{justify-items:center;text-align:center}
 .insuranceTimelineAnnual>.insuranceMilestone.expiry{justify-items:end;text-align:right;padding-right:0}
 .insuranceTimelineAnnual>.insuranceLine{left:12px;right:12px}
+
+/* Today: compact red pulse, consistent across all insurance timelines. */
+.insuranceMilestone.now .insuranceDot{
+  width:14px;height:14px;margin-top:5px;margin-bottom:6px;
+  background:#f45b68;border:2px solid #ffb0b5;
+  box-shadow:0 0 0 4px rgba(244,91,104,.16);
+  animation:insuranceTodayPulse 2s ease-in-out infinite;
+}
+.insuranceMilestone.now strong{color:#ff8791}
+@keyframes insuranceTodayPulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(244,91,104,.2)}
+  50%{box-shadow:0 0 0 9px rgba(244,91,104,0)}
+}
+@media(prefers-reduced-motion:reduce){.insuranceMilestone.now .insuranceDot{animation:none}}
+/* Ensure year on next-year milestones is not clipped on mobile. */
+.insuranceMilestone strong{overflow:visible}
+.insuranceTimeline .insuranceMilestone{min-width:94px}
+@media(max-width:720px){.insuranceTimeline .insuranceMilestone{min-width:90px}}
+.insuranceTimelineAnnual>.insuranceMilestone{min-width:0}
