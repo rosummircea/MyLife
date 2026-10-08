@@ -197,7 +197,7 @@ export function insurancePolicies(data:Pick<MyLifeData,'categories'|'splits'|'tr
     const categoryName=group.find(row=>!row.root)?.category.name??group[0]?.category.name??'Asigurări'
     return {
       id:key,kind,installments,title:policyTitle(kind,payments,document),subtitle:policySubtitle(kind,document),categoryName,payments,document,frequency,nextPayment,
-      expiry:expiry??null,coverageStart,totalInstallments,remainingInstallments,status:statusFor(expiry??null,today),
+      expiry:expiry??null,coverageStart,totalInstallments,remainingInstallments,status:kind==='health'&&!expiry&&frequency?'active':statusFor(expiry??null,today),
     }
   }).sort((a,b)=>{
     const aNext=a.nextPayment?.date??a.expiry??'9999-12-31',bNext=b.nextPayment?.date??b.expiry??'9999-12-31'
