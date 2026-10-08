@@ -80,6 +80,7 @@ export default function InsuranceModule({data,loading,onOpenDocument,onOpenTrans
 function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:InsurancePolicy;today:string;onOpenDocument:(id:string)=>void;onOpenTransaction:(transaction:Transaction)=>void}){
   const Icon=kindIcons[policy.kind]
   const latest=policy.payments.at(-1)
+  const lastConfirmed=policy.installments?.filter(item=>item.paid===true).at(-1)
   const paidEvents=policy.installments?.length?[]:policy.payments.slice(-4)
   const future=[
     ...(policy.nextPayment&&policy.nextPayment.date>today?[{kind:'next' as const,date:policy.nextPayment.date,label:'Rată',estimated:policy.nextPayment.estimated}]:[]),
@@ -104,7 +105,7 @@ function InsuranceCard({policy,today,onOpenDocument,onOpenTransaction}:{policy:I
 
     <div className="insuranceFacts">
       <div><span>Următoarea rată</span><strong>{nextText}</strong><small>{nextAmount}</small></div>
-      <div><span>Ultima plată</span><strong>{latest?money(latest.amount,latest.currency):'—'}</strong><small>{latest?date(latest.date):'Fără plată găsită'}</small></div>
+      <div><span>Ultima plată</span><strong>{lastConfirmed?money(lastConfirmed.amount,lastConfirmed.currency):latest?money(latest.amount,latest.currency):'—'}</strong><small>{lastConfirmed?date(lastConfirmed.date):latest?date(latest.date):'Fără plată găsită'}</small></div>
       <div><span>Expiră</span><strong>{policy.expiry?date(policy.expiry):'—'}</strong><small>{policy.expiry?statusLabel(policy):'Data nu este înregistrată'}</small></div>
     </div>
 
