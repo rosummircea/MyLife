@@ -18,6 +18,11 @@ function credentials(){
 }
 
 function encoded(value:unknown){return Buffer.from(JSON.stringify(value)).toString('base64url')}
+function errorText(value:unknown){
+  if(typeof value==='string'&&value.trim())return value
+  if(value&&typeof value==='object')try{return JSON.stringify(value)}catch{}
+  return ''
+}
 
 export function enableBankingToken(now=Math.floor(Date.now()/1000)){
   const {applicationId,privateKey}=credentials()
@@ -33,7 +38,7 @@ export async function enableBankingRequest<T>(path:string,init:RequestInit={}):P
     headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Bearer ${enableBankingToken()}`,...init.headers},
   })
   const payload=await response.json().catch(()=>({})) as T&EnableBankingError
-  if(!response.ok)throw new EnableBankingApiError(response.status,payload.code||payload.error,payload.detail||payload.message||`Enable Banking a răspuns cu ${response.status}.`)
+  if(!response.ok)throw new EnableBankingApiError(response.status,errorText(payload.code)||errorText(payload.error)||undefined,errorText(payload.detail)||errorText(payload.message)||`Enable Banking a răspuns cu ${response.status}.`)
   return payload
 }
 
