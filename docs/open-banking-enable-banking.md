@@ -17,7 +17,13 @@ The registered Enable Banking redirect URL must be exactly:
 
 `https://my-life-sable.vercel.app/api/open-banking/enable-banking/callback`
 
-Sandbox uses `Mock ASPSP` in Romania. A separate Production application is required for a real Revolut connection.
+Sandbox uses `Mock ASPSP` in Romania. A separate Production application is required for a real Revolut connection. When the environment is `production`, MyLife defaults to `Revolut` in `RO`; the two ASPSP variables may still override this.
+
+Production application URLs:
+
+- Privacy policy: `https://my-life-sable.vercel.app/privacy`
+- Terms: `https://my-life-sable.vercel.app/terms`
+- Redirect: `https://my-life-sable.vercel.app/api/open-banking/enable-banking/callback`
 
 ## Flow
 

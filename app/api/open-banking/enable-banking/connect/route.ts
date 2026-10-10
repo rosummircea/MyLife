@@ -15,7 +15,8 @@ export async function POST(request:Request){
     const admin=adminClient()
     const {householdId}=await householdForUser(admin,user.id)
     const origin=process.env.NEXT_PUBLIC_APP_URL||new URL(request.url).origin
-    const providerName=process.env.ENABLE_BANKING_ASPSP_NAME||'Mock ASPSP'
+    const mode=enableBankingMode()
+    const providerName=process.env.ENABLE_BANKING_ASPSP_NAME||(mode==='live'?'Revolut':'Mock ASPSP')
     const countryCode=process.env.ENABLE_BANKING_ASPSP_COUNTRY||'RO'
     const state=randomBytes(32).toString('base64url')
     const expiresAt=new Date(Date.now()+15*60*1000).toISOString()
@@ -27,7 +28,7 @@ export async function POST(request:Request){
       const result=await enableBankingRequest<AuthorizationResponse>('/auth',{method:'POST',body:JSON.stringify({access:{balances:true,transactions:true,valid_until:validUntil},aspsp:{name:providerName,country:countryCode},state,redirect_url:`${origin}/api/open-banking/enable-banking/callback`,psu_type:'personal',language:'en',psu_id:user.id})})
       const {error:updateError}=await admin.from('enable_banking_authorizations').update({authorization_id:result.authorization_id,raw:{authorization_id:result.authorization_id,psu_id_hash:result.psu_id_hash},updated_at:new Date().toISOString()}).eq('id',authorization.id)
       if(updateError)throw new Error(updateError.message)
-      return NextResponse.json({connectUrl:result.url,mode:enableBankingMode()})
+      return NextResponse.json({connectUrl:result.url,mode})
     }catch(error){
       await admin.from('enable_banking_authorizations').update({status:'failed',error_message:error instanceof Error?error.message:'Enable Banking nu a pornit conectarea.',updated_at:new Date().toISOString()}).eq('id',authorization.id)
       throw error
