@@ -16,7 +16,7 @@ export async function GET(request:Request,{params}:{params:Promise<{accountId:st
     const limit=Math.min(50,Math.max(1,Number.parseInt(url.searchParams.get('limit')||'50',10)||50))
     const {data:transactions,count,error}=await admin.from('enable_banking_transactions').select('id,account_id,status,made_on,amount,currency,description,merchant_name,merchant_category_code',{count:'exact'}).eq('user_id',user.id).eq('account_id',accountId).order('made_on',{ascending:false}).range(offset,offset+limit-1)
     if(error)throw new Error(error.message)
-    const {data:imports,error:importsError}=await admin.from('finance_transactions').select('id,import_metadata').eq('household_id',account.household_id).eq('account_id',account.finance_account_id||'00000000-0000-0000-0000-000000000000')
+    const {data:imports,error:importsError}=await admin.from('finance_transactions').select('id,import_metadata').eq('household_id',account.household_id).eq('account_id',account.finance_account_id||'00000000-0000-0000-0000-000000000000').eq('status','posted')
     if(importsError)throw new Error(importsError.message)
     const imported=new Map<string,string>()
     for(const row of imports??[]){const bankTransactionId=(row.import_metadata as Record<string,unknown>|null)?.enable_banking_transaction_id;if(typeof bankTransactionId==='string')imported.set(bankTransactionId,row.id)}

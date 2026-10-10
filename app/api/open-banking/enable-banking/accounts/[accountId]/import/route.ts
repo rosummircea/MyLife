@@ -25,7 +25,7 @@ export async function POST(request:Request,{params}:{params:Promise<{accountId:s
     if(!person)throw Object.assign(new Error('Profilul MyLife nu este asociat utilizatorului.'),{status:400})
     const {data:bankTransactions,error:transactionsError}=await admin.from('enable_banking_transactions').select('id,external_transaction_id,status,made_on,amount,currency,description,merchant_name').eq('user_id',user.id).eq('account_id',bankAccount.id).in('id',transactionIds)
     if(transactionsError)throw new Error(transactionsError.message)
-    const {data:existing,error:existingError}=await admin.from('finance_transactions').select('id,import_metadata').eq('household_id',bankAccount.household_id).eq('account_id',financeAccount.id)
+    const {data:existing,error:existingError}=await admin.from('finance_transactions').select('id,import_metadata').eq('household_id',bankAccount.household_id).eq('account_id',financeAccount.id).eq('status','posted')
     if(existingError)throw new Error(existingError.message)
     const importedIds=new Set((existing??[]).map(row=>(row.import_metadata as Record<string,unknown>|null)?.enable_banking_transaction_id).filter((value):value is string=>typeof value==='string'))
     const now=new Date().toISOString()
@@ -34,7 +34,7 @@ export async function POST(request:Request,{params}:{params:Promise<{accountId:s
       const title=transaction.merchant_name||transaction.description||'Tranzacție Revolut'
       return {id:transaction.id,household_id:bankAccount.household_id,account_id:financeAccount.id,transfer_account_id:null,created_by_person_id:person.id,transaction_type:signedAmount<0?'expense':'income',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant:transaction.merchant_name,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title,affects_balance:body.affectsBalance===true,imported_from:'Revolut',enable_banking_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,imported_at:now}}
     })
-    if(rows.length){const {error:insertError}=await admin.from('finance_transactions').insert(rows);if(insertError)throw new Error(insertError.message)}
+    if(rows.length){const {error:insertError}=await admin.from('finance_transactions').upsert(rows,{onConflict:'id'});if(insertError)throw new Error(insertError.message)}
     return NextResponse.json({imported:rows.length,skipped:transactionIds.length-rows.length})
   }catch(error){
     const {status,message}=routeError(error)
