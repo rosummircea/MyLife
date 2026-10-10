@@ -7,11 +7,12 @@ export const runtime='nodejs'
 
 type AuthorizationResponse={url:string;authorization_id:string;psu_id_hash:string}
 type AspspResponse={aspsps:Array<{name:string;country:string}>}
-type BankKey='revolut'|'bcr'
+type BankKey='revolut'|'bcr'|'bt'
 
 const bankAliases:Record<BankKey,string[]>={
   revolut:['revolut'],
   bcr:['banca comerciala romana','bcr'],
+  bt:['banca transilvania'],
 }
 
 function stateHash(state:string){return createHash('sha256').update(state).digest('hex')}
@@ -21,7 +22,7 @@ async function providerFor(bank:BankKey,mode:'test'|'live',countryCode:string){
   if(mode==='test')return 'Mock ASPSP'
   const result=await enableBankingRequest<AspspResponse>(`/aspsps?country=${encodeURIComponent(countryCode)}&psu_type=personal&service=AIS`)
   const provider=result.aspsps.find(candidate=>bankAliases[bank].some(alias=>normalized(candidate.name).includes(alias)))
-  if(!provider)throw new Error(bank==='bcr'?'Banca Comercială Română nu este disponibilă momentan în Enable Banking.':'Revolut nu este disponibil momentan în Enable Banking.')
+  if(!provider)throw new Error(bank==='bcr'?'Banca Comercială Română nu este disponibilă momentan în Enable Banking.':bank==='bt'?'Banca Transilvania nu este disponibilă momentan în Enable Banking.':'Revolut nu este disponibil momentan în Enable Banking.')
   return provider.name
 }
 
@@ -29,7 +30,7 @@ export async function POST(request:Request){
   try{
     const user=await authenticatedUser(request)
     const body=await request.json().catch(()=>({})) as {bank?:BankKey}
-    const bank:BankKey=body.bank==='bcr'?'bcr':'revolut'
+    const bank:BankKey=body.bank==='bcr'?'bcr':body.bank==='bt'?'bt':'revolut'
     const admin=adminClient()
     const {householdId}=await householdForUser(admin,user.id)
     const origin=process.env.NEXT_PUBLIC_APP_URL||new URL(request.url).origin
