@@ -28,3 +28,5 @@
 .transactionsCalendarDay .transactionsCalendarMarkers { display:flex; justify-content:center; align-items:center; gap:4px; height:14px; }
 .transactionDayDot { width:6px; height:6px; border-radius:50%; background:#6bddad; }
 .transactionDayDot.outgoing { background:#ff7e91; }
+.transactionDayDot.transfer { background:#fff; box-shadow:0 0 0 1px rgba(255,255,255,.18); }
+@media (max-width: 420px) { .transactionsCalendarDay .transactionsCalendarMarkers { gap:3px; } }
