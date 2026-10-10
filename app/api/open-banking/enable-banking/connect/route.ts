@@ -25,7 +25,11 @@ export async function POST(request:Request){
     if(storeError)throw new Error(storeError.message)
 
     try{
-      const result=await enableBankingRequest<AuthorizationResponse>('/auth',{method:'POST',body:JSON.stringify({access:{balances:true,transactions:true,valid_until:validUntil},aspsp:{name:providerName,country:countryCode},state,redirect_url:`${origin}/api/open-banking/enable-banking/callback`,psu_type:'personal',language:'en',psu_id:user.id})})
+      // A household may connect more than one bank customer (for example Mircea and
+      // Andreea).  Use a distinct PSU identifier for every consent so Enable Banking
+      // does not group both bank logins as the same person.
+      const psuId=`${user.id}:${authorization.id}`
+      const result=await enableBankingRequest<AuthorizationResponse>('/auth',{method:'POST',body:JSON.stringify({access:{balances:true,transactions:true,valid_until:validUntil},aspsp:{name:providerName,country:countryCode},state,redirect_url:`${origin}/api/open-banking/enable-banking/callback`,psu_type:'personal',language:'en',psu_id:psuId})})
       const {error:updateError}=await admin.from('enable_banking_authorizations').update({authorization_id:result.authorization_id,raw:{authorization_id:result.authorization_id,psu_id_hash:result.psu_id_hash},updated_at:new Date().toISOString()}).eq('id',authorization.id)
       if(updateError)throw new Error(updateError.message)
       return NextResponse.json({connectUrl:result.url,mode})

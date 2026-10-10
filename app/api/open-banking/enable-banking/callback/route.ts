@@ -31,6 +31,10 @@ export async function GET(request:NextRequest){
 
     const session=await enableBankingRequest<SessionResponse>('/sessions',{method:'POST',body:JSON.stringify({code})})
     const now=new Date().toISOString()
+    if(!session.accounts?.length){
+      await admin.from('enable_banking_authorizations').update({status:'failed',completed_at:now,error_message:'Enable Banking nu a returnat niciun cont. Contul trebuie permis mai întâi pentru aplicația live restricționată.',updated_at:now}).eq('id',authorization.id)
+      return back(request,'no-accounts')
+    }
     const {error:insertError}=await admin.from('enable_banking_sessions').upsert({authorization_id:authorization.id,user_id:authorization.user_id,household_id:authorization.household_id,external_session_id:session.session_id,provider_name:session.aspsp.name,country_code:session.aspsp.country,status:'AUTHORIZED',consent_valid_until:session.access?.valid_until??null,raw:session,updated_at:now},{onConflict:'external_session_id'})
     if(insertError)throw new Error(insertError.message)
     const {error:completeError}=await admin.from('enable_banking_authorizations').update({status:'completed',completed_at:now,error_message:null,updated_at:now}).eq('id',authorization.id)
