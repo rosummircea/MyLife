@@ -39,6 +39,7 @@
 .transactionList .transactionCategoryLabel {display:inline;min-width:0;overflow-wrap:anywhere;text-align:left}
 
 .transactionList .transactionRowInfo>.transactionRowCategories {display:flex}
+.transactionList .transactionImportedBadge{display:inline-flex!important;width:max-content;margin:3px 0 2px;padding:3px 7px;border:1px solid rgba(112,213,200,.35);border-radius:999px;background:rgba(112,213,200,.1);color:#70d5c8!important;font-size:9px!important;font-weight:700;letter-spacing:.02em}
 
 
 .transactionReorderItem{display:grid;grid-template-columns:46px minmax(0,1fr);align-items:stretch;border-bottom:1px solid var(--line);background:var(--panel)}

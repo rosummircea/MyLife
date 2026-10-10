@@ -97,6 +97,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
         <div className="transactionRowInfo">
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
+          {(tx.imported_from||tx.enable_banking_transaction_id)&&<span className="transactionImportedBadge">Importată din {tx.imported_from||'Revolut'}</span>}
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
           {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}
         </div>

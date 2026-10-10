@@ -5,6 +5,7 @@
 .transactionDetails h2 { font-size:22px; margin:0; overflow-wrap:anywhere; }.transactionDetails h3 { font-size:14px; margin:0 0 14px; }
 .transactionDetails header button { width:44px; height:44px; flex-shrink:0; border:1px solid var(--line); border-radius:12px; color:var(--text); background:rgba(255,255,255,.04); display:grid; place-items:center; }
 .transactionDetailsAmount { display:block; margin:24px 0; font-size:30px; }
+.transactionImportedDetail{display:inline-flex;margin:-12px 0 12px;padding:5px 9px;border:1px solid rgba(112,213,200,.35);border-radius:999px;background:rgba(112,213,200,.1);color:#70d5c8;font-size:11px;font-weight:700}
 .transactionDetails dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .transactionDetails dt { font-size:11px; color:var(--muted); margin-bottom:6px; }.transactionDetails dd { font-size:13px; margin:0; line-height:1.6; overflow-wrap:anywhere; }
 .transactionDetails section { border-top:1px solid var(--line); padding-top:20px; margin-top:20px; }
