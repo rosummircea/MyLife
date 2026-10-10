@@ -6,18 +6,36 @@ import {enableBankingMode,enableBankingRequest} from '@/lib/open-banking/enable-
 export const runtime='nodejs'
 
 type AuthorizationResponse={url:string;authorization_id:string;psu_id_hash:string}
+type AspspResponse={aspsps:Array<{name:string;country:string}>}
+type BankKey='revolut'|'bcr'
+
+const bankAliases:Record<BankKey,string[]>={
+  revolut:['revolut'],
+  bcr:['banca comerciala romana','bcr'],
+}
 
 function stateHash(state:string){return createHash('sha256').update(state).digest('hex')}
+function normalized(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+
+async function providerFor(bank:BankKey,mode:'test'|'live',countryCode:string){
+  if(mode==='test')return 'Mock ASPSP'
+  const result=await enableBankingRequest<AspspResponse>(`/aspsps?country=${encodeURIComponent(countryCode)}&psu_type=personal&service=AIS`)
+  const provider=result.aspsps.find(candidate=>bankAliases[bank].some(alias=>normalized(candidate.name).includes(alias)))
+  if(!provider)throw new Error(bank==='bcr'?'Banca Comercială Română nu este disponibilă momentan în Enable Banking.':'Revolut nu este disponibil momentan în Enable Banking.')
+  return provider.name
+}
 
 export async function POST(request:Request){
   try{
     const user=await authenticatedUser(request)
+    const body=await request.json().catch(()=>({})) as {bank?:BankKey}
+    const bank:BankKey=body.bank==='bcr'?'bcr':'revolut'
     const admin=adminClient()
     const {householdId}=await householdForUser(admin,user.id)
     const origin=process.env.NEXT_PUBLIC_APP_URL||new URL(request.url).origin
     const mode=enableBankingMode()
-    const providerName=process.env.ENABLE_BANKING_ASPSP_NAME||(mode==='live'?'Revolut':'Mock ASPSP')
     const countryCode=process.env.ENABLE_BANKING_ASPSP_COUNTRY||'RO'
+    const providerName=await providerFor(bank,mode,countryCode)
     const state=randomBytes(32).toString('base64url')
     const expiresAt=new Date(Date.now()+15*60*1000).toISOString()
     const validUntil=new Date(Date.now()+90*24*60*60*1000).toISOString()
