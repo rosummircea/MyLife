@@ -20,12 +20,11 @@ function transactionId(accountId:string,transaction:BankTransaction){
   return createHash('sha256').update(JSON.stringify([accountId,transaction.entry_reference,dateOf(transaction),transaction.transaction_amount,transaction.credit_debit_indicator,transaction.remittance_information])).digest('hex')
 }
 
-async function transactionsForAccount(accountId:string){
+async function transactionPages(accountId:string,baseQuery:URLSearchParams){
   const rows:BankTransaction[]=[]
   let continuation:string|undefined
-  const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-1,end.getUTCMonth(),end.getUTCDate()))
   for(let page=0;page<100;page++){
-    const query=new URLSearchParams({date_from:start.toISOString().slice(0,10),date_to:end.toISOString().slice(0,10)})
+    const query=new URLSearchParams(baseQuery)
     if(continuation)query.set('continuation_key',continuation)
     const payload=await enableBankingRequest<TransactionsPage>(`/accounts/${encodeURIComponent(accountId)}/transactions?${query}`)
     rows.push(...(payload.transactions??[]))
@@ -34,6 +33,14 @@ async function transactionsForAccount(accountId:string){
     continuation=next
   }
   return rows
+}
+
+async function transactionsForAccount(accountId:string){
+  const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-1,end.getUTCMonth(),end.getUTCDate()))
+  const recent=await transactionPages(accountId,new URLSearchParams({date_from:start.toISOString().slice(0,10),date_to:end.toISOString().slice(0,10)}))
+  // Some sandbox implementations expose uploaded transactions only when no date
+  // filter is sent. Keep the normal one-year request, then fall back for mocks.
+  return recent.length?recent:transactionPages(accountId,new URLSearchParams())
 }
 
 export async function syncEnableBankingSession(admin:SupabaseClient,externalSessionId:string){
@@ -55,8 +62,11 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
       transactionsForAccount(externalAccountId),
     ])
     const iban=details.account_id?.iban||details.all_account_ids?.find(item=>item.scheme_name==='IBAN')?.identification
-    const booked=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR'])
-    const available=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV'])
+    const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR'])
+    const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV'])
+    const mockBalance=session.aspsp.name==='Mock ASPSP'&&transactions.length?transactions.reduce((sum,transaction)=>{const amount=finite(transaction.transaction_amount?.amount)??0;return sum+(transaction.credit_debit_indicator==='DBIT'?-Math.abs(amount):Math.abs(amount))},0):null
+    const booked=bookedFromBank??mockBalance
+    const available=availableFromBank??booked
     const currency=details.currency||balances.balances?.[0]?.balance_amount.currency||'RON'
     const {data:storedAccount,error:accountError}=await admin.from('enable_banking_accounts').upsert({session_id:storedSession.id,user_id:storedSession.user_id,household_id:storedSession.household_id,external_account_id:externalAccountId,name:details.name||details.details||'Cont bancar',nature:details.cash_account_type??null,currency,balance:booked??available,available_amount:available??booked,iban_last4:iban?.slice(-4)??null,status:details.psu_status??null,raw:{details,balances:balances.balances??[]},updated_at:now},{onConflict:'external_account_id'}).select('id').single()
     if(accountError)throw new Error(accountError.message)
