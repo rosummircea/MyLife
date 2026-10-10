@@ -20,7 +20,8 @@ export async function POST(request:Request,{params}:{params:Promise<{accountId:s
       if(String(financeAccount.currency).trim().toUpperCase()!==String(bankAccount.currency).trim().toUpperCase())throw Object.assign(new Error('Conturile trebuie să folosească aceeași monedă.'),{status:400})
       financeAccountId=financeAccount.id
     }
-    const {error:updateError}=await admin.from('enable_banking_accounts').update({finance_account_id:financeAccountId,updated_at:new Date().toISOString()}).eq('id',bankAccount.id).eq('user_id',user.id)
+    const now=new Date().toISOString()
+    const {error:updateError}=await admin.from('enable_banking_accounts').update({finance_account_id:financeAccountId,auto_import_enabled_at:financeAccountId?now:null,updated_at:now}).eq('id',bankAccount.id).eq('user_id',user.id)
     if(updateError)throw new Error(updateError.message)
     return NextResponse.json({finance_account_id:financeAccountId})
   }catch(error){

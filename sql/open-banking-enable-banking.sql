@@ -41,6 +41,7 @@ create table if not exists public.enable_banking_accounts (
   household_id uuid not null references public.households(id) on delete cascade,
   external_account_id text not null unique,
   finance_account_id uuid references public.finance_accounts(id) on delete set null,
+  auto_import_enabled_at timestamptz,
   name text not null,
   nature text,
   currency text not null,
@@ -67,6 +68,7 @@ create table if not exists public.enable_banking_transactions (
   description text,
   merchant_name text,
   merchant_category_code text,
+  first_seen_at timestamptz not null default clock_timestamp(),
   raw jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -77,11 +79,26 @@ create index if not exists enable_banking_authorizations_user_idx on public.enab
 create index if not exists enable_banking_sessions_user_idx on public.enable_banking_sessions(user_id, updated_at desc);
 create index if not exists enable_banking_accounts_session_idx on public.enable_banking_accounts(session_id);
 create index if not exists enable_banking_transactions_account_date_idx on public.enable_banking_transactions(account_id, made_on desc);
+create index if not exists enable_banking_transactions_first_seen_idx on public.enable_banking_transactions(account_id, first_seen_at);
+
+create table if not exists public.finance_merchant_category_rules (
+  id uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  merchant_key text not null,
+  merchant_name text not null,
+  transaction_type text not null check (transaction_type in ('expense','income')),
+  category_id uuid not null references public.finance_categories(id) on delete cascade,
+  created_at timestamptz not null default clock_timestamp(),
+  updated_at timestamptz not null default clock_timestamp(),
+  unique (household_id, merchant_key, transaction_type)
+);
+create index if not exists finance_merchant_category_rules_household_idx on public.finance_merchant_category_rules(household_id, merchant_key);
 
 alter table public.enable_banking_authorizations enable row level security;
 alter table public.enable_banking_sessions enable row level security;
 alter table public.enable_banking_accounts enable row level security;
 alter table public.enable_banking_transactions enable row level security;
+alter table public.finance_merchant_category_rules enable row level security;
 
 drop policy if exists enable_banking_authorizations_select_own on public.enable_banking_authorizations;
 create policy enable_banking_authorizations_select_own on public.enable_banking_authorizations for select to authenticated using (user_id = auth.uid());
@@ -93,5 +110,6 @@ drop policy if exists enable_banking_transactions_select_own on public.enable_ba
 create policy enable_banking_transactions_select_own on public.enable_banking_transactions for select to authenticated using (user_id = auth.uid());
 
 revoke all on public.enable_banking_authorizations, public.enable_banking_sessions, public.enable_banking_accounts, public.enable_banking_transactions from anon;
+revoke all on public.finance_merchant_category_rules from anon, authenticated;
 revoke insert, update, delete on public.enable_banking_authorizations, public.enable_banking_sessions, public.enable_banking_accounts, public.enable_banking_transactions from authenticated;
 grant select on public.enable_banking_authorizations, public.enable_banking_sessions, public.enable_banking_accounts, public.enable_banking_transactions to authenticated;

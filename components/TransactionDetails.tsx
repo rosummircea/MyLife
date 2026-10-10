@@ -9,13 +9,35 @@ import {getSupabaseClient} from '@/lib/supabase'
 import {balanceChange} from '@/lib/transaction-edit'
 import { transferLabel } from '@/lib/transfers'
 
-export default function TransactionDetails({ transaction: tx, data, onClose, onOpenDocument, onSaved }: { transaction: Transaction; data: MyLifeData | null; onSaved: () => void; onClose: () => void; onOpenDocument: (id: string) => void }) {
+export default function TransactionDetails({ transaction: tx, data, onClose, onOpenDocument, onSaved, onSeen }: { transaction: Transaction; data: MyLifeData | null; onSaved: () => void; onSeen?: () => void; onClose: () => void; onOpenDocument: (id: string) => void }) {
   const [deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('')
   async function remove(){const client=getSupabaseClient();if(!client||saving)return;setSaving(true);setDeleteError('');try{const {error}=await client.rpc('finance_delete_transaction',{p_id:tx.id,p_expected_updated_at:tx.updated_at});if(error)throw Error(error.message);onClose();onSaved()}catch(e){setDeleteError(e instanceof Error?e.message:'Ștergerea nu a reușit.')}finally{setSaving(false)}}
   const [editing,setEditing]=useState(false)
   const [saving,setSaving]=useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
+  const seenRequestSent = useRef(false)
   useEffect(() => { dialog.current?.showModal() }, [])
+  useEffect(() => {
+    const unseen=tx.unseen===true||tx.unseen==='true'
+    if(!unseen||!tx.enable_banking_transaction_id||seenRequestSent.current)return
+    seenRequestSent.current=true
+    let cancelled=false
+    async function markSeen(){
+      try{
+        const client=getSupabaseClient()
+        if(!client){seenRequestSent.current=false;return}
+        const {data:{session}}=await client.auth.getSession()
+        if(!session?.access_token){seenRequestSent.current=false;return}
+        const response=await fetch(`/api/finance/transactions/${tx.id}/seen`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})
+        if(response.ok&&!cancelled)onSeen?.()
+        else if(!response.ok)seenRequestSent.current=false
+      }catch{
+        seenRequestSent.current=false
+      }
+    }
+    void markSeen()
+    return()=>{cancelled=true}
+  },[tx.id,tx.unseen,tx.enable_banking_transaction_id,onSeen])
   const account = data?.accounts.find(item => item.id === tx.account_id) ?? tx.source_account
   const document = data?.documents.find(item => item.id === tx.attachment_document_id)
   const splits = data?.splits.filter(item => item.transaction_id === tx.id) ?? []

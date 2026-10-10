@@ -3,6 +3,7 @@ import 'server-only'
 import {createHash} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {enableBankingRequest} from './api'
+import {autoImportNewBankTransactions} from './auto-import'
 
 type Money={currency:string;amount:string}
 type Account={uid:string;name?:string;details?:string;cash_account_type?:string;currency?:string;psu_status?:string;account_id?:{iban?:string};all_account_ids?:Array<{identification?:string;scheme_name?:string}>}
@@ -80,6 +81,7 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
       })
       if(batch.length){const {error}=await admin.from('enable_banking_transactions').upsert(batch,{onConflict:'account_id,external_transaction_id'});if(error)throw new Error(error.message)}
     }
+    await autoImportNewBankTransactions(admin,storedAccount.id)
     transactionCount+=transactions.length
   }
   return {accounts:accountIds.length,transactions:transactionCount,status:session.status}

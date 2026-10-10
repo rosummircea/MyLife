@@ -14,14 +14,15 @@ export default function TransactionsCalendar({ transactions, selectedDay, onSele
 }) {
   const today = bucharestDay(new Date())
   const counts = useMemo(() => {
-    const result = new Map<string, { incoming: boolean; outgoing: boolean; transfer: boolean }>()
+    const result = new Map<string, { incoming: boolean; outgoing: boolean; transfer: boolean; unseen: boolean }>()
     for (const transaction of transactions) {
       const day = bucharestDay(new Date(transaction.transaction_date))
       if (transaction.status && transaction.status !== 'posted' || Number(transaction.amount) <= 0) continue
-      const activity = result.get(day) ?? { incoming: false, outgoing: false, transfer: false }
+      const activity = result.get(day) ?? { incoming: false, outgoing: false, transfer: false, unseen: false }
       activity.incoming ||= ['income', 'adjustment'].includes(transaction.transaction_type)
       activity.outgoing ||= transaction.transaction_type === 'expense'
       activity.transfer ||= transaction.transaction_type === 'transfer'
+      activity.unseen ||= transaction.unseen === true || transaction.unseen === 'true'
       result.set(day, activity)
     }
     return result
@@ -54,8 +55,8 @@ export default function TransactionsCalendar({ transactions, selectedDay, onSele
           if (number < 1 || number > days) return <span key={`empty-${index}`} aria-hidden="true"/>
           const day = `${month}-${String(number).padStart(2, '0')}`
           const activity = counts.get(day)
-          const label = [activity?.incoming && 'intrări', activity?.outgoing && 'ieșiri', activity?.transfer && 'transferuri'].filter(Boolean).join(', ') || 'fără mișcări'
-          return <button type="button" key={day} className={`transactionsCalendarDay ${activity ? 'hasTransactions' : ''}`} aria-label={`${fullWeekdays[index % 7]}, ${number} ${monthLabel}, ${label}`} aria-pressed={selectedDay === day} aria-current={today === day ? 'date' : undefined} onClick={() => onSelect(day)}>
+          const label = [activity?.incoming && 'intrări', activity?.outgoing && 'ieșiri', activity?.transfer && 'transferuri', activity?.unseen && 'tranzacții noi nevizualizate'].filter(Boolean).join(', ') || 'fără mișcări'
+          return <button type="button" key={day} className={`transactionsCalendarDay ${activity ? 'hasTransactions' : ''} ${activity?.unseen ? 'hasUnseen' : ''}`} aria-label={`${fullWeekdays[index % 7]}, ${number} ${monthLabel}, ${label}`} aria-pressed={selectedDay === day} aria-current={today === day ? 'date' : undefined} onClick={() => onSelect(day)}>
             <span>{number}</span><span className="transactionsCalendarMarkers" aria-hidden="true">{activity?.incoming && <i className="transactionDayDot incoming"/>}{activity?.outgoing && <i className="transactionDayDot outgoing"/>}{activity?.transfer && <i className="transactionDayDot transfer"/>}</span>
           </button>
         })}

@@ -88,7 +88,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const hasAmount = Math.abs(displayedAmount) > 0.000001
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
-      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={() => { if(!reorderMode)onSelect(tx) }}>
+      const unseen = tx.unseen === true || tx.unseen === 'true'
+      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={() => { if(!reorderMode)onSelect(tx) }}>
         {route ? <span className="transactionTransferAccounts">
           <AccountIdentity account={account} direction="Din contul"/>
           <ArrowRight className="transactionTransferArrow" size={18} aria-hidden="true"/>
@@ -98,6 +99,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
           {(tx.imported_from||tx.enable_banking_transaction_id)&&<span className="transactionImportedBadge">Importată din {tx.imported_from||'Revolut'}</span>}
+          {unseen&&<span className="transactionNewBadge">Nouă · deschide pentru detalii</span>}
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
           {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}
         </div>

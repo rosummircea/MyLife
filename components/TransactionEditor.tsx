@@ -172,6 +172,15 @@ export default function TransactionEditor({
         payload
       )
       if(saveError) throw Error(saveError.message)
+      const originalCategoryIds=originalAllocations.map(split=>split.category_id).sort().join(',')
+      const savedCategoryIds=form.splits.map(split=>split.category_id).filter(Boolean).sort().join(',')
+      if(!creating&&tx.enable_banking_transaction_id&&originalCategoryIds!==savedCategoryIds){
+        const {data:{session}}=await client.auth.getSession()
+        if(session?.access_token){
+          const response=await fetch(`/api/finance/transactions/${tx.id}/learn-category`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})
+          if(!response.ok)console.warn('Regula comerciantului nu a putut fi salvată.')
+        }
+      }
       onSaved()
     }catch(saveError){
       setError(saveError instanceof Error ? saveError.message : 'Tranzacția nu a fost salvată.')
