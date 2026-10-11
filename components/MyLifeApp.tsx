@@ -36,7 +36,6 @@ import {
   RotateCcw,
   Users,
   WalletCards,
-  Plus,
 } from 'lucide-react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -505,7 +504,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
     return [...arranged,...chronologicalDailyTransactions.filter(transaction=>!arrangedIds.has(transaction.id))]
   },[chronologicalDailyTransactions,reorderIds])
   const selectedDayLabel = selectedDay ? new Date(`${selectedDay}T12:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''
-  const addTransactionAction = <div className="financeCreateAction"><button aria-label="Adaugă tranzacție" disabled={data?.source!=='live'||Boolean(reorderIds)} onClick={()=>setCreating({mode:'standard'})}><span aria-hidden="true">+ </span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
+  const addTransactionAction = <div className="financeCreateAction"><button className="financePrimaryAction" aria-label="Adaugă tranzacție" disabled={data?.source!=='live'||Boolean(reorderIds)} onClick={()=>setCreating({mode:'standard'})}><span aria-hidden="true">+</span><span className="transactionAddLabelDesktop">Adaugă tranzacție</span><span className="transactionAddLabelMobile">Adaugă</span></button></div>
   const saveDayOrder=async(reset=false)=>{
     if(!data||data.source!=='live'||!selectedDay||savingOrder)return
     const client=getSupabaseClient()
@@ -550,7 +549,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
-        <><div className="sectionTitle transfersHeader"><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span><div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><Plus size={18}/> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
+        <><div className="sectionTitle transfersHeader"><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span><div className="financeCreateAction"><button className="financePrimaryAction" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><span aria-hidden="true">+</span> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
