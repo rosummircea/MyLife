@@ -36,6 +36,7 @@ import {
   RotateCcw,
   Users,
   WalletCards,
+  Plus,
 } from 'lucide-react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -551,7 +552,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
-        <><div className="sectionTitle"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div><div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}>+ Adaugă transfer</button></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
+        <><div className="sectionTitle transfersHeader"><div className="transfersHeading"><h2>Transferuri între conturi</h2><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span></div><div className="financeCreateAction"><button disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><Plus size={18}/> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
