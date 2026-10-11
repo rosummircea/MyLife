@@ -15,21 +15,19 @@ on conflict (household_id, source_bank_account_id, source_match_text) do update 
   date_tolerance_days=excluded.date_tolerance_days,
   updated_at=clock_timestamp();
 
--- George -> Revolut Mircea. The Revolut credit predates automatic imports and
--- is already included in the saved Revolut balance, so baseline only that leg.
+-- George -> Revolut Mircea.
 delete from public.finance_transaction_splits
 where transaction_id='a37ae2b5-f155-4a2b-a166-ad4fb152ea2f';
 
 update public.finance_transactions
 set transaction_type='transfer',
     transfer_account_id='99089155-d148-4c6a-8ad9-8a6642737923',
-    import_metadata=coalesce(import_metadata,'{}'::jsonb)||jsonb_build_object(
+    import_metadata=(coalesce(import_metadata,'{}'::jsonb)-'balance_baseline')||jsonb_build_object(
       'title','Transfer George → Revolut Mircea',
       'enable_banking_transaction_ids',jsonb_build_array('a37ae2b5-f155-4a2b-a166-ad4fb152ea2f','90cded79-524d-4deb-8c94-24df71217124'),
       'enable_banking_counterpart_transaction_id','90cded79-524d-4deb-8c94-24df71217124',
       'transfer_rule_id',(select id from public.finance_bank_transfer_rules where source_bank_account_id='2d5a9c57-843d-4e70-b09f-16cca1ae32b9' and source_match_text='revolut**0376'),
-      'categorization_source','transfer_rule',
-      'balance_baseline',jsonb_build_object('account_id',null,'transfer_account_id','99089155-d148-4c6a-8ad9-8a6642737923','transaction_type','transfer','amount',100,'status','posted')
+      'categorization_source','transfer_rule'
     ),
     updated_at=clock_timestamp()
 where id='a37ae2b5-f155-4a2b-a166-ad4fb152ea2f' and status='posted';
