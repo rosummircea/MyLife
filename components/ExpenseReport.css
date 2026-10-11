@@ -58,6 +58,9 @@
 }
 @media (prefers-reduced-motion: reduce) { .expenseChevron { transition: none; } }
 .expensePeriodControls { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; margin: 16px 0 8px; }
+.reportSummaryPeriods { flex:none; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; margin:18px 0 2px; }
+.reportSummaryPeriods button { width:100%; padding-inline:7px; }
+.reportSummaryPeriods button:last-child { grid-column:span 2; }
 .expensePeriodControls label { display: flex; flex-direction: column; gap: 7px; color: var(--muted); font-size: 11px; min-width: 0; }
 .expensePeriodControls input, .expensePeriodControls select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,.035); color: var(--text); color-scheme: dark; font: inherit; font-size: 14px; }
 .expensePeriodControls select option { background: #101c2e; color: var(--text); }
@@ -68,6 +71,12 @@
   .reportWrap .pieStage { min-width: 0; }
   .reportWrap .pieChart { max-width: 100%; }
   .expensePeriodControls { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .reportSummaryPeriods { grid-template-columns:repeat(5,minmax(0,1fr)); }
+  .reportSummaryPeriods button:last-child { grid-column:auto; }
+}
+@media (max-width: 560px) {
+  .reportSummaryPeriods { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .reportSummaryPeriods button:last-child { grid-column:span 2; }
 }
 @media (max-width: 430px) { .expensePeriodControls { grid-template-columns: minmax(0,1fr); } }
 .expenseReportNote { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 14px 0 0; }

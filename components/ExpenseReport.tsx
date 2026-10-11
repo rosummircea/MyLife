@@ -54,12 +54,8 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     <div className="reportWrap">
       <div className="reportToolbar">
         <div>
-          <p className="eyebrow">RAPORT CHELTUIELI</p>
-          <h2>Unde s-au dus banii</h2>
+          <h2>Raport Cheltuieli</h2>
           <p className="subtitle">Cheltuieli în RON din tranzacțiile înregistrate.</p>
-        </div>
-        <div className="periodSwitch">
-          {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
         </div>
       </div>
 
@@ -72,6 +68,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         <div className="reportSummary">
           <span className="summaryLabel">Perioadă selectată</span>
           <strong>{label}</strong>
+          <div className="periodSwitch reportSummaryPeriods" aria-label="Tipul perioadei">
+            {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+          </div>
           <div className="expensePeriodControls">
             {(period === 'An' || period === 'Lună') ? <>
               <label>Anul<select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
@@ -85,11 +84,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
               <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); setSelected(null) } }}/></label>
             </> : <label>{period === 'Zi' ? 'Ziua' : 'Alege o zi din săptămână'}<input type="date" value={anchor} onChange={(event) => { if (event.target.value) { setAnchor(event.target.value); setSelected(null) } }}/></label>}
           </div>
-          {!loading && data && !invalidRange && !report.error && <>
-          <div className="summaryMini"><span>Categorii</span><strong>{categories.length}</strong></div>
-          <div className="summaryMini"><span>Tranzacții în raport</span><strong>{report.transactionCount}</strong></div>
-          <div className="summaryMini"><span>Cea mai mare categorie</span><strong>{percent(categories[0]?.percent ?? 0)}</strong></div>
-          </>}
         </div>
       </div>
 
