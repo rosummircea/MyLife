@@ -375,7 +375,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} />
+          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onTransactionSeen={transactionId=>setData(previous=>previous?{...previous,transactions:previous.transactions.map(transaction=>transaction.id===transactionId?{...transaction,unseen:false}:transaction)}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} />
         ) : active === 'insurance' ? (
           <section className="modulePage"><ModuleHeader title="Asigurări" onHome={() => setActive('home')}/><InsuranceModule data={data} loading={loadingData} onOpenDocument={openDocument} onOpenTransaction={openTransaction}/></section>
         ) : active === 'health' ? (
@@ -458,7 +458,7 @@ function ModuleHeader({ title, onHome, actions }: { title: string; onHome: () =>
   return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1></div><div className="moduleHeaderActions"><button type="button" className="iconBtn moduleHomeButton" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button>{actions}</div></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
+function FinanceModule({ data, loading, accounts, transactions, target, onOpenDocument, onSaved, onCategoriesChange, onTransactionSeen, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onTransactionSeen:(transactionId:string)=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
   const [categoryKind,setCategoryKind]=useState('expense')
   const [creating,setCreating]=useState<{mode:'standard'|'transfer'|'adjustment';accountId?:string}|null>(null)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
@@ -545,7 +545,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       </div>
 
       {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} initialDay={creating.mode==='standard'?selectedDay:null} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
-      {detail && <TransactionDetails onSaved={onSaved} onSeen={onSaved} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
+      {detail && <TransactionDetails onSaved={onSaved} onSeen={()=>onTransactionSeen(detail.id)} transaction={detail} data={data} onClose={() => setDetailId(null)} onOpenDocument={onOpenDocument}/>}
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null}/> : tab === 'transfers' ? (
