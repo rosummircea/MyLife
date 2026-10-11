@@ -358,10 +358,6 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
       <div className="swipeBackBackdrop" aria-hidden="true" ref={swipeBackdropRef}><span className="swipeBackHint"><ArrowLeft size={22}/><strong ref={swipeDestinationRef}>Acasă</strong></span></div>
       <main className="main" ref={swipePageRef}>
         <div className={`pullRefreshIndicator ${pullDistance || pullRefreshing ? 'visible' : ''} ${pullRefreshing ? 'refreshing' : ''}`} style={{ transform: `translate(-50%, ${pullRefreshing ? 0 : Math.min(pullDistance, 60) - 60}px)` }} role="status" aria-live="polite"><span className="pullRefreshSpinner" aria-hidden="true"/><span>{pullRefreshing ? 'Se actualizează…' : pullDistance >= 72 ? 'Eliberează pentru actualizare' : 'Trage pentru actualizare'}</span></div>
-        <div className="mylifeDataStatus" role="status">
-          <span>{loadingData ? 'Se încarcă datele reale…' : data?.source === 'live' ? 'Supabase · date actualizate' : data?.source === 'snapshot' ? `Date reale · instantaneu local din ${new Date(data.capturedAt).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' })}` : 'Datele Supabase nu sunt conectate.'}</span>
-          {userEmail ? <button type="button" disabled={loadingData} onClick={() => setRefresh((value) => value + 1)}>Actualizează</button> : supabase && <button type="button" onClick={() => setConnecting(true)}>Conectează live</button>}
-        </div>
         {loadError && <div className="mylifeDataError" role="alert">{loadError}</div>}
         {active === 'home' ? (
           <>
@@ -380,7 +376,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
             </section>
           </>
         ) : active === 'finance' ? (
-          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} onHome={() => setActive('home')} />
+          <FinanceModule tab={financeTab} setTab={setFinanceTab} mobileNavVersion={financeNavVersion} registerMobileBack={registerMobileBack} onCategoriesChange={categories=>setData(previous=>previous?{...previous,categories}:previous)} onSaved={()=>setRefresh(v=>v+1)} key={transactionTarget?.id ?? 'finance'} target={transactionTarget} onOpenDocument={openDocument} data={data} loading={loadingData} accounts={accounts} transactions={transactions} />
         ) : active === 'insurance' ? (
           <section className="modulePage"><ModuleHeader title="Asigurări" onHome={() => setActive('home')}/><InsuranceModule data={data} loading={loadingData} onOpenDocument={openDocument} onOpenTransaction={openTransaction}/></section>
         ) : active === 'health' ? (
@@ -463,7 +459,7 @@ function ModuleHeader({ title, onHome, actions }: { title: string; onHome: () =>
   return <div className="topbar"><div><p className="eyebrow">MYLIFE</p><h1>{title}</h1></div><div className="moduleHeaderActions"><button type="button" className="iconBtn moduleHomeButton" onClick={onHome} aria-label="Înapoi acasă"><Home size={19}/></button>{actions}</div></div>
 }
 
-function FinanceModule({ data, loading, accounts, transactions, onHome, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; onHome: () => void; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
+function FinanceModule({ data, loading, accounts, transactions, target, onOpenDocument, onSaved, onCategoriesChange, tab, setTab, mobileNavVersion, registerMobileBack }: { onCategoriesChange:(categories:MyLifeData['categories'])=>void; onSaved:()=>void; target: Transaction | null; onOpenDocument: (id: string) => void; data: MyLifeData | null; loading: boolean; accounts: Account[]; transactions: Transaction[]; tab: FinanceTab; setTab: React.Dispatch<React.SetStateAction<FinanceTab>>; mobileNavVersion: number; registerMobileBack: (handler: (() => boolean) | null) => void }) {
   const [categoryKind,setCategoryKind]=useState('expense')
   const [creating,setCreating]=useState<{mode:'standard'|'transfer'|'adjustment';accountId?:string}|null>(null)
   const [detailId, setDetailId] = useState<string | null>(target?.id ?? null)
@@ -533,10 +529,11 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
       {addTransactionAction}
     </>}
   </div> : addTransactionAction
+  const financeSettingsMenu = <div ref={mobileMenuRef} className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Setări și alte pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>
 
   return (
     <section className="modulePage financeModule">
-      <ModuleHeader title="Finanțe" onHome={onHome} actions={<div ref={mobileMenuRef} className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Mai multe pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>}/>
+      <div className="financeMobileHeader"><h1>Finanțe</h1>{financeSettingsMenu}</div>
       <div className="subnav" aria-label="Submeniu Finanțe">
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
@@ -545,6 +542,7 @@ function FinanceModule({ data, loading, accounts, transactions, onHome, target, 
         <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Împrumuturi</button>
         <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>Categorii</button>
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
+        <button type="button" className="financeSettingsNav" aria-label="Setări Finanțe" title="Setări Finanțe"><Settings size={18}/></button>
       </div>
 
       {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} initialDay={creating.mode==='standard'?selectedDay:null} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
