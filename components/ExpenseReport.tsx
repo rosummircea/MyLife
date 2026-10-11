@@ -1,7 +1,7 @@
 'use client'
 
 import CategoryIcon from './CategoryIcon'
-import { CalendarRange, ChevronRight, ChevronsUp } from 'lucide-react'
+import { CalendarRange, ChevronDown, ChevronRight, ChevronsUp } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
@@ -55,7 +55,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       <div className="reportToolbar">
         <div>
           <h2>Raport Cheltuieli</h2>
-          <p className="subtitle">Cheltuieli în RON din tranzacțiile înregistrate.</p>
         </div>
       </div>
 
@@ -73,12 +72,12 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           </div>
           <div className="expensePeriodControls">
             {(period === 'An' || period === 'Lună') ? <>
-              <label>Anul<select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
+              <label>Anul<span className="expenseSelectShell"><select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
                 {years.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select></label>
-              {period === 'Lună' && <label>Luna<select aria-label="Luna" value={anchor.slice(5, 7)} onChange={(event) => { setAnchor(`${anchor.slice(0, 4)}-${event.target.value}-01`); setSelected(null) }}>
+              </select><ChevronDown size={16} aria-hidden="true"/></span></label>
+              {period === 'Lună' && <label>Luna<span className="expenseSelectShell"><select aria-label="Luna" value={anchor.slice(5, 7)} onChange={(event) => { setAnchor(`${anchor.slice(0, 4)}-${event.target.value}-01`); setSelected(null) }}>
                 {Array.from({ length: 12 }, (_, index) => <option key={index} value={String(index + 1).padStart(2, '0')}>{new Date(Date.UTC(2026, index, 1)).toLocaleDateString('ro-RO', { month: 'long', timeZone: 'UTC' })}</option>)}
-              </select></label>}
+              </select><ChevronDown size={16} aria-hidden="true"/></span></label>}
             </> : period === 'Custom' ? <>
               <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); setSelected(null) } }}/></label>
               <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); setSelected(null) } }}/></label>
