@@ -17,6 +17,18 @@
  .categoriesWorkspace .categoryDragHandle {padding:2px;min-width:22px}
 }
 
+/* The active finance tab already names this workspace. */
+.categoriesWorkspace { margin-top:22px; }
+.categoriesWorkspace .categoriesHeader { margin:0 0 12px; }
+@media(max-width:700px) {
+  .categoriesWorkspace .categoriesHeader { flex-direction:row; align-items:center!important; gap:10px; }
+  .categoriesWorkspace .categoriesHeader .financeCreateAction { margin-left:auto; align-self:auto; }
+}
+@media(max-width:520px) {
+  .categoriesWorkspace .categoriesHeader { align-items:stretch!important; flex-direction:column; }
+  .categoriesWorkspace .categoriesHeader .financeCreateAction { align-self:flex-end; }
+}
+
 .categoriesWorkspace .categoryExpandToggle {display:flex;justify-content:flex-start;width:100%;gap:8px;min-height:30px;padding:0;border:0;border-radius:4px;background:transparent;text-align:left;font:inherit}
 .categoryExpandToggle strong {flex:0 1 auto;min-width:0}
 .categoryExpandToggle svg {flex-shrink:0;transition:transform .15s ease}

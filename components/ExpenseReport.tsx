@@ -52,12 +52,6 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
 
   return (
     <div className="reportWrap">
-      <div className="reportToolbar">
-        <div>
-          <h2>Raport Cheltuieli</h2>
-        </div>
-      </div>
-
       <div className="reportHero">
         <div className="pieStage">
           {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }} aria-label="Distribuția cheltuielilor">

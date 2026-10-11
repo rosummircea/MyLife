@@ -62,6 +62,7 @@
   min-height: 430px;
   padding: 34px 28px 28px;
 }
+.reportWrap .reportHero { margin-top:0; }
 .reportWrap .reportSummary > strong {
   display: flex;
   align-items: flex-start;

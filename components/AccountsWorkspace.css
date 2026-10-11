@@ -82,6 +82,14 @@
 @media(max-width:720px){.openBankingHistoryHeader{align-items:flex-start;padding:14px}.openBankingHistoryBalance{justify-items:end}.openBankingHistoryBalance>strong{font-size:18px}.openBankingHistoryBalance button{font-size:10px}.openBankingLinkPanel{grid-template-columns:1fr}.openBankingLinkPanel>small{grid-column:auto}.openBankingImportBar{align-items:stretch;flex-direction:column}.openBankingImportBar>div{justify-content:stretch}.openBankingImportBar>div button{flex:1}.openBankingMonthGroups>section>div{padding:0 12px}.openBankingHistoryRow{align-items:flex-start;gap:10px}.openBankingHistoryRow>strong{font-size:12px}.openBankingLoadMore{width:100%}}
 @media(max-width:480px){.openBankingHistoryHeader{display:grid}.openBankingHistoryBalance{justify-items:start}.openBankingHistoryBalance button{min-height:42px}.openBankingHistoryBalance small{text-align:left}}
 
+.accountsWorkspace>.accountsToolbar { margin-top:22px; }
+.accountsToolbarSecondary { display:flex; align-items:center; gap:10px; }
+.accountsToolbarSecondary>span { color:var(--muted); font-size:11px; white-space:nowrap; }
+@media(max-width:620px) {
+  .accountsToolbarSecondary { min-width:0; }
+  .accountsToolbarSecondary>span { display:none; }
+}
+
 .connectedAccountsOverview{margin:22px 0 18px;padding:14px;border:1px solid #2a5260;border-radius:14px;background:linear-gradient(135deg,rgba(24,92,104,.14),rgba(17,29,46,.72))}
 .connectedAccountsTitle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .connectedAccountsTitle span{font-size:9px;letter-spacing:.12em;color:#70d5c8}.connectedAccountsTitle h3{margin:3px 0 0;font-size:16px}

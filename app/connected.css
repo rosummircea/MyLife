@@ -18,14 +18,12 @@
 .sectionTitle { display: flex; align-items: baseline; justify-content: space-between; margin: 24px 0 12px; }
 .sectionTitle h2 { font-size: 20px; }
 .sectionTitle span { color: var(--muted); font-size: 12px; }
-.transfersHeader { align-items:center; }
+.transfersHeader { align-items:center; margin-top:22px; }
 .transfersHeading { display:flex; align-items:baseline; gap:12px; min-width:0; }
 .transfersHeading h2 { margin:0; }
 .transfersHeader .financeCreateAction { margin:0; flex-shrink:0; }
 @media (max-width:720px) {
-  .transfersHeader { align-items:flex-start; gap:12px; flex-direction:column; }
-  .transfersHeading { width:100%; justify-content:space-between; }
-  .transfersHeader .financeCreateAction { align-self:flex-end; }
+  .transfersHeader { gap:10px; }
 }
 .accountGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .accountCard strong { display: block; margin: 9px 0 6px; font-size: 19px; }
