@@ -7,6 +7,7 @@ import { bucharestDay } from '@/lib/expense-report'
 import type { DocumentRow } from '@/lib/mylife-data'
 import { documentStatus, loadAutoData, photos, text, vehicleDocuments, type AutoData, type Vehicle, type VehiclePhoto, type VehicleRecord } from '@/lib/auto-data'
 import './AutoExperience.css'
+import ConfirmDialog from './ConfirmDialog'
 
 type AutoTab = 'Overview' | 'Documente' | 'Date' | 'Istoric'
 type DeadlineKey = 'rca' | 'casco' | 'vignette' | 'itp' | 'fire_extinguisher' | 'service'
@@ -329,10 +330,10 @@ function HistoryTab({ records, documents, today, onDocument, onRecord }: { recor
 function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: { document: DocumentRow; today: string; onClose: () => void; onOpen: () => void; onEdit: () => void; onDeleted: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [confirmDelete,setConfirmDelete]=useState(false)
   const rawStatus = document.storage_path ? documentStatus(document.expires_at, today) : 'Fără fișier'
   const status = rawStatus === 'Fără dată expirare' ? 'Fără expirare' : rawStatus
   async function remove() {
-    if (!window.confirm(`Ștergi definitiv documentul „${documentLabel(document.document_type)}”?`)) return
     setBusy(true); setError('')
     try {
       const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
@@ -344,7 +345,7 @@ function DocumentSheet({ document, today, onClose, onOpen, onEdit, onDeleted }: 
       onDeleted()
     } catch (err) { setError(err instanceof Error ? err.message : 'Ștergerea nu a reușit.') } finally { setBusy(false) }
   }
-  return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{!document.storage_path && <p className="autoMissingFileNote">Există doar metadatele acestui document. Fișierul PDF/JPG nu este atașat în Storage.</p>}{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions">{document.storage_path ? <button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide fișierul</button> : <button type="button" className="autoPrimaryButton" onClick={onEdit}><Plus size={18}/> Atașează fișier</button>}<button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div></Sheet>
+  return <Sheet title={documentLabel(document.document_type)} onClose={onClose}><div className="autoSheetMeta"><div><span>Status</span><strong>{status}</strong></div><div><span>Fișier</span><strong>{document.source_filename || 'Nesetat'}</strong></div>{document.expires_at && <div><span>Expiră</span><strong>{formatDate(document.expires_at)}</strong></div>}{document.issuer && <div><span>Emitent</span><strong>{document.issuer}</strong></div>}</div>{!document.storage_path && <p className="autoMissingFileNote">Există doar metadatele acestui document. Fișierul PDF/JPG nu este atașat în Storage.</p>}{error && <p className="autoFormError">{error}</p>}<div className="autoSheetActions">{document.storage_path ? <button type="button" className="autoPrimaryButton" onClick={onOpen}><ExternalLink size={18}/> Deschide fișierul</button> : <button type="button" className="autoPrimaryButton" onClick={onEdit}><Plus size={18}/> Atașează fișier</button>}<button type="button" className="autoSecondaryButton" onClick={onEdit}><Pencil size={18}/> Editează</button><button type="button" className="autoDangerButton" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={18}/>{busy ? 'Se șterge…' : 'Șterge'}</button></div><ConfirmDialog open={confirmDelete} danger busy={busy} title={`Ștergi documentul „${documentLabel(document.document_type)}”?`} description="Documentul și fișierul asociat vor fi șterse definitiv." confirmLabel={busy?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>setConfirmDelete(false)}>{error&&<p role="alert">{error}</p>}</ConfirmDialog></Sheet>
 }
 
 function DocumentFileViewer({ document, onClose }: { document: DocumentRow; onClose: () => void }) {
@@ -517,6 +518,7 @@ function RecordEditor({ vehicle, item, onClose, onSaved }: { vehicle: Vehicle; i
   const [notes, setNotes] = useState(item.record?.notes ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [confirmDelete,setConfirmDelete]=useState(false)
   async function save() {
     setBusy(true); setError('')
     try {
@@ -539,7 +541,7 @@ function RecordEditor({ vehicle, item, onClose, onSaved }: { vehicle: Vehicle; i
     } catch (err) { setError(err instanceof Error ? err.message : 'Salvarea nu a reușit.') } finally { setBusy(false) }
   }
   async function remove() {
-    if (!item.record || !window.confirm(`Ștergi înregistrarea „${item.label}”?`)) return
+    if (!item.record) return
     setBusy(true); setError('')
     try {
       const client = getSupabaseClient(); if (!client) throw new Error('Supabase nu este disponibil.')
@@ -549,7 +551,7 @@ function RecordEditor({ vehicle, item, onClose, onSaved }: { vehicle: Vehicle; i
       onSaved()
     } catch (err) { setError(err instanceof Error ? err.message : 'Ștergerea nu a reușit.') } finally { setBusy(false) }
   }
-  return <Sheet title={item.label} onClose={onClose}><div className="autoForm">{item.key === 'service' ? <><label>Km rămași<input type="number" value={remainingKm} onChange={event => setRemainingKm(event.target.value)} placeholder="ex. 2400"/></label><label>Luna recomandată<input type="month" value={dueMonth} onChange={event => setDueMonth(event.target.value)}/></label></> : <label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label>}<label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label>{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions">{item.record && <button type="button" className="autoDangerButton" disabled={busy} onClick={() => void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={17}/>{busy ? 'Se salvează…' : item.record ? 'Salvează' : 'Creează'}</button></div></div></Sheet>
+  return <Sheet title={item.label} onClose={onClose}><div className="autoForm">{item.key === 'service' ? <><label>Km rămași<input type="number" value={remainingKm} onChange={event => setRemainingKm(event.target.value)} placeholder="ex. 2400"/></label><label>Luna recomandată<input type="month" value={dueMonth} onChange={event => setDueMonth(event.target.value)}/></label></> : <label>Data expirării<input type="date" value={expiresAt} onChange={event => setExpiresAt(event.target.value)}/></label>}<label>Note<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opțional"/></label>{error && <p className="autoFormError">{error}</p>}<div className="autoFormActions">{item.record && <button type="button" className="autoDangerButton" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={17}/> Șterge</button>}<button type="button" className="autoPrimaryButton" disabled={busy} onClick={() => void save()}><Save size={17}/>{busy ? 'Se salvează…' : item.record ? 'Salvează' : 'Creează'}</button></div></div><ConfirmDialog open={confirmDelete} danger busy={busy} title={`Ștergi înregistrarea „${item.label}”?`} description="Înregistrarea va fi eliminată definitiv din istoricul mașinii." confirmLabel={busy?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>setConfirmDelete(false)}>{error&&<p role="alert">{error}</p>}</ConfirmDialog></Sheet>
 }
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {

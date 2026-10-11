@@ -5,6 +5,7 @@ import { FileText, ExternalLink, Expand, Trash2, X } from 'lucide-react'
 import type { DocumentRow, Transaction } from '@/lib/mylife-data'
 import { getSupabaseClient } from '@/lib/supabase'
 import './DocumentsWorkspace.css'
+import ConfirmDialog from './ConfirmDialog'
 
 function date(value: string) {
   const parsed = new Date(value.slice(0, 10) + 'T12:00:00Z')
@@ -37,10 +38,9 @@ function DocumentDetail({ document: initialDoc, onUpdated, onDeleted, transactio
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   async function removeDocument() {
-    const confirmed = window.confirm(`Ștergi definitiv documentul „${doc.source_filename || readable(doc.document_type)}”? Această acțiune nu poate fi anulată.`)
-    if (!confirmed) return
     setDeleting(true); setDeleteError('')
     try {
       const client = getSupabaseClient()
@@ -55,7 +55,7 @@ function DocumentDetail({ document: initialDoc, onUpdated, onDeleted, transactio
         const { error: storageDeleteError } = await client.storage.from('mylife-documents').remove([storagePath])
         if (storageDeleteError) console.warn('Document metadata deleted, but storage cleanup failed.', storageDeleteError)
       }
-      onDeleted(doc.id)
+      setConfirmDelete(false); onDeleted(doc.id)
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Ștergerea nu a reușit.')
     } finally {
@@ -122,7 +122,7 @@ function DocumentDetail({ document: initialDoc, onUpdated, onDeleted, transactio
   const status = expiry(doc.expires_at)
   return <div className="documentsDetail">
     <section className="documentsMetadata" aria-label="Detalii document">
-      <div className="documentsDetailHeading"><h2>{doc.source_filename || readable(doc.document_type)}</h2><div className="documentsHeadingActions"><span className={`documentsBadge ${status === 'Expirat' ? 'expired' : status === 'Expiră curând' ? 'soon' : ''}`}>{status}</span><button type="button" className="documentsDeleteButton" disabled={deleting} onClick={() => void removeDocument()}><Trash2 size={16} aria-hidden="true"/>{deleting ? 'Se șterge…' : 'Șterge'}</button></div></div>{deleteError && <p className="documentsDeleteError" role="alert">{deleteError}</p>}
+      <div className="documentsDetailHeading"><h2>{doc.source_filename || readable(doc.document_type)}</h2><div className="documentsHeadingActions"><span className={`documentsBadge ${status === 'Expirat' ? 'expired' : status === 'Expiră curând' ? 'soon' : ''}`}>{status}</span><button type="button" className="documentsDeleteButton" disabled={deleting} onClick={() => setConfirmDelete(true)}><Trash2 size={16} aria-hidden="true"/>{deleting ? 'Se șterge…' : 'Șterge'}</button></div></div>{deleteError && <p className="documentsDeleteError" role="alert">{deleteError}</p>}
       <dl>{fields.map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       {transactions.length > 0 && <div className="documentsLinkedTransactions"><h3>Tranzacții asociate</h3>{transactions.map(tx => <button type="button" key={tx.id} onClick={() => onOpenTransaction(tx)}><span>{tx.description || tx.merchant || 'Tranzacție'} · {date(tx.transaction_date)}</span><strong>{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(Number(tx.amount))} →</strong></button>)}</div>}
       {extra.length > 0 && <><h3>Alte date</h3><dl>{extra.map(([key,value]) => <div key={key}><dt>{readable(key)}</dt><dd>{key === 'Prima RCA (RON)' && transactions.length ? <button type="button" className="documentsAmountLink" onClick={() => onOpenTransaction(transactions[0])}>{Number(value).toLocaleString('ro-RO', { minimumFractionDigits: 2 })} RON · Vezi tranzacția</button> : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}</dd></div>)}</dl></>}
@@ -135,5 +135,6 @@ function DocumentDetail({ document: initialDoc, onUpdated, onDeleted, transactio
       {url && <p className="documentsViewerFootnote">Acces privat · link temporar valabil 5 minute. Pe mobil, dacă PDF-ul nu se afișează, deschide documentul complet.</p>}
     </section>
     {image && url && <dialog className="documentsImageDialog" ref={dialog} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close() }}><button type="button" aria-label="Închide imaginea" onClick={() => dialog.current?.close()}><X/></button><img src={url} alt={doc.source_filename || 'Document'}/></dialog>}
+    <ConfirmDialog open={confirmDelete} danger busy={deleting} title={`Ștergi documentul „${doc.source_filename || readable(doc.document_type)}”?`} description="Documentul și fișierul asociat vor fi șterse definitiv. Acțiunea nu poate fi anulată." confirmLabel={deleting?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void removeDocument()} onCancel={()=>{setConfirmDelete(false);setDeleteError('')}}>{deleteError&&<p role="alert">{deleteError}</p>}</ConfirmDialog>
   </div>
 }

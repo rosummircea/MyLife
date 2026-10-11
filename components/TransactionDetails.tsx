@@ -8,6 +8,7 @@ import TransactionEditor from './TransactionEditor'
 import {getSupabaseClient} from '@/lib/supabase'
 import {balanceChange} from '@/lib/transaction-edit'
 import { transferLabel } from '@/lib/transfers'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function TransactionDetails({ transaction: tx, data, onClose, onOpenDocument, onSaved, onSeen }: { transaction: Transaction; data: MyLifeData | null; onSaved: () => void; onSeen?: () => void; onClose: () => void; onOpenDocument: (id: string) => void }) {
   const [deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('')
@@ -57,7 +58,7 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
       <button type="button" className="transactionEditButton" disabled={data?.source!=='live'||!tx.updated_at} onClick={()=>setEditing(true)}>Editează tranzacția</button>
       <button type="button" className="transactionEditButton transactionDeleteButton" disabled={data?.source!=='live'||!tx.updated_at||saving} onClick={()=>setDeleting(true)}>Șterge tranzacția</button>
     </div>
-    {deleting&&<section className="transactionDeleteConfirm"><h3>Ștergi această tranzacție?</h3><p>Atenție: tranzacția va fi eliminată din liste și rapoarte. Această acțiune nu poate fi anulată din aplicație. {Object.keys(balanceChange(tx,{...tx,status:'void'})).length?'Soldurile se vor actualiza:':'Soldurile nu se schimbă.'}</p>{Object.entries(balanceChange(tx,{...tx,status:'void'})).map(([id,delta])=><p key={id}>{data?.accounts.find(a=>a.id===id)?.name}: {money(delta)}</p>)}<div className="transactionDeleteConfirmActions"><button disabled={saving} onClick={()=>void remove()}>{saving?'Se șterge…':'Confirmă ștergerea'}</button><button disabled={saving} onClick={()=>setDeleting(false)}>Renunță</button></div>{deleteError&&<p role="alert">{deleteError}</p>}</section>}
+    <ConfirmDialog open={deleting} danger busy={saving} title="Ștergi această tranzacție?" description={<>Tranzacția va fi eliminată din liste și rapoarte. Acțiunea nu poate fi anulată din aplicație. {Object.keys(balanceChange(tx,{...tx,status:'void'})).length?'Soldurile se vor actualiza:':'Soldurile nu se schimbă.'}</>} confirmLabel={saving?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>{setDeleting(false);setDeleteError('')}}>{Object.entries(balanceChange(tx,{...tx,status:'void'})).map(([id,delta])=><p key={id}><strong>{data?.accounts.find(a=>a.id===id)?.name}:</strong> {money(delta)}</p>)}{deleteError&&<p role="alert">{deleteError}</p>}</ConfirmDialog>
     </>}
   </dialog>
 }

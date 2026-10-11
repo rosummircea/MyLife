@@ -6,6 +6,7 @@ import {getSupabaseClient} from '@/lib/supabase'
 import type {DocumentRow} from '@/lib/mylife-data'
 import {healthDocumentCategory,healthDocuments,healthDocumentTitle,loadHealthData,metricMeta,type HealthData,type HealthMeasurement,type HealthMetricType,type HealthVisit} from '@/lib/health-data'
 import './HealthModule.css'
+import ConfirmDialog from './ConfirmDialog'
 
 export type HealthTab='overview'|'visits'|'data'|'documents'
 
@@ -114,6 +115,7 @@ async function analyzeHealthDocumentWithAi(documentId:string){
 }
 
 function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>void;onSaved:()=>void}){
+  const [confirmDelete,setConfirmDelete]=useState(false)
   const localDateTime=(value:string)=>{
     const date=new Date(value)
     const shifted=new Date(date.getTime()-date.getTimezoneOffset()*60000)
@@ -160,7 +162,7 @@ function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>
   }
 
   async function remove(){
-    if(!visit||!window.confirm('Ștergi această vizită?'))return
+    if(!visit)return
     setBusy(true);setError('')
     try{
       const client=getSupabaseClient()
@@ -186,8 +188,8 @@ function VisitSheet({visit,onClose,onSaved}:{visit:HealthVisit|null;onClose:()=>
     <label>Rezumat<textarea value={summary} onChange={event=>setSummary(event.target.value)} placeholder="Ce s-a discutat sau recomandat"/></label>
     <label>Note<textarea value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Opțional"/></label>
     {error&&<p className="healthFormError">{error}</p>}
-    <div className="healthFormActions">{visit&&<button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
-  </div></Sheet>
+    <div className="healthFormActions">{visit&&<button type="button" className="danger" disabled={busy} onClick={()=>setConfirmDelete(true)}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
+  </div><ConfirmDialog open={confirmDelete} danger busy={busy} title="Ștergi această vizită?" description="Vizita și toate detaliile ei vor fi șterse definitiv." confirmLabel={busy?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>setConfirmDelete(false)}>{error&&<p role="alert">{error}</p>}</ConfirmDialog></Sheet>
 }
 
 function metricUnit(type:HealthMetricType){
@@ -243,6 +245,7 @@ function TrendChart({rows}:{rows:HealthMeasurement[]}){
 }
 
 function MetricSheet({measurement,onClose,onSaved}:{measurement:HealthMeasurement|null;onClose:()=>void;onSaved:()=>void}){
+  const [confirmDelete,setConfirmDelete]=useState(false)
   const types:HealthMetricType[]=['resting_heart_rate','sleep_duration','respiratory_rate','vo2_max','steps','weight','spo2','blood_pressure']
   const [type,setType]=useState<HealthMetricType>(measurement?.metric_type??'resting_heart_rate')
   const [value,setValue]=useState(measurement?String(measurement.value):'')
@@ -278,7 +281,7 @@ function MetricSheet({measurement,onClose,onSaved}:{measurement:HealthMeasuremen
   }
 
   async function remove(){
-    if(!measurement||!window.confirm('Ștergi această valoare?'))return
+    if(!measurement)return
     setBusy(true);setError('')
     try{
       const client=getSupabaseClient()
@@ -302,8 +305,8 @@ function MetricSheet({measurement,onClose,onSaved}:{measurement:HealthMeasuremen
     <label>Data și ora<input type="datetime-local" value={measuredAt} onChange={event=>setMeasuredAt(event.target.value)}/></label>
     <label>Note<textarea value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Opțional"/></label>
     {error&&<p className="healthFormError">{error}</p>}
-    <div className="healthFormActions">{measurement&&<button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
-  </div></Sheet>
+    <div className="healthFormActions">{measurement&&<button type="button" className="danger" disabled={busy} onClick={()=>setConfirmDelete(true)}><Trash2 size={17}/> Șterge</button>}<button type="button" className="secondary" disabled={busy} onClick={onClose}>Anulează</button><button type="button" className="primary" disabled={busy} onClick={()=>void save()}><Save size={17}/>{busy?'Se salvează…':'Salvează'}</button></div>
+  </div><ConfirmDialog open={confirmDelete} danger busy={busy} title="Ștergi această valoare?" description="Măsurătoarea va fi eliminată definitiv din istoricul medical." confirmLabel={busy?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>setConfirmDelete(false)}>{error&&<p role="alert">{error}</p>}</ConfirmDialog></Sheet>
 }
 
 function DocumentsTab({documents,loading,onAdd,onOpen}:{documents:DocumentRow[];loading:boolean;onAdd:()=>void;onOpen:(document:DocumentRow)=>void}){
@@ -409,6 +412,7 @@ function MedicalDocumentSheet({document,onClose,onSaved}:{document:DocumentRow|n
 }
 
 function MedicalDocumentDetail({document,onClose,onEdit,onDeleted}:{document:DocumentRow;onClose:()=>void;onEdit:()=>void;onDeleted:()=>void}){
+  const [confirmDelete,setConfirmDelete]=useState(false)
   const [url,setUrl]=useState<string|null>(null)
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
@@ -428,7 +432,6 @@ function MedicalDocumentDetail({document,onClose,onEdit,onDeleted}:{document:Doc
   },[document.storage_path])
 
   async function remove(){
-    if(!window.confirm('Ștergi definitiv acest document medical?'))return
     setBusy(true);setError('')
     try{
       const client=getSupabaseClient()
@@ -450,6 +453,6 @@ function MedicalDocumentDetail({document,onClose,onEdit,onDeleted}:{document:Doc
   return <Sheet title={healthDocumentTitle(document)} onClose={onClose}><div className="healthDocDetail">
     <div className="healthDocMeta"><div><span>Tip</span><strong>{healthDocumentCategory(document)}</strong></div><div><span>Emitent</span><strong>{document.issuer||'—'}</strong></div><div><span>Data</span><strong>{document.document_date||'—'}</strong></div><div><span>Fișier</span><strong>{document.source_filename||'—'}</strong></div></div>
     {error&&<p className="healthFormError">{error}</p>}
-    <div className="healthFormActions">{url&&<a className="healthLinkButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={17}/> Deschide fișierul</a>}<button type="button" className="secondary" onClick={onEdit}><Pencil size={17}/> Editează</button><button type="button" className="danger" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/> Șterge</button></div>
-  </div></Sheet>
+    <div className="healthFormActions">{url&&<a className="healthLinkButton" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={17}/> Deschide fișierul</a>}<button type="button" className="secondary" onClick={onEdit}><Pencil size={17}/> Editează</button><button type="button" className="danger" disabled={busy} onClick={()=>setConfirmDelete(true)}><Trash2 size={17}/> Șterge</button></div>
+  </div><ConfirmDialog open={confirmDelete} danger busy={busy} title="Ștergi acest document medical?" description="Documentul medical și fișierul asociat vor fi șterse definitiv." confirmLabel={busy?'Se șterge…':'Confirmă ștergerea'} onConfirm={()=>void remove()} onCancel={()=>setConfirmDelete(false)}>{error&&<p role="alert">{error}</p>}</ConfirmDialog></Sheet>
 }
