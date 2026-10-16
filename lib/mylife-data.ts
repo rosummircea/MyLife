@@ -19,6 +19,9 @@ export type Transaction = {
   imported_from?: string | null
   enable_banking_transaction_id?: string | null
   unseen?: boolean | string
+  loan_id?: string | null
+  loan_repayment_id?: string | null
+  loan_kind?: string | null
   balance_baseline?: {account_id?:string;transfer_account_id?:string|null;transaction_type:string;amount:number|string;status?:string} | null
   id: string
   transaction_type: string
@@ -111,7 +114,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .select('id,name,account_type,opening_balance,currency,credit_limit,owner_person_id,institution,updated_at,is_active,owner:people!owner_person_id(display_name)').eq('household_id', hid)
       .eq('is_active', true).order('name').order('id').range(from, to)),
     allRows<Transaction>((from, to) => client.from('finance_transactions')
-      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,created_at,updated_at,day_sort_order,affects_balance:import_metadata->>affects_balance,imported_from:import_metadata->>imported_from,enable_banking_transaction_id:import_metadata->>enable_banking_transaction_id,unseen:import_metadata->>unseen,balance_baseline:import_metadata->balance_baseline,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name)),destination_account:finance_accounts!transfer_account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name))').eq('household_id', hid)
+      .select('id,transaction_type,amount,currency,transaction_date,merchant,description,status,attachment_document_id,account_id,date_precision,created_at,updated_at,day_sort_order,affects_balance:import_metadata->>affects_balance,imported_from:import_metadata->>imported_from,enable_banking_transaction_id:import_metadata->>enable_banking_transaction_id,unseen:import_metadata->>unseen,loan_id:import_metadata->>loan_id,loan_repayment_id:import_metadata->>loan_repayment_id,loan_kind:import_metadata->>loan_kind,balance_baseline:import_metadata->balance_baseline,title:import_metadata->>title,transfer_account_id,source_account:finance_accounts!account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name)),destination_account:finance_accounts!transfer_account_id(id,name,account_type,currency,institution,owner_person_id,owner:people!owner_person_id(display_name))').eq('household_id', hid)
       .eq('status', 'posted').order('transaction_date', { ascending: false }).order('id').range(from, to)),
     allRows<CategoryRow>((from, to) => client.from('finance_categories')
       .select('id,parent_id,name,kind,is_active,household_id,icon,color,sort_order').or(`household_id.eq.${hid},household_id.is.null`)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, FileText, ChevronRight } from 'lucide-react'
+import { X, FileText, ChevronRight, HandCoins } from 'lucide-react'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import './TransactionDetails.css'
 import TransactionEditor from './TransactionEditor'
@@ -51,6 +51,7 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
     {data?.source!=='live'&&<p className="transactionDetailsEmpty">Conectează live pentru editare.</p>}
     <strong className="transactionDetailsAmount">{tx.transaction_type === 'expense' ? '−' : tx.transaction_type === 'income' ? '+' : ''}{money(tx.amount)}</strong>
     {(tx.imported_from||tx.enable_banking_transaction_id)&&<p className="transactionImportedDetail">Importată din {tx.imported_from||'Revolut'}</p>}
+    {tx.loan_id&&<p className="transactionLoanDetail"><HandCoins size={17}/>{tx.loan_kind==='repayment'?'Rambursare legată de împrumut':'Tranzacția inițială a împrumutului'}</p>}
     <p className="transactionDetailsEmpty">{tx.affects_balance===false||tx.affects_balance==='false'?'Nu afectează soldul actual':'Afectează soldul actual'}</p><dl><div><dt>Tip</dt><dd>{type}</dd></div><div><dt>Data</dt><dd>{date}</dd></div>{account && <div><dt>{tx.transaction_type==='transfer'?'Din contul':'Cont'}</dt><dd>{account.name}</dd></div>}{tx.transaction_type==='transfer' && <div><dt>În contul</dt><dd>{tx.destination_account?.name ?? data?.accounts.find(item=>item.id===tx.transfer_account_id)?.name ?? 'Cont destinație indisponibil'}</dd></div>}{tx.merchant && <div><dt>Comerciant</dt><dd>{tx.merchant}</dd></div>}{tx.description && <div><dt>Descriere</dt><dd>{tx.description}</dd></div>}</dl>
     {splits.length > 0 && <section><h3>Categorii</h3>{splits.map(split => { const category = data?.categories.find(item => item.id === split.category_id); const parent = data?.categories.find(item => item.id === category?.parent_id); return <div className="transactionDetailsCategory" key={split.id}><span>{parent ? `${parent.name} → ` : ''}{category?.name ?? 'Fără categorie'}</span><strong>{money(split.amount)}</strong></div> })}</section>}
     <section><h3>Document asociat</h3>{tx.attachment_document_id ? document ? <button type="button" className="transactionDocumentLink" onClick={() => { onClose(); onOpenDocument(document.id) }}><FileText size={22}/><span><strong>{document.source_filename || document.document_type}</strong><small>{document.storage_path ? 'Vezi documentul și metadata' : 'Metadata salvată · fișier încă neatașat'}</small></span><ChevronRight size={18}/></button> : <p className="transactionDetailsEmpty">Documentul asociat nu este disponibil pentru acest cont.</p> : <p className="transactionDetailsEmpty">Nu există un document asociat acestei tranzacții.</p>}</section>
