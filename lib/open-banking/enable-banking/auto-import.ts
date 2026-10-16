@@ -6,6 +6,7 @@ import {merchantKey,predictedCategory,type CategoryCandidate} from './categoriza
 type BankTransaction={id:string;external_transaction_id:string;status:string|null;made_on:string;amount:number|string;currency:string;description:string|null;merchant_name:string|null;merchant_category_code:string|null;first_seen_at:string}
 type Rule={merchant_key:string;transaction_type:string;category_id:string}
 type TransferRule={id:string;source_bank_account_id:string;counterpart_bank_account_id:string|null;source_finance_account_id:string;destination_finance_account_id:string;source_match_text:string;counterpart_match_text:string|null;date_tolerance_days:number}
+type ExistingImport={id:string;import_metadata:Record<string,unknown>|null;transaction_type:string;account_id:string;transfer_account_id:string|null}
 
 function normalized(value:unknown){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('ro-RO').replace(/\s+/g,' ').trim()}
 function transactionText(transaction:Pick<BankTransaction,'merchant_name'|'description'>){return normalized(`${transaction.merchant_name??''} ${transaction.description??''}`)}
@@ -43,8 +44,8 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
 
   const candidateIds=candidates.map(transaction=>transaction.id)
   const [{data:existing,error:existingError},{data:transferImports,error:transferImportsError},{data:person,error:personError},{data:categories,error:categoryError},{data:rules,error:ruleError},{data:transferRules,error:transferRulesError}]=await Promise.all([
-    admin.from('finance_transactions').select('id,import_metadata').in('id',candidateIds).eq('status','posted'),
-    admin.from('finance_transactions').select('id,import_metadata').eq('household_id',bankAccount.household_id).eq('transaction_type','transfer').eq('status','posted'),
+    admin.from('finance_transactions').select('id,import_metadata,transaction_type,account_id,transfer_account_id').in('id',candidateIds).eq('status','posted'),
+    admin.from('finance_transactions').select('id,import_metadata,transaction_type,account_id,transfer_account_id').eq('household_id',bankAccount.household_id).eq('transaction_type','transfer').eq('status','posted'),
     admin.from('people').select('id').eq('auth_user_id',bankAccount.user_id).maybeSingle(),
     admin.from('finance_categories').select('id,name,parent_id,kind,is_active').or(`household_id.eq.${bankAccount.household_id},household_id.is.null`),
     admin.from('finance_merchant_category_rules').select('merchant_key,transaction_type,category_id').eq('household_id',bankAccount.household_id),
@@ -57,11 +58,12 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   if(ruleError)throw new Error(ruleError.message)
   if(transferRulesError)throw new Error(transferRulesError.message)
   if(!person)throw new Error('Profilul MyLife nu este asociat utilizatorului conexiunii bancare.')
-  const existingById=new Map<string,{id:string;metadata:Record<string,unknown>}>()
-  for(const row of [...(existing??[]),...(transferImports??[])]){
+  const existingById=new Map<string,{id:string;metadata:Record<string,unknown>;transaction_type:string;account_id:string;transfer_account_id:string|null}>()
+  for(const row of [...(existing??[]),...(transferImports??[])] as ExistingImport[]){
     const metadata=(row.import_metadata??{}) as Record<string,unknown>
-    existingById.set(row.id,{id:row.id,metadata})
-    for(const bankId of bankReferences(metadata))existingById.set(bankId,{id:row.id,metadata})
+    const value={id:row.id,metadata,transaction_type:row.transaction_type,account_id:row.account_id,transfer_account_id:row.transfer_account_id}
+    existingById.set(row.id,value)
+    for(const bankId of bankReferences(metadata))existingById.set(bankId,value)
   }
   const availableCategories=(categories??[]) as CategoryCandidate[]
   const activeCategoryIds=new Set(availableCategories.filter(category=>category.is_active).map(category=>category.id))
@@ -71,16 +73,32 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   let imported=0
 
   for(const transaction of candidates){
+    const signedAmount=Number(transaction.amount)
+    if(!Number.isFinite(signedAmount)||signedAmount===0)continue
+    const incomingRule=signedAmount>0?rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text))):undefined
     const existingImport=existingById.get(transaction.id)
     if(existingImport){
+      // Some banks expose a card top-up credit before (or without) the matching
+      // debit from the source bank. A remembered counterpart signature is enough
+      // to turn that credit into the canonical transfer immediately.
+      if(incomingRule&&existingImport.id===transaction.id&&existingImport.transaction_type!=='transfer'){
+        const bankIds=Array.from(new Set([...bankReferences(existingImport.metadata),transaction.id]))
+        const metadata={...existingImport.metadata,title:existingImport.metadata.title??transaction.merchant_name??transaction.description??'Transfer bancar',enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
+        const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',existingImport.id)
+        if(splitDeleteError)throw new Error(splitDeleteError.message)
+        const {error:updateError}=await admin.from('finance_transactions').update({account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',existingImport.id).eq('status','posted')
+        if(updateError)throw new Error(updateError.message)
+        const value={id:existingImport.id,metadata,transaction_type:'transfer',account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id}
+        for(const bankId of bankIds)existingById.set(bankId,value)
+        imported++
+        continue
+      }
       if(existingImport.metadata.enable_banking_status!==transaction.status&&existingImport.id===transaction.id){
         const {error:updateError}=await admin.from('finance_transactions').update({import_metadata:{...existingImport.metadata,enable_banking_status:transaction.status}}).eq('id',existingImport.id)
         if(updateError)throw new Error(updateError.message)
       }
       continue
     }
-    const signedAmount=Number(transaction.amount)
-    if(!Number.isFinite(signedAmount)||signedAmount===0)continue
     const transactionType=signedAmount<0?'expense':'income'
     const merchant=transaction.merchant_name?.trim()||null
     const title=merchant||transaction.description?.trim()||`Tranzacție ${provider}`
@@ -110,11 +128,11 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
       const row={id:transaction.id,household_id:bankAccount.household_id,account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:counterpart?.id??null,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:transferRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
       const {error:insertError}=await admin.from('finance_transactions').insert(row)
       if(insertError){if(insertError.code==='23505')continue;throw new Error(insertError.message)}
-      for(const bankId of bankIds)existingById.set(bankId,{id:transaction.id,metadata:row.import_metadata})
+      const value={id:transaction.id,metadata:row.import_metadata,transaction_type:'transfer',account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id}
+      for(const bankId of bankIds)existingById.set(bankId,value)
       imported++
       continue
     }
-    const incomingRule=signedAmount>0?rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text))):undefined
     if(incomingRule){
       const {data:sources,error:sourceError}=await admin.from('enable_banking_transactions')
         .select('id,external_transaction_id,status,made_on,amount,currency,description,merchant_name,merchant_category_code,first_seen_at')
@@ -124,18 +142,38 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
       const sourceNeedle=normalized(incomingRule.source_match_text)
       const source=((sources??[]) as BankTransaction[]).filter(candidate=>transactionText(candidate).includes(sourceNeedle)).sort((a,b)=>Math.abs(new Date(a.made_on).getTime()-new Date(transaction.made_on).getTime())-Math.abs(new Date(b.made_on).getTime()-new Date(transaction.made_on).getTime()))[0]
       if(source){
-        const sourceImport=existingById.get(source.id)
+        let sourceImport=existingById.get(source.id)
+        if(!sourceImport){
+          const {data:storedSource,error:storedSourceError}=await admin.from('finance_transactions').select('id,import_metadata,transaction_type,account_id,transfer_account_id').eq('id',source.id).eq('status','posted').maybeSingle()
+          if(storedSourceError)throw new Error(storedSourceError.message)
+          if(storedSource){
+            const stored=storedSource as ExistingImport
+            sourceImport={id:stored.id,metadata:stored.import_metadata??{},transaction_type:stored.transaction_type,account_id:stored.account_id,transfer_account_id:stored.transfer_account_id}
+          }
+        }
         if(sourceImport){
           const bankIds=Array.from(new Set([...bankReferences(sourceImport.metadata),transaction.id]))
-          const metadata={...sourceImport.metadata,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id}
-          const {error:updateError}=await admin.from('finance_transactions').update({import_metadata:metadata}).eq('id',sourceImport.id)
+          const metadata={...sourceImport.metadata,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
+          if(sourceImport.transaction_type!=='transfer'){
+            const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',sourceImport.id)
+            if(splitDeleteError)throw new Error(splitDeleteError.message)
+          }
+          const {error:updateError}=await admin.from('finance_transactions').update({account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',sourceImport.id)
           if(updateError)throw new Error(updateError.message)
-          for(const bankId of bankIds)existingById.set(bankId,{id:sourceImport.id,metadata})
+          const value={id:sourceImport.id,metadata,transaction_type:'transfer',account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id}
+          for(const bankId of bankIds)existingById.set(bankId,value)
         }
         // If the source side has not been imported yet, defer this credit. The
         // source account will create the canonical transfer once it is synced.
         continue
       }
+      const bankIds=[transaction.id]
+      const row={id:transaction.id,household_id:bankAccount.household_id,account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant:transaction.merchant_name?.trim()||null,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title:transaction.merchant_name?.trim()||transaction.description?.trim()||'Transfer bancar',affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:incomingRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
+      const {error:insertError}=await admin.from('finance_transactions').insert(row)
+      if(insertError){if(insertError.code==='23505')continue;throw new Error(insertError.message)}
+      existingById.set(transaction.id,{id:transaction.id,metadata:row.import_metadata,transaction_type:'transfer',account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id})
+      imported++
+      continue
     }
     const key=merchantKey(merchant||transaction.description)
     const learnedCategoryId=learned.get(`${transactionType}:${key}`)

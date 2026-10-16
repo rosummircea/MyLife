@@ -53,3 +53,23 @@ set transaction_type='transfer',
     ),
     updated_at=clock_timestamp()
 where id='ba357106-7ea5-471c-b47d-5fc117d7be24' and status='posted';
+
+-- George -> Revolut Mircea top-up received before Enable Banking exposed a
+-- matching George debit. The Revolut credit itself becomes the canonical
+-- transfer so both MyLife account balances remain correct.
+delete from public.finance_transaction_splits
+where transaction_id='8026287a-32e0-4e79-ad63-3b4a0d3ecb5d';
+
+update public.finance_transactions
+set account_id='760b7ac1-beed-4f12-8d24-c7b900e90f69',
+    transaction_type='transfer',
+    transfer_account_id='99089155-d148-4c6a-8ad9-8a6642737923',
+    import_metadata=coalesce(import_metadata,'{}'::jsonb)||jsonb_build_object(
+      'title','Transfer George → Revolut Mircea',
+      'enable_banking_transaction_ids',jsonb_build_array('8026287a-32e0-4e79-ad63-3b4a0d3ecb5d'),
+      'enable_banking_counterpart_transaction_id','8026287a-32e0-4e79-ad63-3b4a0d3ecb5d',
+      'transfer_rule_id',(select id from public.finance_bank_transfer_rules where source_bank_account_id='2d5a9c57-843d-4e70-b09f-16cca1ae32b9' and source_match_text='revolut**0376'),
+      'categorization_source','transfer_rule'
+    ),
+    updated_at=clock_timestamp()
+where id='8026287a-32e0-4e79-ad63-3b4a0d3ecb5d' and status='posted';
