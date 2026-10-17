@@ -172,6 +172,13 @@
 .reportMoneyNeutral{color:var(--text)!important}
 .expenseReportDeckTotals small b{font:inherit;font-weight:700}
 
+.reportKindToolbar{display:flex;justify-content:flex-start;margin-bottom:14px}
+.reportKindToolbar .reportTypeSwitch{flex:0 0 auto}
+@media(max-width:560px){
+  .reportKindToolbar .reportTypeSwitch{width:100%}
+  .reportKindToolbar .reportTypeSwitch button{flex:1}
+}
+
 
 /* Make expanded subcategories read as a child layer of the parent category. */
 .expenseCategory > [id^="expense-details-"] > .expenseDetails{

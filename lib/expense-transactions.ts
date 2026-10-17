@@ -1,8 +1,8 @@
 import type { CategoryRow, SplitRow, Transaction } from './mylife-data'
-import { buildExpenseReport, bucharestDay, type DateRange, type ExpenseTrendTarget } from './expense-report'
+import { buildExpenseReport, bucharestDay, type DateRange, type ExpenseTrendTarget, type ReportKind } from './expense-report'
 
 // Reuse report allocation rules, including descendant categories and uncategorized remainders.
-export function expenseContributionTransactions(transactions: Transaction[], categories: CategoryRow[], splits: SplitRow[], range: DateRange, target?: ExpenseTrendTarget) {
+export function expenseContributionTransactions(transactions: Transaction[], categories: CategoryRow[], splits: SplitRow[], range: DateRange, target?: ExpenseTrendTarget, kind: ReportKind = 'expense') {
   const groups = new Map<string, SplitRow[]>()
   for (const split of splits) {
     const rows = groups.get(split.transaction_id) ?? []
@@ -10,10 +10,10 @@ export function expenseContributionTransactions(transactions: Transaction[], cat
     groups.set(split.transaction_id, rows)
   }
   return transactions.flatMap(transaction => {
-    if (transaction.transaction_type !== 'expense' || transaction.currency.trim() !== 'RON') return []
+    if (transaction.transaction_type !== kind || transaction.currency.trim() !== 'RON') return []
     const day = bucharestDay(new Date(transaction.transaction_date))
     if (day < range.from || day > range.to) return []
-    const report = buildExpenseReport([transaction], categories, groups.get(transaction.id) ?? [], range)
+    const report = buildExpenseReport([transaction], categories, groups.get(transaction.id) ?? [], range, kind)
     const category = target ? report.categories.find(item => item.id === target.categoryId) : undefined
     const amount = !target ? report.total : target.subcategoryId ? category?.subcategories.find(item => item.id === target.subcategoryId)?.amount ?? 0 : category?.amount ?? 0
     return amount > 0 ? [{ transaction, amount }] : []
