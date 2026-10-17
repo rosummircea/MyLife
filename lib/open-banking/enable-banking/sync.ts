@@ -74,8 +74,8 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
         transactionsForAccount(externalAccountId),
       ])
       const iban=details.account_id?.iban||details.all_account_ids?.find(item=>item.scheme_name==='IBAN')?.identification
-      const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR'])
-      const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV'])
+      const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR','XPCD'])
+      const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV','XPCD'])
       const mockBalance=session.aspsp.name==='Mock ASPSP'&&transactions.length?transactions.reduce((sum,transaction)=>{const amount=finite(transaction.transaction_amount?.amount)??0;return sum+(transaction.credit_debit_indicator==='DBIT'?-Math.abs(amount):Math.abs(amount))},0):null
       const booked=bookedFromBank??mockBalance
       const available=availableFromBank??booked
