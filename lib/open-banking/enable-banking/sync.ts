@@ -55,7 +55,7 @@ async function transactionsForAccount(accountId:string){
 }
 
 export async function syncEnableBankingSession(admin:SupabaseClient,externalSessionId:string){
-  const {data:storedSession,error:lookupError}=await admin.from('enable_banking_sessions').select('id,user_id,household_id').eq('external_session_id',externalSessionId).maybeSingle()
+  const {data:storedSession,error:lookupError}=await admin.from('enable_banking_sessions').select('id,authorization_id,user_id,household_id').eq('external_session_id',externalSessionId).maybeSingle()
   if(lookupError)throw new Error(lookupError.message)
   if(!storedSession)throw new Error('Sesiunea Enable Banking nu este asociată unui profil MyLife.')
 
@@ -98,6 +98,10 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
     const completedAt=new Date().toISOString()
     const {error:completeError}=await admin.from('enable_banking_sessions').update({last_error_message:null,last_synced_at:completedAt,updated_at:completedAt}).eq('id',storedSession.id)
     if(completeError)throw new Error(completeError.message)
+    if(storedSession.authorization_id){
+      const {error:authorizationError}=await admin.from('enable_banking_authorizations').update({status:'completed',error_message:null,completed_at:completedAt,updated_at:completedAt}).eq('id',storedSession.authorization_id)
+      if(authorizationError)throw new Error(authorizationError.message)
+    }
     return {accounts:accountIds.length,transactions:transactionCount,status:session.status}
   }catch(error){
     const failedAt=new Date().toISOString()
