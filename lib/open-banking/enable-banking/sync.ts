@@ -2,7 +2,7 @@ import 'server-only'
 
 import {createHash} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {enableBankingRequest} from './api'
+import {EnableBankingApiError,enableBankingRequest} from './api'
 import {autoImportNewBankTransactions} from './auto-import'
 
 type Money={currency:string;amount:string}
@@ -38,7 +38,17 @@ async function transactionPages(accountId:string,baseQuery:URLSearchParams){
 
 async function transactionsForAccount(accountId:string){
   const end=new Date(),start=new Date(Date.UTC(end.getUTCFullYear()-1,end.getUTCMonth(),end.getUTCDate()))
-  const recent=await transactionPages(accountId,new URLSearchParams({date_from:start.toISOString().slice(0,10),date_to:end.toISOString().slice(0,10)}))
+  let recent:BankTransaction[]
+  try{
+    recent=await transactionPages(accountId,new URLSearchParams({date_from:start.toISOString().slice(0,10),date_to:end.toISOString().slice(0,10)}))
+  }catch(error){
+    const match=error instanceof EnableBankingApiError?error.message.match(/maximum days in the past allowed for transaction list is\s+(\d+)/i):null
+    if(!match)throw error
+    const maximumDays=Math.max(1,Number(match[1]))
+    const limitedStart=new Date(end)
+    limitedStart.setUTCDate(limitedStart.getUTCDate()-(maximumDays-1))
+    recent=await transactionPages(accountId,new URLSearchParams({date_from:limitedStart.toISOString().slice(0,10),date_to:end.toISOString().slice(0,10)}))
+  }
   // Some sandbox implementations expose uploaded transactions only when no date
   // filter is sent. Keep the normal one-year request, then fall back for mocks.
   return recent.length?recent:transactionPages(accountId,new URLSearchParams())
@@ -51,38 +61,47 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
 
   const session=await enableBankingRequest<Session>(`/sessions/${encodeURIComponent(externalSessionId)}`)
   const now=new Date().toISOString()
-  const {error:sessionError}=await admin.from('enable_banking_sessions').update({provider_name:session.aspsp.name,country_code:session.aspsp.country,status:session.status,consent_valid_until:session.access?.valid_until??null,last_error_message:null,last_synced_at:now,raw:session,updated_at:now}).eq('id',storedSession.id)
+  const {error:sessionError}=await admin.from('enable_banking_sessions').update({provider_name:session.aspsp.name,country_code:session.aspsp.country,status:session.status,consent_valid_until:session.access?.valid_until??null,raw:session,updated_at:now}).eq('id',storedSession.id)
   if(sessionError)throw new Error(sessionError.message)
 
-  let transactionCount=0
-  const accountIds=session.accounts?.length?session.accounts:(session.accounts_data??[]).map(account=>account.uid)
-  for(const externalAccountId of accountIds){
-    const [details,balances,transactions]=await Promise.all([
-      enableBankingRequest<Account>(`/accounts/${encodeURIComponent(externalAccountId)}/details`),
-      enableBankingRequest<{balances:Balance[]}>(`/accounts/${encodeURIComponent(externalAccountId)}/balances`),
-      transactionsForAccount(externalAccountId),
-    ])
-    const iban=details.account_id?.iban||details.all_account_ids?.find(item=>item.scheme_name==='IBAN')?.identification
-    const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR'])
-    const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV'])
-    const mockBalance=session.aspsp.name==='Mock ASPSP'&&transactions.length?transactions.reduce((sum,transaction)=>{const amount=finite(transaction.transaction_amount?.amount)??0;return sum+(transaction.credit_debit_indicator==='DBIT'?-Math.abs(amount):Math.abs(amount))},0):null
-    const booked=bookedFromBank??mockBalance
-    const available=availableFromBank??booked
-    const currency=details.currency||balances.balances?.[0]?.balance_amount.currency||'RON'
-    const {data:storedAccount,error:accountError}=await admin.from('enable_banking_accounts').upsert({session_id:storedSession.id,user_id:storedSession.user_id,household_id:storedSession.household_id,external_account_id:externalAccountId,name:details.name||details.details||'Cont bancar',nature:details.cash_account_type??null,currency,balance:booked??available,available_amount:available??booked,iban_last4:iban?.slice(-4)??null,status:details.psu_status??null,raw:{details,balances:balances.balances??[]},updated_at:now},{onConflict:'external_account_id'}).select('id').single()
-    if(accountError)throw new Error(accountError.message)
+  try{
+    let transactionCount=0
+    const accountIds=session.accounts?.length?session.accounts:(session.accounts_data??[]).map(account=>account.uid)
+    for(const externalAccountId of accountIds){
+      const [details,balances,transactions]=await Promise.all([
+        enableBankingRequest<Account>(`/accounts/${encodeURIComponent(externalAccountId)}/details`),
+        enableBankingRequest<{balances:Balance[]}>(`/accounts/${encodeURIComponent(externalAccountId)}/balances`),
+        transactionsForAccount(externalAccountId),
+      ])
+      const iban=details.account_id?.iban||details.all_account_ids?.find(item=>item.scheme_name==='IBAN')?.identification
+      const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR'])
+      const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV'])
+      const mockBalance=session.aspsp.name==='Mock ASPSP'&&transactions.length?transactions.reduce((sum,transaction)=>{const amount=finite(transaction.transaction_amount?.amount)??0;return sum+(transaction.credit_debit_indicator==='DBIT'?-Math.abs(amount):Math.abs(amount))},0):null
+      const booked=bookedFromBank??mockBalance
+      const available=availableFromBank??booked
+      const currency=details.currency||balances.balances?.[0]?.balance_amount.currency||'RON'
+      const {data:storedAccount,error:accountError}=await admin.from('enable_banking_accounts').upsert({session_id:storedSession.id,user_id:storedSession.user_id,household_id:storedSession.household_id,external_account_id:externalAccountId,name:details.name||details.details||'Cont bancar',nature:details.cash_account_type??null,currency,balance:booked??available,available_amount:available??booked,iban_last4:iban?.slice(-4)??null,status:details.psu_status??null,raw:{details,balances:balances.balances??[]},updated_at:now},{onConflict:'external_account_id'}).select('id').single()
+      if(accountError)throw new Error(accountError.message)
 
-    for(let offset=0;offset<transactions.length;offset+=250){
-      const batch=transactions.slice(offset,offset+250).flatMap(transaction=>{
-        const rawAmount=finite(transaction.transaction_amount?.amount)
-        if(rawAmount===null)return []
-        const signedAmount=transaction.credit_debit_indicator==='DBIT'?-Math.abs(rawAmount):Math.abs(rawAmount)
-        return [{session_id:storedSession.id,account_id:storedAccount.id,user_id:storedSession.user_id,household_id:storedSession.household_id,external_transaction_id:transactionId(externalAccountId,transaction),status:transaction.status||'BOOK',made_on:dateOf(transaction),amount:signedAmount,currency:transaction.transaction_amount.currency||currency,description:descriptionOf(transaction),merchant_name:transaction.credit_debit_indicator==='DBIT'?transaction.creditor?.name??null:transaction.debtor?.name??null,merchant_category_code:transaction.merchant_category_code??null,raw:transaction,updated_at:now}]
-      })
-      if(batch.length){const {error}=await admin.from('enable_banking_transactions').upsert(batch,{onConflict:'account_id,external_transaction_id'});if(error)throw new Error(error.message)}
+      for(let offset=0;offset<transactions.length;offset+=250){
+        const batch=transactions.slice(offset,offset+250).flatMap(transaction=>{
+          const rawAmount=finite(transaction.transaction_amount?.amount)
+          if(rawAmount===null)return []
+          const signedAmount=transaction.credit_debit_indicator==='DBIT'?-Math.abs(rawAmount):Math.abs(rawAmount)
+          return [{session_id:storedSession.id,account_id:storedAccount.id,user_id:storedSession.user_id,household_id:storedSession.household_id,external_transaction_id:transactionId(externalAccountId,transaction),status:transaction.status||'BOOK',made_on:dateOf(transaction),amount:signedAmount,currency:transaction.transaction_amount.currency||currency,description:descriptionOf(transaction),merchant_name:transaction.credit_debit_indicator==='DBIT'?transaction.creditor?.name??null:transaction.debtor?.name??null,merchant_category_code:transaction.merchant_category_code??null,raw:transaction,updated_at:now}]
+        })
+        if(batch.length){const {error}=await admin.from('enable_banking_transactions').upsert(batch,{onConflict:'account_id,external_transaction_id'});if(error)throw new Error(error.message)}
+      }
+      await autoImportNewBankTransactions(admin,storedAccount.id)
+      transactionCount+=transactions.length
     }
-    await autoImportNewBankTransactions(admin,storedAccount.id)
-    transactionCount+=transactions.length
+    const completedAt=new Date().toISOString()
+    const {error:completeError}=await admin.from('enable_banking_sessions').update({last_error_message:null,last_synced_at:completedAt,updated_at:completedAt}).eq('id',storedSession.id)
+    if(completeError)throw new Error(completeError.message)
+    return {accounts:accountIds.length,transactions:transactionCount,status:session.status}
+  }catch(error){
+    const failedAt=new Date().toISOString()
+    await admin.from('enable_banking_sessions').update({last_error_message:error instanceof Error?error.message:'Sincronizarea nu a reușit.',updated_at:failedAt}).eq('id',storedSession.id)
+    throw error
   }
-  return {accounts:accountIds.length,transactions:transactionCount,status:session.status}
 }
