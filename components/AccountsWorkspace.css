@@ -10,6 +10,7 @@
 .accountsOwnerHeader>span { margin-left:auto; color:var(--muted); font-size:11px; }
 .accountsOwnerGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .accountsBalanceCard { min-width:0; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.03); padding:14px; }
+.accountsBalanceCardMatched { border-color:rgba(107,221,173,.7); background:linear-gradient(145deg,rgba(107,221,173,.1),rgba(255,255,255,.025) 58%); box-shadow:inset 0 0 0 1px rgba(107,221,173,.08); }
 .accountsBalanceCard header { display:flex; align-items:center; gap:9px; }
 .accountsBalanceCard header>div:last-child { min-width:0; }
 .accountsBankIcon { width:32px; height:32px; flex-shrink:0; display:grid; place-items:center; background:#fff; color:#23334d; border-radius:9px; }
@@ -19,6 +20,7 @@
 .accountsAmountArea { margin:12px 0 0; }
 .accountsAmountArea>span { display:block; font-size:10px; color:var(--muted); margin-bottom:4px; }
 .accountsAmount { display:block; font-size:22px; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.accountsBalanceMatchTag { display:inline-flex!important; align-items:center; gap:4px; width:max-content; margin-top:9px; padding:3px 7px; border:1px solid rgba(107,221,173,.35); border-radius:999px; background:rgba(107,221,173,.11); color:#6bddad!important; font-size:9px!important; font-weight:700; line-height:1.2; }
 .accountsAmount-green { color:#6bddad; }.accountsAmount-orange { color:#ffbd6c; }.accountsAmount-red { color:#ff7e91; }.accountsAmount-neutral { color:var(--text); }
 .accountsBalanceSource { color:var(--muted); font-size:10px; line-height:1.5; margin:12px 0 0; }
 .accountsCreditDetails { border-top:1px solid var(--line); padding-top:5px; margin-top:8px; }
@@ -26,6 +28,7 @@
 .accountsCreditDetails p>span,.accountsCreditDetails small { color:var(--muted); }
 @media(max-width:1100px) { .accountsOwnersLayout { grid-template-columns:minmax(0,1fr); gap:14px; }.accountsOwnerGrid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media(max-width:720px) { .accountsOwnerGrid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.accountsBalanceCard { padding:8px; }.accountsOwnerHeader { padding:6px 0; margin-bottom:8px; }.accountsPortrait { width:32px; height:32px; }.accountsOwnerHeader h3 { font-size:18px; }.accountsBalanceCard header { gap:6px; }.accountsBalanceCard header span { display:none; }.accountsBankIcon { width:26px; height:26px; border-radius:7px; }.accountsBankIcon img { width:20px; height:20px; }.accountsAmount { font-size:19px; }.accountsAmountArea { margin-top:7px; }.accountsAmountArea>span { font-size:9px; }.accountsOwnersLayout { gap:8px; } }
+@media(max-width:720px) { .accountsBalanceMatchTag { margin-top:6px; padding:3px 6px; font-size:8px!important; }.accountsBalanceMatchTag svg { width:10px; height:10px; } }
 .accountsWorkspace>.sectionTitle h2 { margin:0; }
 @media(max-width:720px) {
   .modulePage:has(>.accountsWorkspace)>.topbar { margin-bottom:10px; }
