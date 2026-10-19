@@ -105,7 +105,11 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
     return {accounts:accountIds.length,transactions:transactionCount,status:session.status}
   }catch(error){
     const failedAt=new Date().toISOString()
-    await admin.from('enable_banking_sessions').update({last_error_message:error instanceof Error?error.message:'Sincronizarea nu a reușit.',updated_at:failedAt}).eq('id',storedSession.id)
-    throw error
+    const rawMessage=error instanceof Error?error.message:'Sincronizarea nu a reușit.'
+    const message=/too many requests|ratelimitexception|aspsp_rate_limit_exceeded/i.test(rawMessage)
+      ?'Banca a atins limita de actualizări. Datele existente au fost păstrate; sincronizarea va fi reluată automat după 6 ore.'
+      :rawMessage
+    await admin.from('enable_banking_sessions').update({last_error_message:message,updated_at:failedAt}).eq('id',storedSession.id)
+    throw new Error(message)
   }
 }
