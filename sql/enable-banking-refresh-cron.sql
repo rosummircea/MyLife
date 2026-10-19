@@ -1,11 +1,16 @@
 -- Requires a Vault secret named mylife_cron_secret with the same value as
--- Vercel's CRON_SECRET. The longer timeout covers all linked bank sessions.
+-- Vercel's CRON_SECRET. Each run refreshes only the oldest due connection,
+-- which staggers providers and prevents one slow bank from blocking the rest.
 select cron.unschedule('refresh-enable-banking-every-4-hours')
 where exists(select 1 from cron.job where jobname='refresh-enable-banking-every-4-hours');
+select cron.unschedule('refresh-enable-banking-every-6-hours')
+where exists(select 1 from cron.job where jobname='refresh-enable-banking-every-6-hours');
+select cron.unschedule('refresh-enable-banking-staggered')
+where exists(select 1 from cron.job where jobname='refresh-enable-banking-staggered');
 
 select cron.schedule(
-  'refresh-enable-banking-every-6-hours',
-  '0 */6 * * *',
+  'refresh-enable-banking-staggered',
+  '*/15 * * * *',
   $$
     select net.http_post(
       url := 'https://my-life-sable.vercel.app/api/cron/enable-banking-refresh',
@@ -18,7 +23,7 @@ select cron.schedule(
         )
       ),
       body := '{}'::jsonb,
-      timeout_milliseconds := 60000
+      timeout_milliseconds := 175000
     );
   $$
 );

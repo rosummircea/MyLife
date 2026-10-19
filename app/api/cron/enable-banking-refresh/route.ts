@@ -5,7 +5,7 @@ import {adminClient} from '@/lib/open-banking/server'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
-export const maxDuration=60
+export const maxDuration=180
 
 function authorized(request:Request){
   const secret=process.env.CRON_SECRET
@@ -19,7 +19,9 @@ function authorized(request:Request){
 export async function POST(request:Request){
   if(!authorized(request))return NextResponse.json({error:'Neautorizat.'},{status:401})
   try{
-    const results=await refreshEnableBankingSessions(adminClient(),{continueOnError:true})
+    // One bank connection per invocation keeps slow providers isolated. The
+    // 15-minute cron naturally staggers every connection across the day.
+    const results=await refreshEnableBankingSessions(adminClient(),{continueOnError:true,maxSessions:1})
     const failed=results.filter(result=>!result.ok).length
     return NextResponse.json({ok:failed===0,synced:results.length-failed,failed})
   }catch(error){
