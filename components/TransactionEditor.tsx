@@ -250,6 +250,7 @@ export default function TransactionEditor({
 
   const destinationAccounts = data.accounts.filter(account => account.id !== form.account_id && account.currency.trim() === form.currency)
   const amountTone = form.transaction_type === 'expense' ? 'expense' : form.transaction_type === 'transfer' ? 'transfer' : 'income'
+  const imported = Boolean(tx.enable_banking_transaction_id || tx.imported_from)
 
   return <form className="transactionEditForm transactionCreateRedesign" onSubmit={event => {event.preventDefault();void save()}}>
     <fieldset disabled={saving}>
@@ -280,8 +281,9 @@ export default function TransactionEditor({
         <input className={'transactionAmountInput ' + amountTone} required type="text" inputMode="decimal" autoComplete="off" value={amountInput} onChange={event => changeAmountInput(event.target.value)} onBlur={() => { if(Number.isFinite(form.amount))setAmountInput(moneyInputDisplay(form.amount)) }}/>
       </label>
 
-      <label className="transactionTitleField">Denumire / Titlu
+      <label className="transactionTitleField">{imported ? 'Nume în MyLife' : 'Denumire / Titlu'}
         <input maxLength={1000} value={form.title ?? ''} onChange={event => patch({title:event.target.value})} placeholder={form.transaction_type === 'income' ? 'Ex. Salariu' : 'Ex. Cumpărături, prânz…'}/>
+        {imported ? <small className="transactionFieldHelp">Poți înlocui sau completa numele afișat. Datele primite de la bancă rămân păstrate separat.</small> : null}
       </label>
 
       <div className="transactionAccountField">
@@ -311,9 +313,9 @@ export default function TransactionEditor({
 
       <div className="transactionMetaRow">
         <label className="transactionDateField">Data<input required type="date" value={form.day} onChange={event => patch({day:event.target.value})}/></label>
-        <label className="transactionMerchantField">Comerciant<input maxLength={1000} value={form.merchant} onChange={event => patch({merchant:event.target.value})}/></label>
+        <label className="transactionMerchantField">{imported ? 'Comerciant · date bancă' : 'Comerciant'}<input maxLength={1000} readOnly={imported} value={form.merchant} onChange={event => patch({merchant:event.target.value})}/></label>
       </div>
-      <label className="transactionDescriptionField">Descriere<textarea maxLength={4000} value={form.description} onChange={event => patch({description:event.target.value})}/></label>
+      <label className="transactionDescriptionField">{imported ? 'Descriere originală · date bancă' : 'Descriere'}<textarea maxLength={4000} readOnly={imported} value={form.description} onChange={event => patch({description:event.target.value})}/>{imported ? <small className="transactionFieldHelp">Aceste câmpuri rămân nemodificate, ca să poți verifica oricând informația originală importată.</small> : null}</label>
 
       {form.transaction_type === 'expense' || form.transaction_type === 'income' ? <section className="transactionCategoriesSection">
         <div className="transactionCategoriesHeader">

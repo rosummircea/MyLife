@@ -5,7 +5,7 @@ declare result jsonb;
 begin
  if length(coalesce(p_title,''))>1000 then raise exception 'Titlul este prea lung.'; end if;
  result:=public.finance_edit_transaction(p_id,p_expected_updated_at,p_type,p_account_id,p_transfer_account_id,p_amount,p_currency,p_day,p_merchant,p_description,p_splits);
- update public.finance_transactions set import_metadata=case when nullif(btrim(p_title),'') is null then import_metadata-'title' else import_metadata||jsonb_build_object('title',btrim(p_title)) end where id=p_id;
+ update public.finance_transactions set import_metadata=case when nullif(btrim(p_title),'') is null then coalesce(import_metadata,'{}'::jsonb)-'title' else coalesce(import_metadata,'{}'::jsonb)||jsonb_build_object('title',btrim(p_title)) end where id=p_id;
  if not found then raise exception 'Titlul nu a putut fi salvat.'; end if;
  return result;
 end $$;

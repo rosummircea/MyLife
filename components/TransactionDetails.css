@@ -88,6 +88,8 @@
 .transactionEditForm .transactionAmountInput.income { color:#6bddad!important; }
 .transactionEditForm .transactionAmountInput.transfer { color:#76a8ff!important; }
 .transactionDescriptionField { grid-column:1 / -1; }
+.transactionEditForm .transactionFieldHelp { color:var(--muted); font-size:10px; line-height:1.5; font-weight:400; }
+.transactionEditForm :is(input,textarea)[readonly] { color:#aebdd0; background:rgba(255,255,255,.025)!important; border-style:dashed; cursor:default; }
 
 .transactionPickerLabel {
   display:block;
