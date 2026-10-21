@@ -89,7 +89,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       const unseen = tx.unseen === true || tx.unseen === 'true'
-      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={() => { if(!reorderMode)onSelect(tx) }}>
+      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={event => { if(!reorderMode){ onSelect(tx); if(event.detail>0)event.currentTarget.blur() } }}>
         {route ? <span className="transactionTransferAccounts">
           <AccountIdentity account={account} direction="Din contul"/>
           <ArrowRight className="transactionTransferArrow" size={18} aria-hidden="true"/>
