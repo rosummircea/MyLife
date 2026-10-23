@@ -218,3 +218,8 @@
     padding:4px 6px 2px;
   }
 }
+
+
+.expenseSubcategoryMeta{display:grid;min-width:0;gap:2px}
+.expenseSubcategoryMeta small{display:block;color:var(--muted);font-size:9px;line-height:1.25;font-weight:500}
+.expenseName>span{font-size:10px!important}
