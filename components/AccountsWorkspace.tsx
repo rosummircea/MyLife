@@ -74,8 +74,11 @@ export default function AccountsWorkspace({accounts,loading,onSelectAccount,data
     if(!financeAccount||bankAmount===null)return[]
     const {balance,available}=accountAmounts(financeAccount)
     const financeAmount=available??balance
+    const creditCard=financeAccount.account_type==='credit_card'
+    const comparableBankAmount=creditCard?Math.abs(bankAmount):bankAmount
+    const comparableFinanceAmount=creditCard?Math.abs(financeAmount):financeAmount
     const sameCurrency=bankAccount.currency.trim().toUpperCase()===financeAccount.currency.trim().toUpperCase()
-    return sameCurrency&&Math.round(bankAmount*100)===Math.round(financeAmount*100)?[financeAccount.id]:[]
+    return sameCurrency&&Math.round(comparableBankAmount*100)===Math.round(comparableFinanceAmount*100)?[financeAccount.id]:[]
   }))
   const panels = <>    {error&&<p role="alert" className="transactionEditError">{error}</p>}
     <ConfirmDialog open={Boolean(confirm)} danger={confirm?.action==='delete'} busy={busy} title={`${confirm?.action==='delete'?'Ștergi':confirm?.action==='archive'?'Arhivezi':'Reactivezi'} „${confirm?.account.name??''}”?`} description={confirm?.action==='delete'?'Ștergerea este definitivă. Contul poate fi șters doar dacă nu are istoric financiar.':'Arhivarea păstrează tranzacțiile. Contul poate fi reactivat ulterior.'} confirmLabel={busy?'Se procesează…':confirm?.action==='delete'?'Confirmă ștergerea':'Confirmă'} onCancel={()=>setConfirm(null)} onConfirm={()=>{if(confirm)void manage(confirm.action,confirm.account)}}>{error&&<p role="alert">{error}</p>}</ConfirmDialog>
