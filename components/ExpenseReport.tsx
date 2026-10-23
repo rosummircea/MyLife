@@ -16,6 +16,9 @@ function money(value: number) {
 function reportAmountClass(value:number, kind:ReportKind) {
   return value === 0 ? 'reportMoneyNeutral' : kind === 'income' ? 'reportMoneyIncome' : 'reportMoneyExpense'
 }
+function transactionCountLabel(count:number){
+  return `${count} ${count===1?'tranzacție':'tranzacții'}`
+}
 
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [showAllTransactions,setShowAllTransactions]=useState(false)
@@ -37,6 +40,10 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   }, [data, range.from, range.to, kind])
   const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range,undefined,kind):[],[showAllTransactions,data,range.from,range.to,report.error,kind])
   const { categories, total } = report
+  const categoryTransactionCounts=useMemo(()=>new Map(categories.map(item=>[
+    item.id,
+    data ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:item.id},kind).length : 0,
+  ])),[categories,data,range.from,range.to,kind])
   const gradient = distributionGradient(categories)
   const fromDate = new Date(`${range.from}T12:00:00Z`)
   const label = period === 'Lună' ? fromDate.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : period === 'An' ? range.from.slice(0, 4) : `${range.from} – ${range.to}`
@@ -103,7 +110,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
             <div className="expenseCategory" key={item.id}>
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
                 <CategoryIcon category={item}/>
-                <div className="expenseName"><strong>{item.name}</strong><span>{percent(item.percent)} din total</span></div>
+                <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span></div>
                 <div className="expenseValue"><strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
@@ -127,7 +134,7 @@ function SubcategoryDetails({ category, data, range, period, kind, onSelectTrans
   const carouselRef = useRef<HTMLDivElement>(null)
   const distribution = subcategoryDistribution(category)
   const gradient = distributionGradient(distribution)
-  const subcategoryContributions = useMemo(() => new Map(distribution.filter(item => expandedSubcategories.has(item.id)).map(item => [item.id, expenseContributionTransactions(data.transactions, data.categories, data.splits, range, { categoryId: category.id, subcategoryId: item.id }, kind)])), [data, range.from, range.to, category, expandedSubcategories, kind])
+  const subcategoryContributions = useMemo(() => new Map(distribution.map(item => [item.id, expenseContributionTransactions(data.transactions, data.categories, data.splits, range, { categoryId: category.id, subcategoryId: item.id }, kind)])), [data, range.from, range.to, category, kind])
   const categoryContributions = useMemo(() => expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:category.id},kind).filter(row=>!selectedBucket||contributionBucketKey(row.transaction,selectedBucket.unit)===selectedBucket.key),[data,range.from,range.to,category.id,selectedBucket,kind])
   const categoryContributionTotal=categoryContributions.reduce((sum,row)=>sum+Math.round(row.amount*100),0)/100
   const [fromYear, fromMonth] = range.from.split('-').map(Number)
@@ -160,7 +167,7 @@ function SubcategoryDetails({ category, data, range, period, kind, onSelectTrans
             <li key={item.id} className="expenseSubcategory">
               <button type="button" id={`expense-subcategory-${item.id}`} className="expenseSubcategoryButton" aria-expanded={expanded} aria-controls={`expense-transactions-${item.id}`} onClick={() => toggleSubcategory(item.id)}>
                 <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
-                <span className="expenseSubcategoryName">{item.name}</span>
+                <span className="expenseSubcategoryMeta"><span className="expenseSubcategoryName">{item.name}</span><small>{transactionCountLabel(rows.length)}</small></span>
                 <strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong>
                 <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                 <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
