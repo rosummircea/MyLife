@@ -2,7 +2,7 @@
 
 import CategoryIcon from './CategoryIcon'
 import { CalendarRange, ChevronLeft, ChevronRight, ChevronsUp } from 'lucide-react'
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
@@ -19,13 +19,25 @@ function reportAmountClass(value:number, kind:ReportKind) {
 function transactionCountLabel(count:number){
   return `${count} ${count===1?'tranzacție':'tranzacții'}`
 }
+function periodLabel(period:ReportPeriod,anchor:string,custom:DateRange){
+  const range=reportRange(period,anchor,custom)
+  const from=new Date(`${range.from}T12:00:00Z`),to=new Date(`${range.to}T12:00:00Z`)
+  if(period==='Lună')return from.toLocaleDateString('ro-RO',{month:'long',year:'numeric',timeZone:'UTC'})
+  if(period==='An')return range.from.slice(0,4)
+  if(period==='Zi')return from.toLocaleDateString('ro-RO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
+  if(period==='Săptămână')return `${from.toLocaleDateString('ro-RO',{day:'numeric',month:'short',timeZone:'UTC'})} – ${to.toLocaleDateString('ro-RO',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})}`
+  return `${range.from} – ${range.to}`
+}
 
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [showAllTransactions,setShowAllTransactions]=useState(false)
   const [kind,setKind]=useState<ReportKind>('expense')
   const allTransactionsRef=useRef<HTMLDivElement>(null)
   const heroCarouselRef=useRef<HTMLDivElement>(null)
-  const periodSwipeStart=useRef<number|null>(null)
+  const periodNavigatorRef=useRef<HTMLDivElement>(null)
+  const periodSwipeStart=useRef<{x:number;at:number}|null>(null)
+  const [periodDrag,setPeriodDrag]=useState({offset:0,dragging:false})
+  const [pendingPeriodDirection,setPendingPeriodDirection]=useState<-1|1|null>(null)
   const [heroView,setHeroView]=useState(0)
   const [overviewBucket,setOverviewBucket]=useState<{key:string;unit:string;label:string}|null>(null)
   const [period, setPeriod] = useState<ReportPeriod>('Lună')
@@ -49,36 +61,43 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     data ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:item.id},kind).length : 0,
   ])),[categories,data,range.from,range.to,kind])
   const gradient = distributionGradient(categories)
-  const fromDate = new Date(`${range.from}T12:00:00Z`)
-  const toDate = new Date(`${range.to}T12:00:00Z`)
-  const label = period === 'Lună'
-    ? fromDate.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-    : period === 'An'
-      ? range.from.slice(0, 4)
-      : period === 'Zi'
-        ? fromDate.toLocaleDateString('ro-RO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
-        : period === 'Săptămână'
-          ? `${fromDate.toLocaleDateString('ro-RO',{day:'numeric',month:'short',timeZone:'UTC'})} – ${toDate.toLocaleDateString('ro-RO',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})}`
-          : `${range.from} – ${range.to}`
+  const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
   const resetReportSelection=()=>{
     setSelected(null)
     setOverviewBucket(null)
     setShowAllTransactions(false)
   }
-  const shiftPeriod=(direction:-1|1)=>{
+  const shiftedAnchor=(direction:-1|1)=>{
     const date=new Date(`${anchor}T12:00:00Z`)
     if(period==='An')date.setUTCFullYear(date.getUTCFullYear()+direction)
     else if(period==='Lună'){date.setUTCDate(1);date.setUTCMonth(date.getUTCMonth()+direction)}
     else date.setUTCDate(date.getUTCDate()+direction*(period==='Săptămână'?7:1))
-    setAnchor(date.toISOString().slice(0,10))
-    resetReportSelection()
+    return date.toISOString().slice(0,10)
+  }
+  const animatePeriod=(direction:-1|1)=>{
+    if(pendingPeriodDirection)return
+    const width=periodNavigatorRef.current?.clientWidth??280
+    setPendingPeriodDirection(direction)
+    setPeriodDrag({offset:direction===1?-width:width,dragging:false})
   }
   const finishPeriodSwipe=(event:ReactPointerEvent<HTMLDivElement>)=>{
-    if(periodSwipeStart.current===null)return
-    const distance=event.clientX-periodSwipeStart.current
+    const start=periodSwipeStart.current
+    if(!start)return
+    const distance=event.clientX-start.x
+    const velocity=Math.abs(distance)/Math.max(1,performance.now()-start.at)
     periodSwipeStart.current=null
-    if(Math.abs(distance)>=42)shiftPeriod(distance>0?-1:1)
+    const width=periodNavigatorRef.current?.clientWidth??280
+    if(Math.abs(distance)>Math.min(70,width*.2)||(Math.abs(distance)>22&&velocity>.45))animatePeriod(distance>0?-1:1)
+    else setPeriodDrag({offset:0,dragging:false})
+  }
+  const finishPeriodAnimation=(event:ReactTransitionEvent<HTMLDivElement>)=>{
+    if(event.target!==event.currentTarget||event.propertyName!=='transform'||!pendingPeriodDirection)return
+    setAnchor(shiftedAnchor(pendingPeriodDirection))
+    resetReportSelection()
+    setPendingPeriodDirection(null)
+    setPeriodDrag({offset:0,dragging:true})
+    requestAnimationFrame(()=>requestAnimationFrame(()=>setPeriodDrag({offset:0,dragging:false})))
   }
   const changeKind = (next:ReportKind) => {
     setKind(next)
@@ -141,10 +160,18 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
             {period === 'Custom' ? <>
               <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); resetReportSelection() } }}/></label>
               <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); resetReportSelection() } }}/></label>
-            </> : <div className="reportPeriodNavigator" role="group" aria-label={`Perioada ${label}`} tabIndex={0} onKeyDown={event=>{if(event.key==='ArrowLeft')shiftPeriod(-1);if(event.key==='ArrowRight')shiftPeriod(1)}} onPointerDown={event=>{if((event.target as Element).closest('button'))return;periodSwipeStart.current=event.clientX;event.currentTarget.setPointerCapture(event.pointerId)}} onPointerUp={finishPeriodSwipe} onPointerCancel={()=>{periodSwipeStart.current=null}}>
-              <button type="button" aria-label="Perioada precedentă" onClick={()=>shiftPeriod(-1)}><ChevronLeft size={20}/></button>
-              <div><span>{period==='An'?'An selectat':period==='Lună'?'Lună selectată':period==='Săptămână'?'Săptămână selectată':'Zi selectată'}</span><strong>{label}</strong><small>Glisează pentru a schimba perioada</small></div>
-              <button type="button" aria-label="Perioada următoare" onClick={()=>shiftPeriod(1)}><ChevronRight size={20}/></button>
+            </> : <div className="reportPeriodNavigator" role="group" aria-label={`Perioada ${label}`} tabIndex={0} onKeyDown={event=>{if(event.key==='ArrowLeft')animatePeriod(-1);if(event.key==='ArrowRight')animatePeriod(1)}}>
+              <button type="button" aria-label="Perioada precedentă" disabled={Boolean(pendingPeriodDirection)} onClick={()=>animatePeriod(-1)}><ChevronLeft size={20}/></button>
+              <div ref={periodNavigatorRef} className="reportPeriodViewport" onPointerDown={event=>{if(pendingPeriodDirection)return;periodSwipeStart.current={x:event.clientX,at:performance.now()};setPeriodDrag(current=>({...current,dragging:true}));event.currentTarget.setPointerCapture(event.pointerId)}} onPointerMove={event=>{if(!periodSwipeStart.current||pendingPeriodDirection)return;const width=periodNavigatorRef.current?.clientWidth??280;const distance=event.clientX-periodSwipeStart.current.x;setPeriodDrag({offset:Math.max(-width*.92,Math.min(width*.92,distance)),dragging:true})}} onPointerUp={finishPeriodSwipe} onPointerCancel={()=>{periodSwipeStart.current=null;setPeriodDrag({offset:0,dragging:false})}}>
+                <div className={`reportPeriodTrack ${periodDrag.dragging?'dragging':''}`} style={{transform:`translate3d(calc(-33.333333% + ${periodDrag.offset}px),0,0)`}} onTransitionEnd={finishPeriodAnimation}>
+                  {([-1,0,1] as const).map(direction=><div className={`reportPeriodPanel ${direction===0?'current':''} ${direction===pendingPeriodDirection?'incoming':''}`} key={direction} aria-hidden={direction!==0}>
+                    <span>{period==='An'?'An selectat':period==='Lună'?'Lună selectată':period==='Săptămână'?'Săptămână selectată':'Zi selectată'}</span>
+                    <strong>{direction===0?label:periodLabel(period,shiftedAnchor(direction),{from:customFrom,to:customTo})}</strong>
+                    <small>{direction===0?'Glisează pentru a schimba perioada':direction<0?'Perioada precedentă':'Perioada următoare'}</small>
+                  </div>)}
+                </div>
+              </div>
+              <button type="button" aria-label="Perioada următoare" disabled={Boolean(pendingPeriodDirection)} onClick={()=>animatePeriod(1)}><ChevronRight size={20}/></button>
             </div>}
           </div>
         </div>
