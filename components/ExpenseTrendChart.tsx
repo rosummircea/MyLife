@@ -25,6 +25,7 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
   const [toYear, toMonth] = range.to.split('-').map(Number)
   const monthCount = Math.max(1, (toYear - fromYear) * 12 + toMonth - fromMonth + 1)
   const monthlyAverage = Math.round(total * 100 / monthCount) / 100
+  const labelStep = points.length > 24 ? 5 : points.length > 14 ? 3 : points.length > 8 ? 2 : 1
 
   return (
     <section className="expenseTrend" aria-label={`Evoluția ${kind==='income'?'veniturilor':'cheltuielilor'} pentru ${name}`}>
@@ -39,18 +40,18 @@ export default function ExpenseTrendChart({ data, range, period, target, name, c
         {maximum === 0 && <p className="expenseTrendHint">Nu există {kind==='income'?'venituri':'cheltuieli'} în această perioadă.</p>}
         <div className="expenseTrendPlot">
           <div className="expenseTrendAxis" aria-hidden="true"><span className={amountClass(maximum,kind)}>{money(maximum)}</span><span className={amountClass(maximum/2,kind)}>{money(maximum / 2)}</span><span className="reportMoneyNeutral">0 RON</span></div>
-          <div className="expenseTrendScroll" tabIndex={0} role="group" aria-label={`Grafic de ${kind==='income'?'venituri':'cheltuieli'}; derulează orizontal pentru toate valorile`}>
-            <div className="expenseTrendBars" style={{ minWidth: `${points.length * 30}px` }}>
-              {points.map((point) => (
+          <div className="expenseTrendScroll" role="group" aria-label={`Grafic de ${kind==='income'?'venituri':'cheltuieli'} cu toate valorile perioadei`}>
+            <div className="expenseTrendBars" style={{ gridTemplateColumns: `repeat(${Math.max(1,points.length)}, minmax(0, 1fr))` }}>
+              {points.map((point,index) => (
                 <button type="button" key={point.key} className={`expenseTrendBar ${active?.key === point.key ? 'active' : ''}`} aria-label={`${point.fullLabel}: ${money(point.amount)}`} aria-pressed={active?.key === point.key} onClick={() => {setActiveKey(point.key);onSelectPoint?.(point.key,result.unit,point.fullLabel)}} onFocus={() => setActiveKey(point.key)} onPointerEnter={(event) => { if (event.pointerType === 'mouse') setActiveKey(point.key) }}>
                   <span className="expenseTrendBarTrack"><span className={`expenseTrendBarFill ${point.amount === 0 ? 'zero' : ''}`} style={{ height: `${maximum > 0 ? point.amount / maximum * 100 : 0}%`, background: color }}/></span>
-                  <span className="expenseTrendBarLabel">{point.label}</span>
+                  <span className={`expenseTrendBarLabel ${index%labelStep!==0&&index!==points.length-1?'visuallyHiddenLabel':''}`}>{point.label}</span>
                 </button>
               ))}
             </div>
           </div>
         </div>
-        <p className="expenseTrendHint">{points.length} {unitLabel} · perioadele fără {kind==='income'?'venituri':'cheltuieli'} apar cu 0 RON. Derulează graficul pentru toate valorile.</p>
+        <p className="expenseTrendHint">{points.length} {unitLabel} · perioadele fără {kind==='income'?'venituri':'cheltuieli'} apar cu 0 RON.</p>
       </>}
     </section>
   )
