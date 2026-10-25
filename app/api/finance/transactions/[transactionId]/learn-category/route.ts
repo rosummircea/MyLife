@@ -29,6 +29,8 @@ export async function POST(request:Request,{params}:{params:Promise<{transaction
     if(!key)return NextResponse.json({learned:false})
     const {error:ruleError}=await admin.from('finance_merchant_category_rules').upsert({household_id:householdId,merchant_key:key,merchant_name:merchantName,transaction_type:transaction.transaction_type,category_id:categoryId,updated_at:new Date().toISOString()},{onConflict:'household_id,merchant_key,transaction_type'})
     if(ruleError)throw new Error(ruleError.message)
+    const {error:metadataError}=await admin.from('finance_transactions').update({import_metadata:{...metadata,categorization_source:'learned'}}).eq('id',transaction.id)
+    if(metadataError)throw new Error(metadataError.message)
     return NextResponse.json({learned:true})
   }catch(error){
     const {status,message}=routeError(error)

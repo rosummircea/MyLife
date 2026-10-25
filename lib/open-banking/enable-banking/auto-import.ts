@@ -1,7 +1,7 @@
 import 'server-only'
 
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {merchantKey,predictedCategory,type CategoryCandidate} from './categorization'
+import {merchantKey,type CategoryCandidate} from './categorization'
 
 type BankTransaction={id:string;external_transaction_id:string;status:string|null;made_on:string;amount:number|string;currency:string;description:string|null;merchant_name:string|null;merchant_category_code:string|null;first_seen_at:string}
 type Rule={merchant_key:string;transaction_type:string;category_id:string}
@@ -68,6 +68,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   const availableCategories=(categories??[]) as CategoryCandidate[]
   const activeCategoryIds=new Set(availableCategories.filter(category=>category.is_active).map(category=>category.id))
   const learned=new Map(((rules??[]) as Rule[]).filter(rule=>activeCategoryIds.has(rule.category_id)).map(rule=>[`${rule.transaction_type}:${rule.merchant_key}`,rule.category_id]))
+  const uncategorized=new Map(availableCategories.filter(category=>category.is_active&&merchantKey(category.name)==='necategorizat').map(category=>[category.kind,category.id]))
   const rememberedTransfers=(transferRules??[]) as TransferRule[]
   const now=new Date().toISOString(),provider=providerName(bankAccount.session)
   let imported=0
@@ -177,9 +178,8 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
     }
     const key=merchantKey(merchant||transaction.description)
     const learnedCategoryId=learned.get(`${transactionType}:${key}`)
-    const guessed=learnedCategoryId?null:predictedCategory(availableCategories,transactionType,`${merchant??''} ${transaction.description??''} ${transaction.merchant_category_code??''}`)
-    const categoryId=learnedCategoryId??guessed?.id??null
-    const row={id:transaction.id,household_id:bankAccount.household_id,account_id:financeAccount.id,transfer_account_id:null,created_by_person_id:person.id,transaction_type:transactionType,amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,imported_at:now,auto_imported:true,unseen:true,categorization_source:learnedCategoryId?'learned':guessed?'suggested':'uncategorized'}}
+    const categoryId=learnedCategoryId??uncategorized.get(transactionType)??null
+    const row={id:transaction.id,household_id:bankAccount.household_id,account_id:financeAccount.id,transfer_account_id:null,created_by_person_id:person.id,transaction_type:transactionType,amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,imported_at:now,auto_imported:true,unseen:true,categorization_source:learnedCategoryId?'learned':'uncategorized'}}
     const {error:insertError}=await admin.from('finance_transactions').insert(row)
     if(insertError){
       if(insertError.code==='23505')continue
