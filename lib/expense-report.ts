@@ -130,7 +130,7 @@ export type ExpenseTrendPoint = { key: string; label: string; fullLabel: string;
 
 // Use the same report aggregation for every bucket, including descendants,
 // direct parent allocations and uncategorized remainders.
-export function buildExpenseTrend(transactions: Transaction[], categories: CategoryRow[], splits: SplitRow[], range: DateRange, period: ReportPeriod, target: ExpenseTrendTarget, kind: ReportKind = 'expense') {
+export function buildExpenseTrend(transactions: Transaction[], categories: CategoryRow[], splits: SplitRow[], range: DateRange, period: ReportPeriod, target?: ExpenseTrendTarget, kind: ReportKind = 'expense') {
   const from = new Date(`${range.from}T12:00:00Z`), to = new Date(`${range.to}T12:00:00Z`)
   if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || range.from > range.to) throw new Error('Perioada graficului nu este validă.')
   const days = Math.round((to.getTime() - from.getTime()) / 86400000) + 1
@@ -170,8 +170,11 @@ export function buildExpenseTrend(transactions: Transaction[], categories: Categ
     const rows = grouped.get(point.key) ?? []
     if (!rows.length) continue
     const bucket = buildExpenseReport(rows, categories, rows.flatMap((row) => splitGroups.get(row.id) ?? []), range, kind)
-    const category = bucket.categories.find((item) => item.id === target.categoryId)
-    point.amount = target.subcategoryId ? category?.subcategories.find((item) => item.id === target.subcategoryId)?.amount ?? 0 : category?.amount ?? 0
+    if (!target) point.amount = bucket.total
+    else {
+      const category = bucket.categories.find((item) => item.id === target.categoryId)
+      point.amount = target.subcategoryId ? category?.subcategories.find((item) => item.id === target.subcategoryId)?.amount ?? 0 : category?.amount ?? 0
+    }
   }
   return { unit, points, total: points.reduce((sum, point) => sum + Math.round(point.amount * 100), 0) / 100 }
 }

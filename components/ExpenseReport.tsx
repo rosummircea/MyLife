@@ -24,6 +24,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const [showAllTransactions,setShowAllTransactions]=useState(false)
   const [kind,setKind]=useState<ReportKind>('expense')
   const allTransactionsRef=useRef<HTMLDivElement>(null)
+  const heroCarouselRef=useRef<HTMLDivElement>(null)
+  const [heroView,setHeroView]=useState(0)
+  const [overviewBucket,setOverviewBucket]=useState<{key:string;unit:string;label:string}|null>(null)
   const [period, setPeriod] = useState<ReportPeriod>('Lună')
   const [selected, setSelected] = useState<string | null>(null)
   const [anchor, setAnchor] = useState(() => bucharestDay(new Date()))
@@ -38,7 +41,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       return { categories: [], total: 0, transactionCount: 0, excludedCurrencies: 0, error: error instanceof Error ? error.message : 'Raportul nu poate fi calculat.' }
     }
   }, [data, range.from, range.to, kind])
-  const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range,undefined,kind):[],[showAllTransactions,data,range.from,range.to,report.error,kind])
+  const allContributions=useMemo(()=>showAllTransactions&&data&&!report.error?expenseContributionTransactions(data.transactions,data.categories,data.splits,range,undefined,kind).filter(row=>!overviewBucket||contributionBucketKey(row.transaction,overviewBucket.unit)===overviewBucket.key):[],[showAllTransactions,data,range.from,range.to,report.error,kind,overviewBucket])
   const { categories, total } = report
   const categoryTransactionCounts=useMemo(()=>new Map(categories.map(item=>[
     item.id,
@@ -50,16 +53,31 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
   const currentYear = Number(bucharestDay(new Date()).slice(0, 4))
   const years = [...new Set([Number(anchor.slice(0, 4)), ...Array.from({ length: 7 }, (_, index) => currentYear - 5 + index), ...(data?.transactions ?? []).map((tx) => Number(bucharestDay(new Date(tx.transaction_date)).slice(0, 4)))])].sort((a, b) => b - a)
+  const resetReportSelection=()=>{
+    setSelected(null)
+    setOverviewBucket(null)
+    setShowAllTransactions(false)
+  }
   const changeYear = (year: string) => {
     const month = Number(anchor.slice(5, 7))
     const day = Math.min(Number(anchor.slice(8, 10)), new Date(Date.UTC(Number(year), month, 0)).getUTCDate())
     setAnchor(`${year}-${anchor.slice(5, 7)}-${String(day).padStart(2, '0')}`)
-    setSelected(null)
+    resetReportSelection()
   }
   const changeKind = (next:ReportKind) => {
     setKind(next)
     setSelected(null)
     setShowAllTransactions(false)
+    setOverviewBucket(null)
+  }
+  const showHeroView=(index:number)=>{
+    setHeroView(index)
+    heroCarouselRef.current?.scrollTo({left:heroCarouselRef.current.clientWidth*index,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})
+  }
+  const showContributionList=(bucket:{key:string;unit:string;label:string}|null)=>{
+    setOverviewBucket(bucket)
+    setShowAllTransactions(true)
+    requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))
   }
 
 
@@ -72,35 +90,54 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         </div>
       </div>
       <div className="reportHero">
-        <div className="pieStage">
-          {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }} aria-label={`Distribuția ${kind==='income'?'veniturilor':'cheltuielilor'}`}>
-            <div className="pieHole"><span>Total {kind==='income'?'venituri':'cheltuieli'}</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions} aria-controls="expense-all-transactions" aria-label={`Vezi tranzacțiile din totalul ${kind==='income'?'veniturilor':'cheltuielilor'}`} onClick={()=>{setShowAllTransactions(value=>!value);requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))}}><strong className={reportAmountClass(total,kind)}>{money(total)}</strong></button><small>{period}</small></div>
-          </div>}
+        <div className="pieStage reportMainDeck">
+          <div className="reportMainViewSwitch" role="tablist" aria-label="Tipul graficului principal">
+            <button type="button" role="tab" aria-selected={heroView===0} onClick={()=>showHeroView(0)}>Distribuție</button>
+            <button type="button" role="tab" aria-selected={heroView===1} onClick={()=>showHeroView(1)}>Evoluție</button>
+          </div>
+          <div className="reportMainCarousel" ref={heroCarouselRef} onScroll={event=>{
+            const element=event.currentTarget
+            const next=Math.round(element.scrollLeft/Math.max(1,element.clientWidth))
+            if(next!==heroView)setHeroView(next)
+          }}>
+            <section className="reportMainSlide reportMainPieSlide" aria-label={`Distribuția ${kind==='income'?'veniturilor':'cheltuielilor'}`}>
+              {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }}>
+                <div className="pieHole"><span>Total {kind==='income'?'venituri':'cheltuieli'}</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions&&!overviewBucket} aria-controls="expense-all-transactions" aria-label={`Vezi tranzacțiile din totalul ${kind==='income'?'veniturilor':'cheltuielilor'}`} onClick={()=>showContributionList(null)}><strong className={reportAmountClass(total,kind)}>{money(total)}</strong></button><small>{period}</small></div>
+              </div>}
+            </section>
+            <section className="reportMainSlide reportMainTrendSlide" aria-label={`Evoluția totală a ${kind==='income'?'veniturilor':'cheltuielilor'}`}>
+              {!loading&&data&&!invalidRange&&!report.error&&<ExpenseTrendChart compact key={`overview-${kind}-${range.from}-${range.to}-${period}`} data={data} range={range} period={period} name={kind==='income'?'Venituri':'Cheltuieli'} color={kind==='income'?'#66d8a4':'#ff8797'} kind={kind} onSelectPoint={(key,unit,bucketLabel)=>showContributionList({key,unit,label:bucketLabel})} onSelectTotal={()=>showContributionList(null)}/>}
+            </section>
+          </div>
+          <div className="reportMainPager" aria-label="Poziția în galeria de grafice">
+            <button type="button" aria-label="Arată distribuția" aria-current={heroView===0?'true':undefined} onClick={()=>showHeroView(0)}/>
+            <button type="button" aria-label="Arată evoluția" aria-current={heroView===1?'true':undefined} onClick={()=>showHeroView(1)}/>
+          </div>
         </div>
         <div className="reportSummary">
           <span className="summaryLabel">Perioadă selectată</span>
           <strong>{label}</strong>
           <div className="periodSwitch reportSummaryPeriods" aria-label="Tipul perioadei">
-            {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); setSelected(null) }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+            {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); resetReportSelection() }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
           </div>
           <div className="expensePeriodControls">
             {(period === 'An' || period === 'Lună') ? <>
               <label>Anul<span className="expenseSelectShell"><select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
                 {years.map((year) => <option key={year} value={year}>{year}</option>)}
               </select><ChevronDown size={16} aria-hidden="true"/></span></label>
-              {period === 'Lună' && <label>Luna<span className="expenseSelectShell"><select aria-label="Luna" value={anchor.slice(5, 7)} onChange={(event) => { setAnchor(`${anchor.slice(0, 4)}-${event.target.value}-01`); setSelected(null) }}>
+              {period === 'Lună' && <label>Luna<span className="expenseSelectShell"><select aria-label="Luna" value={anchor.slice(5, 7)} onChange={(event) => { setAnchor(`${anchor.slice(0, 4)}-${event.target.value}-01`); resetReportSelection() }}>
                 {Array.from({ length: 12 }, (_, index) => <option key={index} value={String(index + 1).padStart(2, '0')}>{new Date(Date.UTC(2026, index, 1)).toLocaleDateString('ro-RO', { month: 'long', timeZone: 'UTC' })}</option>)}
               </select><ChevronDown size={16} aria-hidden="true"/></span></label>}
             </> : period === 'Custom' ? <>
-              <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); setSelected(null) } }}/></label>
-              <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); setSelected(null) } }}/></label>
-            </> : <label>{period === 'Zi' ? 'Ziua' : 'Alege o zi din săptămână'}<input type="date" value={anchor} onChange={(event) => { if (event.target.value) { setAnchor(event.target.value); setSelected(null) } }}/></label>}
+              <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); resetReportSelection() } }}/></label>
+              <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); resetReportSelection() } }}/></label>
+            </> : <label>{period === 'Zi' ? 'Ziua' : 'Alege o zi din săptămână'}<input type="date" value={anchor} onChange={(event) => { if (event.target.value) { setAnchor(event.target.value); resetReportSelection() } }}/></label>}
           </div>
         </div>
       </div>
 
       {!loading && data && !invalidRange && !report.error && <>
-      {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{range.from} – {range.to} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>setShowAllTransactions(false)}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
+      {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
       <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
         {categories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}

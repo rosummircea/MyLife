@@ -10,13 +10,13 @@ const amountClass = (amount:number,kind:ReportKind) => amount === 0 ? 'reportMon
 
 export default function ExpenseTrendChart({ data, range, period, target, name, color, kind = 'expense', onSelectPoint, onSelectTotal, compact = false }: {
   onSelectPoint?:(key:string,unit:string,label:string)=>void;onSelectTotal?:()=>void
-  data: MyLifeData; range: DateRange; period: ReportPeriod; target: ExpenseTrendTarget; name: string; color: string; kind?: ReportKind; compact?: boolean
+  data: MyLifeData; range: DateRange; period: ReportPeriod; target?: ExpenseTrendTarget; name: string; color: string; kind?: ReportKind; compact?: boolean
 }) {
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const result = useMemo(() => {
     try { return { ...buildExpenseTrend(data.transactions, data.categories, data.splits, range, period, target, kind), error: '' } }
     catch (error) { return { points: [], total: 0, unit: 'day', error: error instanceof Error ? error.message : 'Graficul nu poate fi calculat.' } }
-  }, [data, range.from, range.to, period, target.categoryId, target.subcategoryId, kind])
+  }, [data, range.from, range.to, period, target?.categoryId, target?.subcategoryId, kind])
   const { points, total } = result
   const active = points.find((point) => point.key === activeKey)
   const maximum = Math.max(0, ...points.map((point) => point.amount))

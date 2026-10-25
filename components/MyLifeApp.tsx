@@ -175,7 +175,7 @@ export default function MyLifeApp({ developmentAccess = false, initialData = nul
     const mobile = window.matchMedia('(max-width: 720px)')
     const start = (event: TouchEvent) => {
       const target = event.target as Element | null
-      const nestedScroll = target?.closest('.expenseTrendScroll, .subnav, .documentsList, [role="dialog"], input, textarea, select')
+      const nestedScroll = target?.closest('.reportMainCarousel, .expenseReportCarousel, .expenseTrendScroll, .subnav, .documentsList, [role="dialog"], input, textarea, select')
       pulling = mobile.matches && Boolean(userEmail) && !loadingData && !pullRefreshing && window.scrollY <= 0 && !nestedScroll && event.touches.length === 1
       if (pulling) { startY = event.touches[0].clientY; startX = event.touches[0].clientX; distance = 0 }
     }

@@ -87,6 +87,14 @@ test('year trend includes all 12 months, zero months and descendants, and reconc
   assert.equal(result.total,30.33)
   assert.equal(result.total,buildExpenseReport(transactions,[root,car,fuel,train],splits,yearRange).categories[0].amount)
 })
+test('total trend reconciles every month for both expenses and income without a category target', () => {
+  const yearRange={from:'2026-01-01',to:'2026-12-31'}
+  const transactions=[tx('expense',15,{transaction_date:'2026-02-17T12:00:00Z'}),tx('income',100,{transaction_type:'income',transaction_date:'2026-03-17T12:00:00Z'})]
+  const result=buildExpenseTrend(transactions,[root],[],yearRange,'An')
+  const income=buildExpenseTrend(transactions,[root],[],yearRange,'An',undefined,'income')
+  assert.equal(result.points.length,12);assert.equal(result.points[1].amount,15);assert.equal(result.total,15)
+  assert.equal(income.points.length,12);assert.equal(income.points[2].amount,100);assert.equal(income.total,100)
+})
 test('subcategory trend includes only its branch and grandchildren', () => {
   const transactions=[tx('one',120)]
   const splits=[split('a','one',fuel.id,60),split('b','one',car.id,40),split('c','one',train.id,20)]
