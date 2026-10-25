@@ -1,8 +1,8 @@
 'use client'
 
 import CategoryIcon from './CategoryIcon'
-import { CalendarRange, ChevronDown, ChevronRight, ChevronsUp } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { CalendarRange, ChevronLeft, ChevronRight, ChevronsUp } from 'lucide-react'
+import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
@@ -25,6 +25,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const [kind,setKind]=useState<ReportKind>('expense')
   const allTransactionsRef=useRef<HTMLDivElement>(null)
   const heroCarouselRef=useRef<HTMLDivElement>(null)
+  const periodSwipeStart=useRef<number|null>(null)
   const [heroView,setHeroView]=useState(0)
   const [overviewBucket,setOverviewBucket]=useState<{key:string;unit:string;label:string}|null>(null)
   const [period, setPeriod] = useState<ReportPeriod>('Lună')
@@ -49,20 +50,35 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   ])),[categories,data,range.from,range.to,kind])
   const gradient = distributionGradient(categories)
   const fromDate = new Date(`${range.from}T12:00:00Z`)
-  const label = period === 'Lună' ? fromDate.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : period === 'An' ? range.from.slice(0, 4) : `${range.from} – ${range.to}`
+  const toDate = new Date(`${range.to}T12:00:00Z`)
+  const label = period === 'Lună'
+    ? fromDate.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : period === 'An'
+      ? range.from.slice(0, 4)
+      : period === 'Zi'
+        ? fromDate.toLocaleDateString('ro-RO',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
+        : period === 'Săptămână'
+          ? `${fromDate.toLocaleDateString('ro-RO',{day:'numeric',month:'short',timeZone:'UTC'})} – ${toDate.toLocaleDateString('ro-RO',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})}`
+          : `${range.from} – ${range.to}`
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
-  const currentYear = Number(bucharestDay(new Date()).slice(0, 4))
-  const years = [...new Set([Number(anchor.slice(0, 4)), ...Array.from({ length: 7 }, (_, index) => currentYear - 5 + index), ...(data?.transactions ?? []).map((tx) => Number(bucharestDay(new Date(tx.transaction_date)).slice(0, 4)))])].sort((a, b) => b - a)
   const resetReportSelection=()=>{
     setSelected(null)
     setOverviewBucket(null)
     setShowAllTransactions(false)
   }
-  const changeYear = (year: string) => {
-    const month = Number(anchor.slice(5, 7))
-    const day = Math.min(Number(anchor.slice(8, 10)), new Date(Date.UTC(Number(year), month, 0)).getUTCDate())
-    setAnchor(`${year}-${anchor.slice(5, 7)}-${String(day).padStart(2, '0')}`)
+  const shiftPeriod=(direction:-1|1)=>{
+    const date=new Date(`${anchor}T12:00:00Z`)
+    if(period==='An')date.setUTCFullYear(date.getUTCFullYear()+direction)
+    else if(period==='Lună'){date.setUTCDate(1);date.setUTCMonth(date.getUTCMonth()+direction)}
+    else date.setUTCDate(date.getUTCDate()+direction*(period==='Săptămână'?7:1))
+    setAnchor(date.toISOString().slice(0,10))
     resetReportSelection()
+  }
+  const finishPeriodSwipe=(event:ReactPointerEvent<HTMLDivElement>)=>{
+    if(periodSwipeStart.current===null)return
+    const distance=event.clientX-periodSwipeStart.current
+    periodSwipeStart.current=null
+    if(Math.abs(distance)>=42)shiftPeriod(distance>0?-1:1)
   }
   const changeKind = (next:ReportKind) => {
     setKind(next)
@@ -117,21 +133,19 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         <div className="reportSummary">
           <span className="summaryLabel">Perioadă selectată</span>
           <strong>{label}</strong>
-          <div className="periodSwitch reportSummaryPeriods" aria-label="Tipul perioadei">
-            {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); resetReportSelection() }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+          <div className="periodSwitch reportSummaryPeriods" role="tablist" aria-label="Tipul perioadei" style={{'--period-index':(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).indexOf(period)} as CSSProperties}>
+            <span className="reportPeriodIndicator" aria-hidden="true"/>
+            {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" role="tab" aria-selected={period===item} key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); resetReportSelection() }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
           </div>
           <div className="expensePeriodControls">
-            {(period === 'An' || period === 'Lună') ? <>
-              <label>Anul<span className="expenseSelectShell"><select aria-label="Anul" value={anchor.slice(0, 4)} onChange={(event) => changeYear(event.target.value)}>
-                {years.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select><ChevronDown size={16} aria-hidden="true"/></span></label>
-              {period === 'Lună' && <label>Luna<span className="expenseSelectShell"><select aria-label="Luna" value={anchor.slice(5, 7)} onChange={(event) => { setAnchor(`${anchor.slice(0, 4)}-${event.target.value}-01`); resetReportSelection() }}>
-                {Array.from({ length: 12 }, (_, index) => <option key={index} value={String(index + 1).padStart(2, '0')}>{new Date(Date.UTC(2026, index, 1)).toLocaleDateString('ro-RO', { month: 'long', timeZone: 'UTC' })}</option>)}
-              </select><ChevronDown size={16} aria-hidden="true"/></span></label>}
-            </> : period === 'Custom' ? <>
+            {period === 'Custom' ? <>
               <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); resetReportSelection() } }}/></label>
               <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); resetReportSelection() } }}/></label>
-            </> : <label>{period === 'Zi' ? 'Ziua' : 'Alege o zi din săptămână'}<input type="date" value={anchor} onChange={(event) => { if (event.target.value) { setAnchor(event.target.value); resetReportSelection() } }}/></label>}
+            </> : <div className="reportPeriodNavigator" role="group" aria-label={`Perioada ${label}`} tabIndex={0} onKeyDown={event=>{if(event.key==='ArrowLeft')shiftPeriod(-1);if(event.key==='ArrowRight')shiftPeriod(1)}} onPointerDown={event=>{if((event.target as Element).closest('button'))return;periodSwipeStart.current=event.clientX;event.currentTarget.setPointerCapture(event.pointerId)}} onPointerUp={finishPeriodSwipe} onPointerCancel={()=>{periodSwipeStart.current=null}}>
+              <button type="button" aria-label="Perioada precedentă" onClick={()=>shiftPeriod(-1)}><ChevronLeft size={20}/></button>
+              <div><span>{period==='An'?'An selectat':period==='Lună'?'Lună selectată':period==='Săptămână'?'Săptămână selectată':'Zi selectată'}</span><strong>{label}</strong><small>Glisează pentru a schimba perioada</small></div>
+              <button type="button" aria-label="Perioada următoare" onClick={()=>shiftPeriod(1)}><ChevronRight size={20}/></button>
+            </div>}
           </div>
         </div>
       </div>

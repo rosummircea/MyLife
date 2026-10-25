@@ -88,9 +88,20 @@
   overflow-wrap: anywhere;
 }
 .expensePeriodControls { display: grid; grid-template-columns: minmax(0,1fr); align-content:start; gap: 12px; min-height: 126px; margin: 16px 0 0; }
-.reportSummaryPeriods { flex:none; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; margin:18px 0 2px; }
-.reportSummaryPeriods button { width:100%; padding-inline:7px; }
-.reportSummaryPeriods button:last-child { grid-column:span 2; }
+.reportSummaryPeriods { --period-index:2; position:relative; flex:none; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); width:100%; margin:18px 0 2px; padding:4px; border-color:rgba(148,169,198,.18); border-radius:15px; background:rgba(5,13,24,.42); box-shadow:inset 0 1px 0 rgba(255,255,255,.035); isolation:isolate; }
+.reportSummaryPeriods .reportPeriodIndicator { position:absolute; z-index:0; top:4px; bottom:4px; left:4px; width:calc((100% - 8px)/5); border-radius:11px; background:linear-gradient(145deg,#79b4ff,#72e1c5); box-shadow:0 5px 18px rgba(71,153,211,.24),inset 0 1px 0 rgba(255,255,255,.38); transform:translateX(calc(var(--period-index)*100%)); transition:transform .28s cubic-bezier(.2,.8,.2,1); }
+.reportSummaryPeriods button { position:relative; z-index:1; width:100%; min-height:38px; padding:7px 3px; font-size:10px; transition:color .22s ease,transform .18s ease; }
+.reportSummaryPeriods button.active { color:#07101c; background:transparent; box-shadow:none; }
+.reportSummaryPeriods button:active { transform:scale(.96); }
+.reportPeriodNavigator { display:grid; grid-template-columns:46px minmax(0,1fr) 46px; align-items:center; min-height:116px; border:1px solid rgba(148,169,198,.2); border-radius:19px; padding:8px; background:radial-gradient(circle at 50% 0,rgba(118,168,255,.13),transparent 58%),linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 14px 35px rgba(0,0,0,.1); touch-action:pan-y; user-select:none; }
+.reportPeriodNavigator>div { display:grid; justify-items:center; gap:5px; min-width:0; text-align:center; }
+.reportPeriodNavigator span { color:var(--muted); font-size:9px; font-weight:750; letter-spacing:.09em; text-transform:uppercase; }
+.reportPeriodNavigator strong { max-width:100%; font-size:18px; line-height:1.15; text-transform:capitalize; overflow-wrap:anywhere; }
+.reportPeriodNavigator small { color:rgba(148,169,198,.72); font-size:9px; }
+.reportPeriodNavigator>button { width:40px; height:40px; display:grid; place-items:center; border:1px solid rgba(148,169,198,.16); border-radius:50%; padding:0; background:rgba(255,255,255,.045); color:#afc5e2; box-shadow:inset 0 1px 0 rgba(255,255,255,.045); transition:background .18s ease,color .18s ease,transform .18s ease; }
+.reportPeriodNavigator>button:hover { color:var(--text); background:rgba(118,168,255,.12); }
+.reportPeriodNavigator>button:active { transform:scale(.92); }
+.reportPeriodNavigator:focus-visible,.reportPeriodNavigator>button:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 .expensePeriodControls label { display: flex; flex-direction: column; gap: 7px; color: var(--muted); font-size: 11px; min-width: 0; }
 .expensePeriodControls input, .expensePeriodControls select { width: 100%; min-width: 0; min-height: 48px; border: 1px solid rgba(148,169,198,.22); border-radius: 13px; padding: 11px 14px; background: linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.035)); color: var(--text); color-scheme: dark; font: inherit; font-size: 14px; font-weight:650; box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 8px 22px rgba(0,0,0,.08); transition:border-color .18s ease,background .18s ease,box-shadow .18s ease; }
 .expenseSelectShell { position:relative; display:block; }
@@ -108,8 +119,6 @@
   .reportWrap .pieStage { min-width: 0; }
   .reportWrap .pieChart { max-width: 100%; }
   .expensePeriodControls { grid-template-columns: repeat(2,minmax(0,1fr)); min-height:0; }
-  .reportSummaryPeriods { grid-template-columns:repeat(5,minmax(0,1fr)); }
-  .reportSummaryPeriods button:last-child { grid-column:auto; }
 }
 @media (max-width: 560px) {
   .reportWrap .reportSummary { padding:20px 18px; }
@@ -119,8 +128,11 @@
   .reportMainTrendSlide { padding-inline:8px; }
   .reportMainTrendSlide .expenseTrendPlot { grid-template-columns:48px minmax(0,1fr); gap:5px; }
   .reportMainTrendSlide .expenseTrendHint { padding-inline:4px; }
-  .reportSummaryPeriods { grid-template-columns:repeat(3,minmax(0,1fr)); }
-  .reportSummaryPeriods button:last-child { grid-column:span 2; }
+  .reportSummaryPeriods button { min-height:36px; font-size:9px; }
+  .reportSummaryPeriods button svg { width:12px; height:12px; }
+  .reportPeriodNavigator { grid-template-columns:42px minmax(0,1fr) 42px; min-height:108px; }
+  .reportPeriodNavigator>button { width:36px; height:36px; }
+  .reportPeriodNavigator strong { font-size:16px; }
 }
 @media (max-width: 430px) { .expensePeriodControls { grid-template-columns: minmax(0,1fr); } }
 .expenseReportNote { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 14px 0 0; }
