@@ -5,7 +5,8 @@ create or replace function public.finance_category_guard() returns trigger langu
 begin
  perform pg_advisory_xact_lock(hashtextextended(coalesce(new.household_id::text,'global'),0));
  if new.parent_id is not null then
-  if not exists(select 1 from public.finance_categories p where p.id=new.parent_id and p.household_id is not distinct from new.household_id and p.kind=new.kind) then raise exception 'Categoria părinte trebuie să aibă același tip și aceeași familie.'; end if;
+  if not exists(select 1 from public.finance_categories p where p.id=new.parent_id and p.parent_id is null and p.household_id is not distinct from new.household_id and p.kind=new.kind) then raise exception 'Categoria părinte trebuie să fie o categorie principală cu același tip și aceeași familie.'; end if;
+  if exists(select 1 from public.finance_categories where parent_id=new.id) then raise exception 'O categorie care are subcategorii nu poate deveni subcategorie.'; end if;
   if exists(with recursive ancestors as (select id,parent_id from public.finance_categories where id=new.parent_id union select c.id,c.parent_id from public.finance_categories c join ancestors a on c.id=a.parent_id) select 1 from ancestors where id=new.id) then raise exception 'O categorie nu poate fi mutată în propriile subcategorii.'; end if;
  end if;
  if exists(select 1 from public.finance_categories where parent_id=new.id and (kind<>new.kind or household_id is distinct from new.household_id)) then raise exception 'Tipul unei categorii cu subcategorii nu poate fi schimbat.'; end if;

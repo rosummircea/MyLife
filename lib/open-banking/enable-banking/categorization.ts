@@ -6,9 +6,9 @@ export function merchantKey(value:string|null|undefined){
 
 const expenseRules:Array<{path:string[];keywords:string[]}>= [
   {path:['Cumpărături','Supermarket'],keywords:['kaufland','lidl','carrefour','mega image','auchan','profi','penny','selgros','supermarket']},
-  {path:['Auto','Mașină','Combustibil'],keywords:['omv','petrom','rompetrol','mol ','lukoil','socar','combustibil','benzin','motorin']},
-  {path:['Auto','Mașină','Parcare'],keywords:['parking','parcare','tpark','yeparking']},
-  {path:['Auto','Mașină','Uber/Bolt/Bus'],keywords:['uber','bolt','metrorex','transport urban',' ctp ',' stb ']},
+  {path:['Auto','Combustibil'],keywords:['omv','petrom','rompetrol','mol ','lukoil','socar','combustibil','benzin','motorin']},
+  {path:['Auto','Parcare'],keywords:['parking','parcare','tpark','yeparking']},
+  {path:['Auto','Taxi/Uber/Bus'],keywords:['uber','bolt','metrorex','transport urban',' ctp ',' stb ']},
   {path:['Auto','Tren'],keywords:['cfr','tren','railway']},
   {path:['Mâncare și băuturi','În oraș'],keywords:['restaurant','bistro','pizza','kfc','mcdonald','glovo','tazz','food','grill','burger']},
   {path:['Mâncare și băuturi','Cafea, gustări și băuturi'],keywords:['coffee','cafe','starbucks','vending','5 to go']},
