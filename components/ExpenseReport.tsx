@@ -15,6 +15,9 @@ import './ExpenseReport.css'
 function money(value: number) {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(value)
 }
+function moneyWhole(value: number) {
+  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(value)
+}
 function reportAmountClass(value:number, kind:ReportKind) {
   return value === 0 ? 'reportMoneyNeutral' : kind === 'income' ? 'reportMoneyIncome' : 'reportMoneyExpense'
 }
@@ -153,7 +156,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           }}>
             <section className="reportMainSlide reportMainPieSlide" aria-label={`Distribuția ${kind==='income'?'veniturilor':'cheltuielilor'}`}>
               {loading || !data || invalidRange || report.error ? <div className="emptyState" role="status">{loading ? 'Se încarcă raportul…' : invalidRange ? 'Data de început trebuie să fie înaintea datei de sfârșit.' : report.error || 'Conectează datele pentru a vedea raportul.'}</div> : <div className="pieChart" style={{ background: categories.length ? `conic-gradient(${gradient})` : 'var(--line)' }}>
-                <div className="pieHole"><span>Total {kind==='income'?'venituri':'cheltuieli'}</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions&&!overviewBucket} aria-controls="expense-all-transactions" aria-label={`Vezi tranzacțiile din totalul ${kind==='income'?'veniturilor':'cheltuielilor'}`} onClick={()=>showContributionList(null)}><strong className={reportAmountClass(total,kind)}>{money(total)}</strong></button><small>{period}</small></div>
+                <div className="pieHole"><span>Total {kind==='income'?'venituri':'cheltuieli'}</span><button className="expenseTotalButton" type="button" aria-expanded={showAllTransactions&&!overviewBucket} aria-controls="expense-all-transactions" aria-label={`Vezi tranzacțiile din totalul ${kind==='income'?'veniturilor':'cheltuielilor'}`} onClick={()=>showContributionList(null)}><strong className={reportAmountClass(total,kind)}>{moneyWhole(total)}</strong></button><small>{period}</small></div>
               </div>}
             </section>
             <section className="reportMainSlide reportMainTrendSlide" aria-label={`Evoluția totală a ${kind==='income'?'veniturilor':'cheltuielilor'}`}>
