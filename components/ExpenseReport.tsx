@@ -8,7 +8,7 @@ import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
-import {budgetCoverageTone,isBudgetCategory} from '@/lib/budgets'
+import {budgetCoverageTone,budgetStatus,isBudgetCategory} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
@@ -212,12 +212,14 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         {categories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
         {categories.map((item) => {
           const expanded = selected === item.id
+          const categoryBudget=monthlyBudgets.get(item.id)
+          const categoryBudgetTone=categoryBudget===undefined?null:budgetStatus(item.amount,categoryBudget).tone
           return (
             <div className="expenseCategory" key={item.id}>
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
                 <CategoryIcon category={item}/>
-                <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span>{monthlyBudgets.has(item.id)&&<BudgetProgress compact spent={item.amount} budget={monthlyBudgets.get(item.id)!}/>}</div>
-                <div className="expenseValue"><strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
+                <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span>{categoryBudget!==undefined&&<BudgetProgress compact spent={item.amount} budget={categoryBudget}/>}</div>
+                <div className="expenseValue"><strong className={categoryBudgetTone?`expenseBudgetAmount ${categoryBudgetTone}`:reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-details-${item.id}`} hidden={!expanded}>
