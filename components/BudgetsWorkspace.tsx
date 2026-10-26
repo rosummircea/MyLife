@@ -42,13 +42,13 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
   }
   const save=async()=>{
     const client=getSupabaseClient();if(!client||busy||data.source!=='live')return
-    const parsed=categories.map(category=>({category,amount:Number(normalizeAmount(draft[category.id]??''))}));
-    if(parsed.some(row=>draft[row.category.id]?.trim()&&(!Number.isFinite(row.amount)||row.amount<=0))){setError('Bugetele completate trebuie să fie sume mai mari decât zero.');return}
+    const parsed=categories.map(category=>({category,raw:draft[category.id]?.trim()??'',amount:Number(normalizeAmount(draft[category.id]??''))}));
+    if(parsed.some(row=>row.raw&&(!Number.isFinite(row.amount)||row.amount<0))){setError('Bugetele completate trebuie să fie zero sau sume pozitive.');return}
     setBusy(true);setError('');setSaved(false)
     try{
-      const upserts=parsed.filter(row=>row.amount>0).map(row=>({household_id:data.profile.householdId,category_id:row.category.id,month:`${month}-01`,amount:Math.round(row.amount*100)/100,currency:'RON'}))
+      const upserts=parsed.filter(row=>row.raw!=='').map(row=>({household_id:data.profile.householdId,category_id:row.category.id,month:`${month}-01`,amount:Math.round(row.amount*100)/100,currency:'RON'}))
       if(upserts.length){const result=await client.from('finance_category_budgets').upsert(upserts,{onConflict:'household_id,category_id,month,currency'});if(result.error)throw Error(result.error.message)}
-      const removed=parsed.filter(row=>!row.amount&&budgets.has(row.category.id)).map(row=>row.category.id)
+      const removed=parsed.filter(row=>row.raw===''&&budgets.has(row.category.id)).map(row=>row.category.id)
       if(removed.length){const result=await client.from('finance_category_budgets').delete().eq('household_id',data.profile.householdId).eq('month',`${month}-01`).in('category_id',removed);if(result.error)throw Error(result.error.message)}
       setSaved(true);onSaved()
     }catch(value){setError(value instanceof Error?value.message:'Bugetele nu au putut fi salvate.')}
@@ -79,7 +79,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
         return <article className="budgetCategoryCard" key={category.id}>
           <div className="budgetCategoryIdentity"><CategoryIcon category={category}/><div><strong>{category.name}</strong><span>{money(spent)} cheltuiți</span></div></div>
           <label><span>Buget</span><div><input inputMode="decimal" placeholder="Fără buget" value={draft[category.id]??''} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value)){setDraft(current=>({...current,[category.id]:event.target.value}));setSaved(false)}}}/><b>RON</b></div></label>
-          {amount>0?<BudgetProgress spent={spent} budget={amount}/>:<p className="budgetUnset">Completează o limită pentru această lună.</p>}
+          {(draft[category.id]??'').trim()!==''?<BudgetProgress spent={spent} budget={amount}/>:<p className="budgetUnset">Completează o limită pentru această lună.</p>}
         </article>
       })}
     </div>

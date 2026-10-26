@@ -9,10 +9,10 @@ export function isBudgetCategory(category:{name:string}){
 
 export function budgetStatus(spent:number,budget:number){
   const safeBudget=Math.max(0,budget)
-  const ratio=safeBudget>0?spent/safeBudget:0
+  const ratio=safeBudget>0?spent/safeBudget:spent>0?1:0
   const remaining=safeBudget-spent
   const remainingRatio=safeBudget>0?remaining/safeBudget:1
-  const tone:BudgetTone=ratio>1?'over':remainingRatio<=.1?'critical':remainingRatio<=.2?'warning':'healthy'
+  const tone:BudgetTone=safeBudget===0&&spent>0?'over':ratio>1?'over':remainingRatio<=.1?'critical':remainingRatio<=.2?'warning':'healthy'
   return {ratio,remaining,remainingRatio,tone,progress:Math.min(100,Math.max(0,ratio*100))}
 }
 

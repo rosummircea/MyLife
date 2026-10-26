@@ -5,13 +5,20 @@ create table if not exists public.finance_category_budgets (
   household_id uuid not null references public.households(id) on delete cascade,
   category_id uuid not null references public.finance_categories(id) on delete cascade,
   month date not null,
-  amount numeric(14,2) not null check (amount > 0),
+  amount numeric(14,2) not null,
   currency char(3) not null default 'RON',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint finance_category_budgets_month_start check (month = date_trunc('month',month)::date),
   constraint finance_category_budgets_unique unique (household_id,category_id,month,currency)
 );
+
+alter table public.finance_category_budgets
+  drop constraint if exists finance_category_budgets_amount_check;
+alter table public.finance_category_budgets
+  drop constraint if exists finance_category_budgets_amount_nonnegative;
+alter table public.finance_category_budgets
+  add constraint finance_category_budgets_amount_nonnegative check (amount >= 0);
 
 create index if not exists finance_category_budgets_household_month_idx
   on public.finance_category_budgets (household_id,month);

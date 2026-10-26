@@ -18,6 +18,9 @@ test('budget categories exclude loans, pets and uncategorized',()=>{
 })
 
 test('budget colors reflect remaining room and overspending',()=>{
+  assert.equal(budgetStatus(0,0).tone,'healthy')
+  assert.equal(budgetStatus(1,0).tone,'over')
+  assert.equal(budgetStatus(1,0).remaining,-1)
   assert.equal(budgetStatus(70,100).tone,'healthy')
   assert.equal(budgetStatus(85,100).tone,'warning')
   assert.equal(budgetStatus(95,100).tone,'critical')
