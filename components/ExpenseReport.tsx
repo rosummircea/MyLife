@@ -2,12 +2,13 @@
 
 import CategoryIcon from './CategoryIcon'
 import { CalendarRange, ChevronLeft, ChevronRight, ChevronsUp } from 'lucide-react'
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react'
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
+import { getSupabaseClient } from '@/lib/supabase'
 import {budgetCoverageTone,isBudgetCategory} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
@@ -75,7 +76,15 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   },[data,range.from,range.to])
   const [budgetCardIndex,setBudgetCardIndex]=useState(0)
   const budgetCarouselRef=useRef<HTMLDivElement>(null)
-  const totalBudget=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
+  const categoryBudgetTotal=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
+  const budgetMonth=range.from.slice(0,7)
+  const [totalOverrides,setTotalOverrides]=useState<Record<string,number|null>>({})
+  const [editingTotal,setEditingTotal]=useState(false)
+  const [totalDraft,setTotalDraft]=useState('')
+  const [totalSaveError,setTotalSaveError]=useState('')
+  const [savingTotal,setSavingTotal]=useState(false)
+  const overrideKey=`${data?.profile.householdId??''}:${budgetMonth}`
+  const totalBudget=Object.prototype.hasOwnProperty.call(totalOverrides,overrideKey)?(totalOverrides[overrideKey]??categoryBudgetTotal):categoryBudgetTotal
   const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
   const budgetRemaining=totalBudget-budgetedSpent
   const unbudgetedSpent=Math.max(0,total-budgetedSpent)
