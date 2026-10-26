@@ -313,3 +313,9 @@
 .reportBudgetDots{display:flex;justify-content:center;align-items:center;gap:7px;margin:11px 0 0}
 .reportBudgetDots button{border:0;padding:0;width:7px;height:7px;border-radius:20px;background:rgba(148,169,198,.4);cursor:pointer;transition:width .2s,background .2s}
 .reportBudgetDots button[aria-current=true]{width:23px;background:linear-gradient(90deg,#71aefc,#61d6c7)}
+
+/* Keep budget carousel close to charts and avoid stretched empty cards. */
+.reportBudgetCarousel{margin-top:18px;margin-bottom:24px}
+.reportBudgetCarouselTrack{align-items:flex-start}
+.reportBudgetSlide{display:block;align-self:flex-start}
+.reportBudgetSlide>.expenseTotalBudgetStatus,.reportBudgetSlide>.reportMonthlySnapshot{height:auto;min-height:0}
