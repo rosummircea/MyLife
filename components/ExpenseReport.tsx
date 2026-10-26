@@ -223,13 +223,12 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         {categories.map((item) => {
           const expanded = selected === item.id
           const categoryBudget=monthlyBudgets.get(item.id)
-          const categoryBudgetTone=categoryBudget===undefined?null:budgetStatus(item.amount,categoryBudget).tone
           return (
             <div className="expenseCategory" key={item.id}>
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
                 <CategoryIcon category={item}/>
                 <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span>{categoryBudget!==undefined&&<BudgetProgress compact spent={item.amount} budget={categoryBudget}/>}</div>
-                <div className="expenseValue"><strong className={categoryBudgetTone?`expenseBudgetAmount ${categoryBudgetTone}`:reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
+                <div className="expenseValue"><strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-details-${item.id}`} hidden={!expanded}>
