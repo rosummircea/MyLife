@@ -76,6 +76,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const totalBudget=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
   const budgetRemaining=totalBudget-budgetedSpent
+  const unbudgetedSpent=Math.max(0,total-budgetedSpent)
   const budgetCoverage=budgetCoverageTone(total,budgetRemaining,incomeTotal)
   const projectedSpending=total+Math.max(0,budgetRemaining)
   const projectedIncomeDifference=Math.abs(incomeTotal-projectedSpending)
@@ -200,7 +201,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         </div>
       </div>
       {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">
-        <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{money(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{money(incomeTotal)}</strong>. <span className={`reportBudgetSignal ${budgetCoverage}`}>{budgetCoverage==='available'?`Dacă folosești tot bugetul rămas, rămâi cu ${money(projectedIncomeDifference)} din venituri.`:budgetCoverage==='caution'?`Dacă folosești tot bugetul rămas, depășești veniturile cu ${money(projectedIncomeDifference)}.`:`Cheltuielile au depășit deja veniturile cu ${money(Math.max(0,total-incomeTotal))}.`}</span></>:<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{money(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{money(incomeTotal)}</strong>.</>}</p>
+        <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{money(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{money(incomeTotal)}</strong>. {unbudgetedSpent>0&&<>Din total, <strong>{money(unbudgetedSpent)}</strong> sunt deja cheltuieli în categorii fără buget. </>}<span className={`reportBudgetSignal ${budgetCoverage}`}>{budgetCoverage==='available'?`Dacă folosești tot bugetul rămas, cheltuielile lunii ajung la ${money(projectedSpending)} și rămâi cu ${money(projectedIncomeDifference)} din venituri.`:budgetCoverage==='caution'?`Dacă folosești și tot bugetul rămas, cheltuielile lunii ajung la ${money(projectedSpending)}, adică depășești veniturile cu ${money(projectedIncomeDifference)}.`:`Cheltuielile au depășit deja veniturile cu ${money(Math.max(0,total-incomeTotal))}.`}</span></>:<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{money(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{money(incomeTotal)}</strong>.</>}</p>
         <div className="reportMonthlySnapshotGrid">
           <div><span>Buget total</span><strong>{money(totalBudget)}</strong></div>
           <div><span>Cheltuit în total</span><strong className="reportMoneyExpense">{money(total)}</strong></div>
@@ -212,9 +213,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       {!loading && data && !invalidRange && !report.error && <>
       {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
       {kind==='expense'&&period==='Lună'&&totalBudget>0&&<section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
-        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit {moneyWhole(budgetedSpent)}</small></div>
+        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small></div>
         <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
-        {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
+        {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
       </section>}
       <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
