@@ -1,6 +1,7 @@
 'use client'
 import FinanceOverview from './FinanceOverview'
 import CategoriesWorkspace from './CategoriesWorkspace'
+import BudgetsWorkspace from './BudgetsWorkspace'
 import NewTransaction from './NewTransaction'
 import QuickAddSheet from './QuickAddSheet'
 
@@ -36,6 +37,7 @@ import {
   RotateCcw,
   Users,
   WalletCards,
+  PiggyBank,
 } from 'lucide-react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -53,7 +55,7 @@ import { loadMyLifeData, type MyLifeData, type Account, type Transaction } from 
 import './MyLifeData.css'
 
 type AreaKey = 'documents' | 'finance' | 'insurance' | 'health' | 'auto' | 'homeLife' | 'travel' | 'family' | 'notes'
-type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories'
+type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories' | 'budgets'
 
 type LifeArea = {
   key: AreaKey
@@ -528,7 +530,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       {addTransactionAction}
     </>}
   </div> : addTransactionAction
-  const financeSettingsMenu = <div ref={mobileMenuRef} className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories'].includes(tab)?'active':''}`} aria-label="Setări și alte pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>
+  const financeSettingsMenu = <div ref={mobileMenuRef} className="financeMobileMenu" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false)}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setMobileMenuOpen(false)}}><button type="button" className={`iconBtn ${['transfers','loans','categories','budgets'].includes(tab)?'active':''}`} aria-label="Setări și alte pagini Finanțe" aria-expanded={mobileMenuOpen} aria-controls={mobileMenuOpen?'finance-more-pages':undefined} onClick={()=>setMobileMenuOpen(value=>!value)}><Settings size={19}/></button>{mobileMenuOpen&&<div id="finance-more-pages" className="financeMobileMenuList" aria-label="Alte pagini Finanțe"><button type="button" className={tab==='budgets'?'active':''} onClick={()=>{setTab('budgets');setMobileMenuOpen(false)}}><PiggyBank size={18}/> Bugete</button><button type="button" className={tab==='transfers'?'active':''} onClick={()=>{setTab('transfers');setMobileMenuOpen(false)}}><ArrowLeftRight size={18}/> Transferuri</button><button type="button" className={tab==='loans'?'active':''} onClick={()=>{setTab('loans');setMobileMenuOpen(false)}}><HandCoins size={18}/> Împrumuturi</button><button type="button" className={tab==='categories'?'active':''} onClick={()=>{setTab('categories');setMobileMenuOpen(false)}}><ListTree size={18}/> Categorii</button></div>}</div>
 
   return (
     <section className="modulePage financeModule">
@@ -540,13 +542,14 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
         <button className={tab === 'transfers' ? 'active' : ''} onClick={() => setTab('transfers')}>Transferuri</button>
         <button className={tab === 'loans' ? 'active' : ''} onClick={() => setTab('loans')}>Împrumuturi</button>
         <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>Categorii</button>
+        <button className={tab === 'budgets' ? 'active' : ''} onClick={() => setTab('budgets')}>Bugete</button>
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
         <button type="button" className="financeSettingsNav" aria-label="Setări Finanțe" title="Setări Finanțe"><Settings size={18}/></button>
       </div>
 
       {creating&&data&&<NewTransaction data={data} mode={creating.mode} accountId={creating.accountId} initialDay={creating.mode==='standard'?selectedDay:null} onClose={()=>setCreating(null)} onSaved={()=>{setCreating(null);onSaved()}}/>}
       {detail && <TransactionDetails onSaved={onSaved} onSeen={()=>onTransactionSeen(detail.id)} transaction={detail} data={data} onClose={() => {setDetailId(null);setTimeout(()=>{const active=document.activeElement;if(active instanceof HTMLElement&&active.classList.contains('transactionRow'))active.blur()},0)}} onOpenDocument={onOpenDocument}/>}
-      {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
+      {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'budgets' ? data ? <BudgetsWorkspace data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă bugetele…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null} accounts={accounts} onSaved={onSaved} onSelectTransaction={transactionId=>setDetailId(transactionId)}/> : tab === 'transfers' ? (
         <><div className="sectionTitle transfersHeader"><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span><div className="financeCreateAction"><button className="financePrimaryAction" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><span aria-hidden="true">+</span> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>

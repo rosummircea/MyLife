@@ -74,12 +74,22 @@ export type SplitRow = {
   category_id: string | null
   amount: number | string
 }
+export type BudgetRow = {
+  id: string
+  household_id: string
+  category_id: string
+  month: string
+  amount: number | string
+  currency: string
+  updated_at?: string
+}
 export type MyLifeData = {
   profile: { displayName: string; householdId: string }
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
   splits: SplitRow[]
+  budgets: BudgetRow[]
   documents: DocumentRow[]
   source: 'live' | 'snapshot'
   capturedAt: string
@@ -109,7 +119,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
   if (membershipError) throw new Error(`Familie: ${membershipError.message}`)
   if (!membership) throw new Error('Profilul nu are o familie activă asociată.')
   const hid: string = membership.household_id
-  const [accounts, transactions, categories, splits, documents] = await Promise.all([
+  const [accounts, transactions, categories, splits, budgets, documents] = await Promise.all([
     allRows<Account>((from, to) => client.from('finance_accounts')
       .select('id,name,account_type,opening_balance,currency,credit_limit,owner_person_id,institution,updated_at,is_active,owner:people!owner_person_id(display_name)').eq('household_id', hid)
       .eq('is_active', true).order('name').order('id').range(from, to)),
@@ -123,6 +133,9 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .select('id,transaction_id,category_id,amount,finance_transactions!inner(household_id,status,transaction_type)')
       .eq('finance_transactions.household_id', hid).eq('finance_transactions.status', 'posted')
       .order('id').range(from, to)),
+    allRows<BudgetRow>((from, to) => client.from('finance_category_budgets')
+      .select('id,household_id,category_id,month,amount,currency,updated_at').eq('household_id', hid)
+      .order('month', { ascending: false }).order('category_id').range(from, to)),
     allRows<DocumentRow>((from, to) => client.from('documents')
       .select('id,document_type,source_filename,mime_type,storage_path,issued_at,expires_at,issuing_country,issuing_authority,document_date,issuer,notes,extra').eq('user_id', auth.user.id)
       .order('created_at', { ascending: false }).order('id').range(from, to)),
@@ -134,6 +147,6 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
   }))
   return {
     profile: { displayName: person.display_name || 'Mircea', householdId: hid },
-    accounts, transactions, categories, splits, documents, source: 'live', capturedAt: new Date().toISOString(),
+    accounts, transactions, categories, splits, budgets, documents, source: 'live', capturedAt: new Date().toISOString(),
   }
 }

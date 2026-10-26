@@ -12,7 +12,7 @@ export async function loadLocalSnapshot(host: string | null): Promise<MyLifeData
     const data: MyLifeData = JSON.parse(await readFile(path, 'utf8'))
     if (data.source !== 'snapshot' || !data.profile?.householdId || !data.capturedAt ||
       ![data.accounts, data.transactions, data.categories, data.splits, data.documents].every(Array.isArray)) return null
-    return data
+    return {...data,budgets:Array.isArray(data.budgets)?data.budgets:[]}
   } catch {
     return null
   }

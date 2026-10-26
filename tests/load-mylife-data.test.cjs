@@ -12,7 +12,7 @@ const { loadMyLifeData } = dataModule.exports
 function clientFixture({ user = { id:'user-one' }, documentError = null } = {}) {
   const requests = []
   const transactions = Array.from({length:1001}, (_,id) => ({id:String(id)}))
-  const tables = { finance_accounts:[{id:'account'}], finance_transactions:transactions, finance_categories:[], finance_transaction_splits:[], documents:[] }
+  const tables = { finance_accounts:[{id:'account'}], finance_transactions:transactions, finance_categories:[], finance_transaction_splits:[], finance_category_budgets:[], documents:[] }
   return {
     requests,
     rpc: async()=>({data:0,error:null}),

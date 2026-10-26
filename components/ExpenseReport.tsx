@@ -7,6 +7,7 @@ import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, su
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
+import BudgetProgress from './BudgetProgress'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
@@ -60,6 +61,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     item.id,
     data ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:item.id},kind).length : 0,
   ])),[categories,data,range.from,range.to,kind])
+  const monthlyBudgets=useMemo(()=>new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)])),[data?.budgets,kind,period,range.from])
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
@@ -188,7 +190,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
             <div className="expenseCategory" key={item.id}>
               <button type="button" id={`expense-trigger-${item.id}`} className={`expenseRow ${expanded ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`expense-details-${item.id}`} onClick={() => setSelected(expanded ? null : item.id)}>
                 <CategoryIcon category={item}/>
-                <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span></div>
+                <div className="expenseName"><strong>{item.name}</strong><span>{transactionCountLabel(categoryTransactionCounts.get(item.id)??0)}</span>{monthlyBudgets.has(item.id)&&<BudgetProgress compact spent={item.amount} budget={monthlyBudgets.get(item.id)!}/>}</div>
                 <div className="expenseValue"><strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong><span>{percent(item.percent)}</span></div>
                 <ChevronRight size={18} className="expenseChevron" aria-hidden="true"/>
               </button>

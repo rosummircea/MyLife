@@ -263,3 +263,5 @@
 .expenseSubcategoryMeta{display:grid;min-width:0;gap:2px}
 .expenseSubcategoryMeta small{display:block;color:var(--muted);font-size:9px;line-height:1.25;font-weight:500}
 .expenseName>span{font-size:10px!important}
+.expenseName .budgetProgress.compact{max-width:420px;margin-top:8px;gap:4px}.expenseName .budgetProgress.compact .budgetProgressMeta{font-size:9px}.expenseName .budgetProgress.compact .budgetProgressTrack{height:5px}
+@media(max-width:600px){.expenseName .budgetProgress.compact{max-width:210px}.expenseName .budgetProgress.compact .budgetProgressMeta strong{display:none}}
