@@ -278,4 +278,10 @@
 .expenseSubcategoryMeta small{display:block;color:var(--muted);font-size:9px;line-height:1.25;font-weight:500}
 .expenseName>span{font-size:10px!important}
 .expenseName .budgetProgress.compact{max-width:420px;margin-top:8px;gap:4px}.expenseName .budgetProgress.compact .budgetProgressMeta{font-size:9px}.expenseName .budgetProgress.compact .budgetProgressTrack{height:5px}
+.expenseName .budgetProgress.compact .budgetProgressMeta b{font-weight:800;color:#67d8aa}
+.expenseName .budgetProgress.compact.warning .budgetProgressMeta b{color:#f4b75f}
+.expenseName .budgetProgress.compact.critical .budgetProgressMeta b,.expenseName .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
+.expenseBudgetAmount.healthy{color:#67d8aa!important}
+.expenseBudgetAmount.warning{color:#f4b75f!important}
+.expenseBudgetAmount.critical,.expenseBudgetAmount.over{color:#ff7d91!important}
 @media(max-width:600px){.expenseName .budgetProgress.compact{max-width:210px}.expenseName .budgetProgress.compact .budgetProgressMeta strong{display:none}}
