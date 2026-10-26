@@ -8,7 +8,7 @@ import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
-import {isBudgetCategory} from '@/lib/budgets'
+import {budgetCoverageTone,isBudgetCategory} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
@@ -73,6 +73,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const totalBudget=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
   const budgetRemaining=totalBudget-budgetedSpent
+  const budgetCoverage=budgetCoverageTone(total,budgetRemaining,incomeTotal)
+  const projectedSpending=total+Math.max(0,budgetRemaining)
+  const projectedIncomeDifference=Math.abs(incomeTotal-projectedSpending)
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
@@ -190,11 +193,11 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         </div>
       </div>
       {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">
-        <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{money(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{money(incomeTotal)}</strong>.</>:<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{money(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{money(incomeTotal)}</strong>.</>}</p>
+        <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{money(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{money(incomeTotal)}</strong>. <span className={`reportBudgetSignal ${budgetCoverage}`}>{budgetCoverage==='available'?`Dacă folosești tot bugetul rămas, rămâi cu ${money(projectedIncomeDifference)} din venituri.`:budgetCoverage==='caution'?`Dacă folosești tot bugetul rămas, depășești veniturile cu ${money(projectedIncomeDifference)}.`:`Cheltuielile au depășit deja veniturile cu ${money(Math.max(0,total-incomeTotal))}.`}</span></>:<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{money(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{money(incomeTotal)}</strong>.</>}</p>
         <div className="reportMonthlySnapshotGrid">
           <div><span>Buget total</span><strong>{money(totalBudget)}</strong></div>
           <div><span>Cheltuit în total</span><strong className="reportMoneyExpense">{money(total)}</strong></div>
-          <div className={budgetRemaining<0?'over':'available'}><span>{budgetRemaining<0?'Buget depășit cu':'Rămas în bugete'}</span><strong>{money(Math.abs(budgetRemaining))}</strong></div>
+          <div className={budgetRemaining<0?'over':budgetCoverage}><span>{budgetRemaining<0?'Buget depășit cu':'Rămas în bugete'}</span><strong>{money(Math.abs(budgetRemaining))}</strong></div>
           <div><span>Încasat</span><strong className="reportMoneyIncome">{money(incomeTotal)}</strong></div>
         </div>
       </section>}
