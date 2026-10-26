@@ -8,6 +8,7 @@ import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
+import {isBudgetCategory} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
@@ -61,7 +62,10 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     item.id,
     data ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:item.id},kind).length : 0,
   ])),[categories,data,range.from,range.to,kind])
-  const monthlyBudgets=useMemo(()=>new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)])),[data?.budgets,kind,period,range.from])
+  const monthlyBudgets=useMemo(()=>{
+    const allowed=new Set((data?.categories??[]).filter(isBudgetCategory).map(category=>category.id))
+    return new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&allowed.has(row.category_id)&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)]))
+  },[data?.budgets,data?.categories,kind,period,range.from])
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`

@@ -34,6 +34,7 @@ begin
       and category.parent_id is null
       and category.kind='expense'
       and category.is_active
+      and lower(category.name) not in ('imprumut','împrumut','animale','necategorizat')
   ) then
     raise exception 'Bugetele pot fi stabilite doar pentru categorii principale active de cheltuieli din aceeași familie.';
   end if;
@@ -98,6 +99,7 @@ with root_spend as (
     and root.kind='expense'
     and root.is_active
     and root.household_id is not null
+    and lower(root.name) not in ('imprumut','împrumut','animale','necategorizat')
   group by root.id,root.household_id
 ), suggested as (
   select category_id,household_id,
@@ -114,3 +116,8 @@ insert into public.finance_category_budgets (household_id,category_id,month,amou
 select household_id,category_id,date '2026-10-01',amount,'RON'
 from suggested
 on conflict (household_id,category_id,month,currency) do nothing;
+
+delete from public.finance_category_budgets budget
+using public.finance_categories category
+where category.id=budget.category_id
+  and lower(category.name) in ('imprumut','împrumut','animale','necategorizat');

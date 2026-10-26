@@ -1,5 +1,12 @@
 export type BudgetTone='healthy'|'warning'|'critical'|'over'
 
+const excludedBudgetCategories=new Set(['imprumut','animale','necategorizat'])
+
+export function isBudgetCategory(category:{name:string}){
+  const normalized=category.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('ro-RO')
+  return !excludedBudgetCategories.has(normalized)
+}
+
 export function budgetStatus(spent:number,budget:number){
   const safeBudget=Math.max(0,budget)
   const ratio=safeBudget>0?spent/safeBudget:0

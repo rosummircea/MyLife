@@ -3,7 +3,7 @@
 import {ChevronLeft,ChevronRight,Copy,Save} from 'lucide-react'
 import {useEffect,useMemo,useState} from 'react'
 import {buildExpenseReport,bucharestDay} from '@/lib/expense-report'
-import {budgetMonthLabel,monthRange,shiftBudgetMonth} from '@/lib/budgets'
+import {budgetMonthLabel,isBudgetCategory,monthRange,shiftBudgetMonth} from '@/lib/budgets'
 import {sortedCategories} from '@/lib/category-display'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
@@ -20,7 +20,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
   const [saved,setSaved]=useState(false)
-  const categories=useMemo(()=>sortedCategories(data.categories.filter(category=>category.kind==='expense'&&!category.parent_id&&category.is_active&&category.household_id===data.profile.householdId)),[data.categories,data.profile.householdId])
+  const categories=useMemo(()=>sortedCategories(data.categories.filter(category=>category.kind==='expense'&&!category.parent_id&&category.is_active&&category.household_id===data.profile.householdId&&isBudgetCategory(category))),[data.categories,data.profile.householdId])
   const budgets=useMemo(()=>new Map(data.budgets.filter(row=>row.month.slice(0,7)===month&&row.currency.trim()==='RON').map(row=>[row.category_id,row])),[data.budgets,month])
   const range=monthRange(month)
   const report=useMemo(()=>buildExpenseReport(data.transactions,data.categories,data.splits,range,'expense'),[data.transactions,data.categories,data.splits,range.from,range.to])
@@ -30,7 +30,8 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
     setError('');setSaved(false)
   },[categories,budgets])
   const totalBudget=categories.reduce((sum,category)=>sum+(Number(normalizeAmount(draft[category.id]??''))||0),0)
-  const remaining=totalBudget-report.total
+  const budgetedSpent=categories.reduce((sum,category)=>sum+(spentByCategory.get(category.id)??0),0)
+  const remaining=totalBudget-budgetedSpent
   const copyPrevious=()=>{
     const previous=shiftBudgetMonth(month,-1)
     const rows=data.budgets.filter(row=>row.month.slice(0,7)===previous&&row.currency.trim()==='RON')
@@ -65,7 +66,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
     </div>
     <div className="budgetsSummary">
       <div><span>Buget total</span><strong>{money(totalBudget)}</strong></div>
-      <div><span>Cheltuit</span><strong>{money(report.total)}</strong></div>
+      <div><span>Cheltuit din bugete</span><strong>{money(budgetedSpent)}</strong></div>
       <div className={remaining<0?'negative':'positive'}><span>{remaining<0?'Depășire':'Disponibil'}</span><strong>{money(Math.abs(remaining))}</strong></div>
       <button type="button" onClick={copyPrevious}><Copy size={15}/> Copiază luna precedentă</button>
     </div>

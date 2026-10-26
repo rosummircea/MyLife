@@ -7,7 +7,15 @@ const source=readFileSync(join(__dirname,'../lib/budgets.ts'),'utf8')
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2017}})
 const budgetModule={exports:{}}
 new Function('exports','require','module',compiled.outputText)(budgetModule.exports,require,budgetModule)
-const {budgetStatus,monthRange,shiftBudgetMonth}=budgetModule.exports
+const {budgetStatus,isBudgetCategory,monthRange,shiftBudgetMonth}=budgetModule.exports
+
+test('budget categories exclude loans, pets and uncategorized',()=>{
+  assert.equal(isBudgetCategory({name:'Împrumut'}),false)
+  assert.equal(isBudgetCategory({name:'Imprumut'}),false)
+  assert.equal(isBudgetCategory({name:'Animale'}),false)
+  assert.equal(isBudgetCategory({name:'Necategorizat'}),false)
+  assert.equal(isBudgetCategory({name:'Mâncare și băuturi'}),true)
+})
 
 test('budget colors reflect remaining room and overspending',()=>{
   assert.equal(budgetStatus(70,100).tone,'healthy')
