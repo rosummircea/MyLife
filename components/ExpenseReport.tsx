@@ -79,6 +79,10 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const budgetCoverage=budgetCoverageTone(total,budgetRemaining,incomeTotal)
   const projectedSpending=total+Math.max(0,budgetRemaining)
   const projectedIncomeDifference=Math.abs(incomeTotal-projectedSpending)
+  const today=bucharestDay(new Date())
+  const daysInclusive=(from:string,to:string)=>Math.max(0,Math.floor((new Date(`${to}T12:00:00Z`).getTime()-new Date(`${from}T12:00:00Z`).getTime())/86400000)+1)
+  const budgetDaysRemaining=period==='Lună'?(today<range.from?daysInclusive(range.from,range.to):today>range.to?0:daysInclusive(today,range.to)):0
+  const budgetDailyAvailable=budgetDaysRemaining>0?Math.max(0,budgetRemaining)/budgetDaysRemaining:0
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
@@ -210,6 +214,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       {kind==='expense'&&period==='Lună'&&totalBudget>0&&<section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
         <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit {moneyWhole(budgetedSpent)}</small></div>
         <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
+        {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
       </section>}
       <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
