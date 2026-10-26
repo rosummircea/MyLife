@@ -187,9 +187,9 @@
 .expenseTotalBudgetPace span{color:var(--muted);font-size:10px}
 .expenseTotalBudgetPace i{color:rgba(148,169,198,.55);font-style:normal;font-size:11px}
 .expenseTotalBudgetPace strong{font-size:12px;color:var(--text)}
-.expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta b{font-weight:800;color:#67d8aa}
-.expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta b{color:#f4b75f}
-.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta b,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
+.expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta b{font-weight:800;color:#67d8aa}
+.expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta b{color:#f4b75f}
+.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta b,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
 @media(max-width:600px){.expenseTotalBudgetStatus{padding:14px 14px}.expenseTotalBudgetHeader strong{font-size:17px}.expenseTotalBudgetHeader{align-items:flex-start}.expenseTotalBudgetHeader small{text-align:right;max-width:45%}}
 
 .expenseSubcategorySwatch{display:inline-block;width:30px;height:30px;border-radius:9px;flex-shrink:0}
