@@ -66,6 +66,13 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     const allowed=new Set((data?.categories??[]).filter(isBudgetCategory).map(category=>category.id))
     return new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&allowed.has(row.category_id)&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)]))
   },[data?.budgets,data?.categories,kind,period,range.from])
+  const incomeTotal=useMemo(()=>{
+    try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
+    catch{return 0}
+  },[data,range.from,range.to])
+  const totalBudget=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
+  const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
+  const budgetRemaining=totalBudget-budgetedSpent
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
@@ -182,6 +189,15 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           </div>
         </div>
       </div>
+      {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">
+        <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{money(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{money(incomeTotal)}</strong>.</>:<>Ai cheltuit <strong>{money(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{money(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{money(incomeTotal)}</strong>.</>}</p>
+        <div className="reportMonthlySnapshotGrid">
+          <div><span>Buget total</span><strong>{money(totalBudget)}</strong></div>
+          <div><span>Cheltuit în total</span><strong className="reportMoneyExpense">{money(total)}</strong></div>
+          <div className={budgetRemaining<0?'over':'available'}><span>{budgetRemaining<0?'Buget depășit cu':'Rămas în bugete'}</span><strong>{money(Math.abs(budgetRemaining))}</strong></div>
+          <div><span>Încasat</span><strong className="reportMoneyIncome">{money(incomeTotal)}</strong></div>
+        </div>
+      </section>}
 
       {!loading && data && !invalidRange && !report.error && <>
       {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
