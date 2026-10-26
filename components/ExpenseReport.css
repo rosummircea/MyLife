@@ -183,6 +183,9 @@
 .expenseTotalBudgetStatus .budgetProgress.compact{gap:6px}
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta{font-size:11px}
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressTrack{height:7px}
+.expenseTotalBudgetPace{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(148,169,198,.12)}
+.expenseTotalBudgetPace span{color:var(--muted);font-size:10px}
+.expenseTotalBudgetPace strong{font-size:12px;color:var(--text)}
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta b{font-weight:800;color:#67d8aa}
 .expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta b{color:#f4b75f}
 .expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta b,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
