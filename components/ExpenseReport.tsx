@@ -8,7 +8,7 @@ import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
-import {budgetCoverageTone,budgetStatus,isBudgetCategory} from '@/lib/budgets'
+import {budgetCoverageTone,isBudgetCategory} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
