@@ -84,6 +84,17 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const [totalSaveError,setTotalSaveError]=useState('')
   const [savingTotal,setSavingTotal]=useState(false)
   const overrideKey=`${data?.profile.householdId??''}:${budgetMonth}`
+  useEffect(() => {
+    if (!data?.profile.householdId || period !== 'Lună') return
+    let active = true
+    const key = data.profile.householdId + ':' + budgetMonth
+    getSupabaseClient().from('finance_monthly_budget_overrides').select('amount').eq('household_id',data.profile.householdId).eq('month',budgetMonth+'-01').eq('currency','RON').maybeSingle().then(result => {
+      if (!active) return
+      if (result.error) { setTotalSaveError(result.error.message); return }
+      setTotalOverrides(prev => ({...prev,[key]:result.data ? Number(result.data.amount) : null}))
+    })
+    return () => { active = false }
+  }, [data?.profile.householdId,budgetMonth,period])
   const totalBudget=Object.prototype.hasOwnProperty.call(totalOverrides,overrideKey)?(totalOverrides[overrideKey]??categoryBudgetTotal):categoryBudgetTotal
   const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
   const budgetRemaining=totalBudget-budgetedSpent
