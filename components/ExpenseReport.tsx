@@ -73,6 +73,8 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
     catch{return 0}
   },[data,range.from,range.to])
+  const [budgetCardIndex,setBudgetCardIndex]=useState(0)
+  const budgetCarouselRef=useRef<HTMLDivElement>(null)
   const totalBudget=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetedSpent=categories.reduce((sum,category)=>sum+(monthlyBudgets.has(category.id)?category.amount:0),0)
   const budgetRemaining=totalBudget-budgetedSpent
@@ -200,7 +202,13 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           </div>
         </div>
       </div>
-      {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">
+      {!loading && data && !invalidRange && !report.error && <>
+      {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
+      {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<div className="reportBudgetCarousel"><div className="reportBudgetCarouselTrack" ref={budgetCarouselRef} onScroll={event=>setBudgetCardIndex(Math.round(event.currentTarget.scrollLeft/Math.max(1,event.currentTarget.clientWidth)))}><div className="reportBudgetSlide"><section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
+        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small></div>
+        <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
+        {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
+      </section></div><div className="reportBudgetSlide"><section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">
         <p>{budgetRemaining>=0?<>Ai cheltuit <strong>{moneyWhole(total)}</strong> în luna selectată. În categoriile bugetate mai ai <strong>{moneyWhole(budgetRemaining)}</strong> din bugetul propus și ai încasat <strong>{moneyWhole(incomeTotal)}</strong>. {unbudgetedSpent>0&&<>Din total, <strong>{moneyWhole(unbudgetedSpent)}</strong> sunt deja cheltuieli în categorii fără buget. </>}<span className={`reportBudgetSignal ${budgetCoverage}`}>{budgetCoverage==='available'?`Dacă folosești tot bugetul rămas, cheltuielile lunii ajung la ${moneyWhole(projectedSpending)} și rămâi cu ${moneyWhole(projectedIncomeDifference)} din venituri.`:budgetCoverage==='caution'?`Dacă folosești și tot bugetul rămas, cheltuielile lunii ajung la ${moneyWhole(projectedSpending)}, adică depășești veniturile cu ${moneyWhole(projectedIncomeDifference)}.`:`Cheltuielile au depășit deja veniturile cu ${moneyWhole(Math.max(0,total-incomeTotal))}.`}</span></>:<>Ai cheltuit <strong>{moneyWhole(total)}</strong> în luna selectată. Ai depășit bugetele propuse cu <strong>{moneyWhole(Math.abs(budgetRemaining))}</strong> și ai încasat <strong>{moneyWhole(incomeTotal)}</strong>.</>}</p>
         <div className="reportMonthlySnapshotGrid">
           <div><span>Buget total</span><strong>{moneyWhole(totalBudget)}</strong></div>
@@ -208,15 +216,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           <div className={budgetRemaining<0?'over':budgetCoverage}><span>{budgetRemaining<0?'Buget depășit cu':'Rămas în bugete'}</span><strong>{moneyWhole(Math.abs(budgetRemaining))}</strong></div>
           <div><span>Încasat</span><strong className="reportMoneyIncome">{moneyWhole(incomeTotal)}</strong></div>
         </div>
-      </section>}
-
-      {!loading && data && !invalidRange && !report.error && <>
-      {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
-      {kind==='expense'&&period==='Lună'&&totalBudget>0&&<section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
-        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small></div>
-        <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
-        {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
-      </section>}
+      </section></div></div><div className="reportBudgetDots"><button type="button" aria-label="Buget" aria-current={budgetCardIndex===0?'true':undefined} onClick={()=>{budgetCarouselRef.current?.scrollTo({left:0,behavior:'smooth'});setBudgetCardIndex(0)}}/><button type="button" aria-label="Rezumat" aria-current={budgetCardIndex===1?'true':undefined} onClick={()=>{const el=budgetCarouselRef.current;el?.scrollTo({left:el.clientWidth,behavior:'smooth'});setBudgetCardIndex(1)}}/></div></div>}
       <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
         {categories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
