@@ -76,6 +76,19 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   },[data,range.from,range.to])
   const [budgetCardIndex,setBudgetCardIndex]=useState(0)
   const budgetCarouselRef=useRef<HTMLDivElement>(null)
+  const showBudgetCarousel=kind==='expense'&&period==='Lună'&&!loading&&!!data&&!invalidRange&&!report.error
+  useEffect(() => {
+    const track=budgetCarouselRef.current
+    if (!showBudgetCarousel || !track) return
+    const slide=track.children[budgetCardIndex] as HTMLElement | undefined
+    if (!slide) return
+    // The offscreen summary can be taller; size the viewport to the visible card.
+    const resize=()=>{track.style.height=`${slide.getBoundingClientRect().height}px`}
+    resize()
+    const observer=new ResizeObserver(resize)
+    observer.observe(slide)
+    return ()=>observer.disconnect()
+  },[showBudgetCarousel,budgetCardIndex])
   const categoryBudgetTotal=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetMonth=range.from.slice(0,7)
   const [totalOverrides,setTotalOverrides]=useState<Record<string,number|null>>({})
@@ -86,9 +99,11 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const overrideKey=`${data?.profile.householdId??''}:${budgetMonth}`
   useEffect(() => {
     if (!data?.profile.householdId || period !== 'Lună') return
+    const client=getSupabaseClient()
+    if (!client) return
     let active = true
     const key = data.profile.householdId + ':' + budgetMonth
-    getSupabaseClient().from('finance_monthly_budget_overrides').select('amount').eq('household_id',data.profile.householdId).eq('month',budgetMonth+'-01').eq('currency','RON').maybeSingle().then(result => {
+    client.from('finance_monthly_budget_overrides').select('amount').eq('household_id',data.profile.householdId).eq('month',budgetMonth+'-01').eq('currency','RON').maybeSingle().then(result => {
       if (!active) return
       if (result.error) { setTotalSaveError(result.error.message); return }
       setTotalOverrides(prev => ({...prev,[key]:result.data ? Number(result.data.amount) : null}))
@@ -224,7 +239,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       </div>
       {!loading && data && !invalidRange && !report.error && <>
       {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
-      {kind==='expense'&&period==='Lună'&&!loading&&data&&!invalidRange&&!report.error&&<div className="reportBudgetCarousel"><div className="reportBudgetCarouselTrack" ref={budgetCarouselRef} onScroll={event=>setBudgetCardIndex(Math.round(event.currentTarget.scrollLeft/Math.max(1,event.currentTarget.clientWidth)))}><div className="reportBudgetSlide"><section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
+      {showBudgetCarousel&&<div className="reportBudgetCarousel"><div className="reportBudgetCarouselTrack" ref={budgetCarouselRef} onScroll={event=>setBudgetCardIndex(Math.max(0,Math.min(1,Math.round(event.currentTarget.scrollLeft/Math.max(1,event.currentTarget.clientWidth)))))}><div className="reportBudgetSlide"><section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
         <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small></div>
         <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
         {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
