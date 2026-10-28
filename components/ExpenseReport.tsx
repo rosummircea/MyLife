@@ -14,7 +14,7 @@ import { contributionBucketKey, expenseContributionTransactions } from '@/lib/ex
 import './ExpenseReport.css'
 
 function money(value: number) {
-  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(value)
+  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(value)
 }
 function moneyWhole(value: number) {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(value)
@@ -123,7 +123,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const budgetDailyAvailable=budgetDaysRemaining>0?Math.max(0,budgetRemaining)/budgetDaysRemaining:0
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
-  const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 1 })}%`
+  const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 0 })}%`
   const resetReportSelection=()=>{
     setSelected(null)
     setOverviewBucket(null)
@@ -321,7 +321,7 @@ function SubcategoryDetails({ category, data, range, period, kind, onSelectTrans
                 <span className="expenseSubcategorySwatch" aria-hidden="true" style={{backgroundColor:item.color}}/>
                 <span className="expenseSubcategoryMeta"><span className="expenseSubcategoryName">{item.name}</span><small>{transactionCountLabel(rows.length)}</small></span>
                 <strong className={reportAmountClass(item.amount,kind)}>{money(item.amount)}</strong>
-                <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                <span className="expenseSubcategoryPercent">{item.percent.toLocaleString('ro-RO', { maximumFractionDigits: 0 })}%</span>
                 <ChevronRight size={14} className="expenseChevron" aria-hidden="true"/>
               </button>
               <div id={`expense-transactions-${item.id}`} hidden={!expanded} className="expenseSubcategoryTransactions" role="region" aria-labelledby={`expense-subcategory-${item.id}`} style={{borderLeftColor:item.color}}>
@@ -362,7 +362,7 @@ function SubcategoryDetails({ category, data, range, period, kind, onSelectTrans
           if (next !== reportView) setReportView(next)
         }}>
           <section className="expenseReportSlide expenseReportPieSlide" aria-label={`Distribuția subcategoriilor pentru ${category.name}`}>
-            <div className="expenseSubchart" role="img" aria-label={`Distribuția subcategoriilor pentru ${category.name}: ${distribution.map((item) => `${item.name} ${item.percent.toLocaleString('ro-RO')}%`).join(', ')}`} style={{ background: `conic-gradient(${gradient})` }}>
+            <div className="expenseSubchart" role="img" aria-label={`Distribuția subcategoriilor pentru ${category.name}: ${distribution.map((item) => `${item.name} ${item.percent.toLocaleString('ro-RO', { maximumFractionDigits: 0 })}%`).join(', ')}`} style={{ background: `conic-gradient(${gradient})` }}>
               <div className="expenseSubchartHole"><span>Total categorie</span><strong className={reportAmountClass(category.amount,kind)}>{money(category.amount)}</strong></div>
             </div>
           </section>

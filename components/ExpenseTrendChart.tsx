@@ -5,7 +5,7 @@ import { buildExpenseTrend, type DateRange, type ExpenseTrendTarget, type Report
 import type { MyLifeData } from '@/lib/mylife-data'
 import './ExpenseTrendChart.css'
 
-const money = (amount: number) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(amount)
+const money = (amount: number) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(amount)
 const amountClass = (amount:number,kind:ReportKind) => amount === 0 ? 'reportMoneyNeutral' : kind === 'income' ? 'reportMoneyIncome' : 'reportMoneyExpense'
 
 export default function ExpenseTrendChart({ data, range, period, target, name, color, kind = 'expense', onSelectPoint, onSelectTotal, compact = false }: {
