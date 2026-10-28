@@ -1,7 +1,7 @@
 export type BudgetTone='healthy'|'warning'|'critical'|'over'
 export type BudgetCoverageTone='available'|'caution'|'over'
 
-const excludedBudgetCategories=new Set(['animale','necategorizat'])
+const excludedBudgetCategories=new Set(['imprumut','animale','necategorizat'])
 
 export function isBudgetCategory(category:{name:string}){
   const normalized=category.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('ro-RO')
@@ -12,6 +12,10 @@ export function budgetCoverageTone(spent:number,remaining:number,income:number):
   if(remaining<0||spent>income)return 'over'
   if(spent+remaining>income)return 'caution'
   return 'available'
+}
+
+export function isValidTotalBudget(total:number,categoryTotal:number){
+  return Number.isFinite(total)&&total>=0&&total+1e-9>=categoryTotal
 }
 
 export function budgetStatus(spent:number,budget:number){

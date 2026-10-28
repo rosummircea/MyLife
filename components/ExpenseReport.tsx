@@ -9,7 +9,7 @@ import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
 import { getSupabaseClient } from '@/lib/supabase'
-import {budgetCoverageTone,isBudgetCategory} from '@/lib/budgets'
+import {budgetCoverageTone,isBudgetCategory,isValidTotalBudget} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
 import './ExpenseReport.css'
 
@@ -122,6 +122,18 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   const daysInclusive=(from:string,to:string)=>Math.max(0,Math.floor((new Date(`${to}T12:00:00Z`).getTime()-new Date(`${from}T12:00:00Z`).getTime())/86400000)+1)
   const budgetDaysRemaining=period==='Lună'?(today<range.from?daysInclusive(range.from,range.to):today>range.to?0:daysInclusive(today,range.to)):0
   const budgetDailyAvailable=budgetDaysRemaining>0?Math.max(0,budgetRemaining)/budgetDaysRemaining:0
+  const saveTotalBudget=async()=>{
+    if(!data?.profile.householdId||savingTotal)return
+    const amount=Number(totalDraft.replace(/\s/g,'').replace(',','.'))
+    if(!isValidTotalBudget(amount,categoryBudgetTotal)){setTotalSaveError(`Bugetul total trebuie să fie de cel puțin ${moneyWhole(categoryBudgetTotal)}.`);return}
+    const client=getSupabaseClient()
+    if(!client){setTotalSaveError('Conexiunea la baza de date nu este disponibilă.');return}
+    setSavingTotal(true);setTotalSaveError('')
+    const result=await client.from('finance_monthly_budget_overrides').upsert({household_id:data.profile.householdId,month:`${budgetMonth}-01`,currency:'RON',amount:Math.round(amount*100)/100,updated_at:new Date().toISOString()},{onConflict:'household_id,month,currency'})
+    setSavingTotal(false)
+    if(result.error){setTotalSaveError(result.error.message);return}
+    setTotalOverrides(current=>({...current,[overrideKey]:amount}));setEditingTotal(false)
+  }
   const gradient = distributionGradient(categories)
   const label=periodLabel(period,anchor,{from:customFrom,to:customTo})
   const percent = (value: number) => `${value.toLocaleString('ro-RO', { maximumFractionDigits: 0 })}%`
@@ -241,7 +253,8 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       {!loading && data && !invalidRange && !report.error && <>
       {showAllTransactions&&<div id="expense-all-transactions" ref={allTransactionsRef} className="expenseContributionList"><header><div><h3>Tranzacții · Total {kind==='income'?'venituri':'cheltuieli'}</h3><p>{overviewBucket?.label??`${range.from} – ${range.to}`} · {allContributions.length} tranzacții · Apasă pentru detalii și editare.</p></div><button className="expenseCategoryTrendButton" onClick={()=>{setShowAllTransactions(false);setOverviewBucket(null)}}>Închide lista</button></header><TransactionsList accounts={data.accounts} categories={data.categories} splits={data.splits} transactions={allContributions.map(row=>row.transaction)} contributionAmounts={Object.fromEntries(allContributions.map(row=>[row.transaction.id,row.amount]))} onSelect={onSelectTransaction}/></div>}
       {showBudgetCarousel&&<div className="reportBudgetCarousel"><div className="reportBudgetCarouselTrack" ref={budgetCarouselRef} onScroll={event=>setBudgetCardIndex(Math.max(0,Math.min(1,Math.round(event.currentTarget.scrollLeft/Math.max(1,event.currentTarget.clientWidth)))))}><div className="reportBudgetSlide"><section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
-        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span><strong>{moneyWhole(totalBudget)}</strong></div><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small></div>
+        <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span>{editingTotal?<div className="expenseTotalBudgetEditor"><label><input aria-label="Buget total lunar" inputMode="decimal" autoFocus value={totalDraft} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value))setTotalDraft(event.target.value)}}/><b>RON</b></label><div><button type="button" disabled={savingTotal} onClick={()=>void saveTotalBudget()}>{savingTotal?'Se salvează…':'Salvează'}</button><button type="button" onClick={()=>{setEditingTotal(false);setTotalSaveError('')}}>Renunță</button></div></div>:<strong>{moneyWhole(totalBudget)}</strong>}</div><div className="expenseTotalBudgetHeaderActions"><small>Cheltuit din bugete {moneyWhole(budgetedSpent)}</small>{!editingTotal&&<button type="button" onClick={()=>{setTotalDraft(String(totalBudget));setTotalSaveError('');setEditingTotal(true)}}>Editează bugetul total</button>}</div></div>
+        {totalSaveError&&<p className="expenseTotalBudgetError" role="alert">{totalSaveError}</p>}
         <BudgetProgress compact spent={budgetedSpent} budget={totalBudget}/>
         {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
       </section></div><div className="reportBudgetSlide"><section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">

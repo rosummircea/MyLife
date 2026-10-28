@@ -3,7 +3,7 @@
 import {ChevronLeft,ChevronRight,Copy,Save} from 'lucide-react'
 import {useEffect,useMemo,useState} from 'react'
 import {buildExpenseReport,bucharestDay} from '@/lib/expense-report'
-import {budgetMonthLabel,isBudgetCategory,monthRange,shiftBudgetMonth} from '@/lib/budgets'
+import {budgetMonthLabel,isBudgetCategory,isValidTotalBudget,monthRange,shiftBudgetMonth} from '@/lib/budgets'
 import {sortedCategories} from '@/lib/category-display'
 import {getSupabaseClient} from '@/lib/supabase'
 import type {MyLifeData} from '@/lib/mylife-data'
@@ -20,6 +20,8 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
   const [saved,setSaved]=useState(false)
+  const [totalDraft,setTotalDraft]=useState('')
+  const [totalLoading,setTotalLoading]=useState(true)
   const categories=useMemo(()=>sortedCategories(data.categories.filter(category=>category.kind==='expense'&&!category.parent_id&&category.is_active&&category.household_id===data.profile.householdId&&isBudgetCategory(category))),[data.categories,data.profile.householdId])
   const budgets=useMemo(()=>new Map(data.budgets.filter(row=>row.month.slice(0,7)===month&&row.currency.trim()==='RON').map(row=>[row.category_id,row])),[data.budgets,month])
   const range=monthRange(month)
@@ -29,27 +31,52 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
     setDraft(Object.fromEntries(categories.map(category=>[category.id,budgets.get(category.id)?String(Number(budgets.get(category.id)!.amount)):'' ])))
     setError('');setSaved(false)
   },[categories,budgets])
-  const totalBudget=categories.reduce((sum,category)=>sum+(Number(normalizeAmount(draft[category.id]??''))||0),0)
+  useEffect(()=>{
+    const client=getSupabaseClient()
+    if(!client||data.source!=='live'){setTotalDraft('');setTotalLoading(false);return}
+    let active=true
+    setTotalLoading(true)
+    client.from('finance_monthly_budget_overrides').select('amount').eq('household_id',data.profile.householdId).eq('month',`${month}-01`).eq('currency','RON').maybeSingle().then(result=>{
+      if(!active)return
+      if(result.error)setError(result.error.message)
+      setTotalDraft(result.data?String(Number(result.data.amount)):'')
+      setTotalLoading(false)
+    })
+    return()=>{active=false}
+  },[data.profile.householdId,data.source,month])
+  const categoryBudgetTotal=categories.reduce((sum,category)=>sum+(Number(normalizeAmount(draft[category.id]??''))||0),0)
+  const totalBudget=totalDraft.trim()===''?categoryBudgetTotal:Number(normalizeAmount(totalDraft))||0
   const budgetedSpent=categories.reduce((sum,category)=>sum+(spentByCategory.get(category.id)??0),0)
   const remaining=totalBudget-budgetedSpent
-  const copyPrevious=()=>{
+  const copyPrevious=async()=>{
     const previous=shiftBudgetMonth(month,-1)
     const rows=data.budgets.filter(row=>row.month.slice(0,7)===previous&&row.currency.trim()==='RON')
     if(!rows.length){setError(`Nu există bugete salvate pentru ${budgetMonthLabel(previous)}.`);return}
     const values=new Map(rows.map(row=>[row.category_id,String(Number(row.amount))]))
     setDraft(Object.fromEntries(categories.map(category=>[category.id,values.get(category.id)??''])))
+    const client=getSupabaseClient()
+    if(client&&data.source==='live'){
+      const result=await client.from('finance_monthly_budget_overrides').select('amount').eq('household_id',data.profile.householdId).eq('month',`${previous}-01`).eq('currency','RON').maybeSingle()
+      if(result.error){setError(result.error.message);return}
+      setTotalDraft(result.data?String(Number(result.data.amount)):'')
+    }
     setError('');setSaved(false)
   }
   const save=async()=>{
     const client=getSupabaseClient();if(!client||busy||data.source!=='live')return
     const parsed=categories.map(category=>({category,raw:draft[category.id]?.trim()??'',amount:Number(normalizeAmount(draft[category.id]??''))}));
     if(parsed.some(row=>row.raw&&(!Number.isFinite(row.amount)||row.amount<0))){setError('Bugetele completate trebuie să fie zero sau sume pozitive.');return}
+    const totalRaw=totalDraft.trim()
+    const totalAmount=Number(normalizeAmount(totalDraft))
+    if(totalRaw&&!isValidTotalBudget(totalAmount,categoryBudgetTotal)){setError(`Bugetul total trebuie să fie de cel puțin ${money(categoryBudgetTotal)}, cât însumează bugetele pe categorii.`);return}
     setBusy(true);setError('');setSaved(false)
     try{
       const upserts=parsed.filter(row=>row.raw!=='').map(row=>({household_id:data.profile.householdId,category_id:row.category.id,month:`${month}-01`,amount:Math.round(row.amount*100)/100,currency:'RON'}))
       if(upserts.length){const result=await client.from('finance_category_budgets').upsert(upserts,{onConflict:'household_id,category_id,month,currency'});if(result.error)throw Error(result.error.message)}
       const removed=parsed.filter(row=>row.raw===''&&budgets.has(row.category.id)).map(row=>row.category.id)
       if(removed.length){const result=await client.from('finance_category_budgets').delete().eq('household_id',data.profile.householdId).eq('month',`${month}-01`).in('category_id',removed);if(result.error)throw Error(result.error.message)}
+      if(totalRaw){const result=await client.from('finance_monthly_budget_overrides').upsert({household_id:data.profile.householdId,month:`${month}-01`,currency:'RON',amount:Math.round(totalAmount*100)/100,updated_at:new Date().toISOString()},{onConflict:'household_id,month,currency'});if(result.error)throw Error(result.error.message)}
+      else{const result=await client.from('finance_monthly_budget_overrides').delete().eq('household_id',data.profile.householdId).eq('month',`${month}-01`).eq('currency','RON');if(result.error)throw Error(result.error.message)}
       setSaved(true);onSaved()
     }catch(value){setError(value instanceof Error?value.message:'Bugetele nu au putut fi salvate.')}
     finally{setBusy(false)}
@@ -57,7 +84,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
   return <section className="budgetsWorkspace">
     <header className="budgetsHeader">
       <div><span className="budgetsEyebrow">BUGETE LUNARE</span><h2>{budgetMonthLabel(month)}</h2><p>Stabilește limita pentru fiecare categorie principală și urmărește progresul în Rapoarte.</p></div>
-      <button type="button" className="financePrimaryAction" disabled={busy||data.source!=='live'} onClick={()=>void save()}><Save size={16}/>{busy?'Se salvează…':'Salvează bugetele'}</button>
+      <button type="button" className="financePrimaryAction" disabled={busy||totalLoading||data.source!=='live'} onClick={()=>void save()}><Save size={16}/>{busy?'Se salvează…':'Salvează bugetele'}</button>
     </header>
     <div className="budgetsMonthNavigator">
       <button type="button" aria-label="Luna precedentă" onClick={()=>setMonth(value=>shiftBudgetMonth(value,-1))}><ChevronLeft size={20}/></button>
@@ -65,10 +92,10 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
       <button type="button" aria-label="Luna următoare" onClick={()=>setMonth(value=>shiftBudgetMonth(value,1))}><ChevronRight size={20}/></button>
     </div>
     <div className="budgetsSummary">
-      <div><span>Buget total</span><strong>{money(totalBudget)}</strong></div>
+      <div className="budgetTotalEditor"><span>Buget total</span><label><input aria-label="Buget total lunar" inputMode="decimal" placeholder={String(Math.round(categoryBudgetTotal))} value={totalDraft} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value)){setTotalDraft(event.target.value);setSaved(false)}}}/><b>RON</b></label><small>{totalDraft.trim()===''?'Automat: suma categoriilor':`Minim ${money(categoryBudgetTotal)}`}</small></div>
       <div><span>Cheltuit din bugete</span><strong>{money(budgetedSpent)}</strong></div>
       <div className={remaining<0?'negative':'positive'}><span>{remaining<0?'Depășire':'Disponibil'}</span><strong>{money(Math.abs(remaining))}</strong></div>
-      <button type="button" onClick={copyPrevious}><Copy size={15}/> Copiază luna precedentă</button>
+      <button type="button" onClick={()=>void copyPrevious()}><Copy size={15}/> Copiază luna precedentă</button>
     </div>
     {error&&<p className="budgetMessage error" role="alert">{error}</p>}
     {saved&&<p className="budgetMessage success" role="status">Bugetele au fost salvate.</p>}

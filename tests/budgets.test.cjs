@@ -7,7 +7,7 @@ const source=readFileSync(join(__dirname,'../lib/budgets.ts'),'utf8')
 const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2017}})
 const budgetModule={exports:{}}
 new Function('exports','require','module',compiled.outputText)(budgetModule.exports,require,budgetModule)
-const {budgetCoverageTone,budgetStatus,isBudgetCategory,monthRange,shiftBudgetMonth}=budgetModule.exports
+const {budgetCoverageTone,budgetStatus,isBudgetCategory,isValidTotalBudget,monthRange,shiftBudgetMonth}=budgetModule.exports
 
 test('budget categories exclude loans, pets and uncategorized',()=>{
   assert.equal(isBudgetCategory({name:'Împrumut'}),false)
@@ -33,6 +33,13 @@ test('budget coverage colors show whether income can fund the remaining budget',
   assert.equal(budgetCoverageTone(600,300,800),'caution')
   assert.equal(budgetCoverageTone(900,100,800),'over')
   assert.equal(budgetCoverageTone(500,-10,800),'over')
+})
+
+test('total budget cannot be lower than the category budgets',()=>{
+  assert.equal(isValidTotalBudget(11,10),true)
+  assert.equal(isValidTotalBudget(10,10),true)
+  assert.equal(isValidTotalBudget(9.99,10),false)
+  assert.equal(isValidTotalBudget(Number.NaN,10),false)
 })
 
 test('budget month navigation and ranges cross years correctly',()=>{
