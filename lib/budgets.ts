@@ -1,7 +1,7 @@
 export type BudgetTone='healthy'|'warning'|'critical'|'over'
 export type BudgetCoverageTone='available'|'caution'|'over'
 
-const excludedBudgetCategories=new Set(['imprumut','animale','necategorizat'])
+const excludedBudgetCategories=new Set(['animale','necategorizat'])
 
 export function isBudgetCategory(category:{name:string}){
   const normalized=category.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('ro-RO')

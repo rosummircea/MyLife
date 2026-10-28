@@ -9,9 +9,9 @@ const budgetModule={exports:{}}
 new Function('exports','require','module',compiled.outputText)(budgetModule.exports,require,budgetModule)
 const {budgetCoverageTone,budgetStatus,isBudgetCategory,isValidTotalBudget,monthRange,shiftBudgetMonth}=budgetModule.exports
 
-test('budget categories exclude loans, pets and uncategorized',()=>{
-  assert.equal(isBudgetCategory({name:'Împrumut'}),false)
-  assert.equal(isBudgetCategory({name:'Imprumut'}),false)
+test('budget categories include loans and exclude pets and uncategorized',()=>{
+  assert.equal(isBudgetCategory({name:'Împrumut'}),true)
+  assert.equal(isBudgetCategory({name:'Imprumut'}),true)
   assert.equal(isBudgetCategory({name:'Animale'}),false)
   assert.equal(isBudgetCategory({name:'Necategorizat'}),false)
   assert.equal(isBudgetCategory({name:'Mâncare și băuturi'}),true)
