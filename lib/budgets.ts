@@ -14,6 +14,19 @@ export function budgetCoverageTone(spent:number,remaining:number,income:number):
   return 'available'
 }
 
+export function budgetPlanSummary(totalSpent:number,income:number,totalBudget:number,allocations:Array<{spent:number;budget:number}>){
+  const categorySpent=allocations.reduce((sum,row)=>sum+row.spent,0)
+  const categoryRemaining=allocations.reduce((sum,row)=>sum+Math.max(0,row.budget-row.spent),0)
+  const categoryOverrun=allocations.reduce((sum,row)=>sum+Math.max(0,row.spent-row.budget),0)
+  const unbudgetedSpent=Math.max(0,totalSpent-categorySpent)
+  const totalRemaining=totalBudget-totalSpent
+  const projectedSpending=totalSpent+categoryRemaining
+  const projectedBudgetDifference=projectedSpending-totalBudget
+  const projectedIncomeDifference=projectedSpending-income
+  const tone:BudgetCoverageTone=totalRemaining<0||totalSpent>income?'over':projectedBudgetDifference>0||projectedIncomeDifference>0?'caution':'available'
+  return {categorySpent,categoryRemaining,categoryOverrun,unbudgetedSpent,totalRemaining,projectedSpending,projectedBudgetDifference,projectedIncomeDifference,tone}
+}
+
 export function isValidTotalBudget(total:number,categoryTotal:number){
   return Number.isFinite(total)&&total>=0&&total+1e-9>=categoryTotal
 }

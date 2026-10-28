@@ -92,7 +92,7 @@
 .reportMonthlySnapshot>p{margin:0;padding:0 5px;color:var(--muted);font-size:10px;line-height:1.6}
 .reportMonthlySnapshot>p strong{color:var(--text);font-weight:750}
 .reportBudgetSignal{display:block;margin-top:5px;font-weight:700}.reportBudgetSignal.available{color:#67d8aa}.reportBudgetSignal.caution{color:#f4b75f}.reportBudgetSignal.over{color:#ff8797}
-.reportMonthlySnapshotGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.reportMonthlySnapshotGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .reportMonthlySnapshotGrid>div{min-width:0;padding:10px 11px;border:1px solid rgba(148,169,198,.13);border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.018))}
 .reportMonthlySnapshotGrid span,.reportMonthlySnapshotGrid strong{display:block;overflow-wrap:anywhere}
 .reportMonthlySnapshotGrid span{margin-bottom:5px;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
@@ -101,7 +101,7 @@
 .expenseTotalBudgetHeaderActions{display:grid;justify-items:end;gap:7px}.expenseTotalBudgetHeaderActions button,.expenseTotalBudgetEditor button{border:1px solid rgba(148,169,198,.18);border-radius:9px;padding:6px 9px;background:rgba(255,255,255,.045);color:var(--text);font:inherit;font-size:9px;font-weight:750}.expenseTotalBudgetHeaderActions button{color:var(--blue)}
 .expenseTotalBudgetEditor{display:grid;gap:7px;margin-top:5px}.expenseTotalBudgetEditor label{display:flex;align-items:center;gap:6px;width:min(220px,100%);padding:0 9px;border:1px solid rgba(148,169,198,.24);border-radius:10px;background:rgba(5,13,24,.34)}.expenseTotalBudgetEditor input{width:100%;min-width:0;padding:7px 0;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:16px;font-weight:800}.expenseTotalBudgetEditor label b{font-size:9px}.expenseTotalBudgetEditor>div{display:flex;gap:6px}.expenseTotalBudgetEditor>div button:first-child{color:#67d8aa}.expenseTotalBudgetEditor>div button:last-child{color:var(--muted)}.expenseTotalBudgetError{margin:0 0 8px;color:#ff8797;font-size:10px}
 @media(max-width:560px){.expenseTotalBudgetHeaderActions button{min-height:32px}.expenseTotalBudgetEditor label{width:100%}}
-@media(max-width:1100px){.reportMonthlySnapshot{grid-template-columns:minmax(0,1fr)}.reportMonthlySnapshotGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.reportMonthlySnapshot{grid-template-columns:minmax(0,1fr)}.reportMonthlySnapshotGrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.reportMonthlySnapshot{padding:13px}.reportMonthlySnapshotGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .reportSummaryPeriods { --period-index:2; position:relative; flex:none; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); width:100%; margin:18px 0 2px; padding:4px; border-color:rgba(148,169,198,.18); border-radius:15px; background:rgba(5,13,24,.42); box-shadow:inset 0 1px 0 rgba(255,255,255,.035); isolation:isolate; }
 .reportSummaryPeriods .reportPeriodIndicator { position:absolute; z-index:0; top:4px; bottom:4px; left:4px; width:calc((100% - 8px)/5); border-radius:11px; background:linear-gradient(145deg,#79b4ff,#72e1c5); box-shadow:0 5px 18px rgba(71,153,211,.24),inset 0 1px 0 rgba(255,255,255,.38); transform:translateX(calc(var(--period-index)*100%)); transition:transform .28s cubic-bezier(.2,.8,.2,1); }
