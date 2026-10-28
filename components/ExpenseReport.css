@@ -307,6 +307,8 @@
 .expenseBudgetAmount.critical,.expenseBudgetAmount.over{color:#ff7d91!important}
 @media(max-width:600px){.expenseName .budgetProgress.compact{max-width:210px}.expenseName .budgetProgress.compact .budgetProgressMeta strong{display:none}}
 
+.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta b,.expenseName .budgetProgress.compact.critical .budgetProgressMeta span,.expenseName .budgetProgress.compact.critical .budgetProgressMeta b{color:#f4b75f}.expenseTotalBudgetStatus .budgetProgress.compact.exhausted .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.exhausted .budgetProgressMeta b,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta b,.expenseName .budgetProgress.compact.exhausted .budgetProgressMeta span,.expenseName .budgetProgress.compact.exhausted .budgetProgressMeta b,.expenseName .budgetProgress.compact.over .budgetProgressMeta span,.expenseName .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
+
 /* Swipeable monthly budget overview: progress first, financial detail second */
 .reportBudgetCarousel{min-width:0;margin:28px 0 24px}
 .reportBudgetCarouselTrack{display:flex;align-items:flex-start;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y}
