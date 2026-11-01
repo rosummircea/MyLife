@@ -16,6 +16,7 @@ export default function TransactionsCalendar({ transactions, selectedDay, onSele
   const counts = useMemo(() => {
     const result = new Map<string, { incoming: boolean; outgoing: boolean; transfer: boolean; unseen: boolean }>()
     for (const transaction of transactions) {
+      if (transaction.transaction_type === 'transfer' && (transaction.transfer_mirror === true || transaction.transfer_mirror === 'true')) continue
       const day = bucharestDay(new Date(transaction.transaction_date))
       if (transaction.status && transaction.status !== 'posted' || Number(transaction.amount) <= 0) continue
       const activity = result.get(day) ?? { incoming: false, outgoing: false, transfer: false, unseen: false }
