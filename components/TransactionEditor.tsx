@@ -123,6 +123,7 @@ export default function TransactionEditor({
   const [splitMode,setSplitMode] = useState(
     creating ? (initialValues?.splits?.length??0)>1 : originalAllocations.length>1
   )
+  const [rememberMerchantCategory,setRememberMerchantCategory] = useState(true)
 
   const patch = (value:Partial<TransactionEdit>) => setForm(old => ({...old,...value}))
 
@@ -174,7 +175,7 @@ export default function TransactionEditor({
       if(saveError) throw Error(saveError.message)
       const originalCategoryIds=originalAllocations.map(split=>split.category_id).sort().join(',')
       const savedCategoryIds=form.splits.map(split=>split.category_id).filter(Boolean).sort().join(',')
-      if(!creating&&tx.enable_banking_transaction_id&&originalCategoryIds!==savedCategoryIds){
+      if(!creating&&tx.enable_banking_transaction_id&&rememberMerchantCategory&&originalCategoryIds!==savedCategoryIds){
         const {data:{session}}=await client.auth.getSession()
         if(session?.access_token){
           const response=await fetch(`/api/finance/transactions/${tx.id}/learn-category`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`}})
@@ -346,6 +347,11 @@ export default function TransactionEditor({
           const categoryId=defaultCategoryId(data,form.transaction_type)
           if(categoryId)patch({splits:[...form.splits,{category_id:categoryId,amount:0}]})
         }}>+ Adaugă încă o categorie</button> : null}
+
+        {Boolean(tx.enable_banking_transaction_id)&&form.merchant.trim()?<label className={`transactionRememberMerchant${splitMode?' disabled':''}`}>
+          <input type="checkbox" checked={rememberMerchantCategory&&!splitMode} disabled={splitMode} onChange={event=>setRememberMerchantCategory(event.target.checked)}/>
+          <span><strong>Ține minte pentru „{form.merchant.trim()}”</strong><small>{splitMode?'O regulă poate fi memorată numai când tranzacția are o singură categorie.':'Tranzacțiile viitoare de la acest comerciant vor primi automat categoria aleasă.'}</small></span>
+        </label>:null}
       </section> : null}
 
       <section>

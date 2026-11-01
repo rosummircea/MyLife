@@ -253,6 +253,8 @@
   background:rgba(118,168,255,.08);
   border-color:rgba(118,168,255,.22);
 }
+
+.transactionEditForm .transactionRememberMerchant{display:flex;flex-direction:row;align-items:flex-start;gap:11px;margin-top:14px;padding:12px;border:1px solid #68d7c34d;border-radius:12px;background:#68d7c30d;color:var(--text);cursor:pointer}.transactionEditForm .transactionRememberMerchant input{width:18px!important;min-width:18px!important;height:18px;min-height:18px;padding:0!important;margin:2px 0 0;accent-color:#68d7c3}.transactionRememberMerchant>span{display:grid;gap:3px}.transactionRememberMerchant strong{font-size:12px}.transactionRememberMerchant small{color:var(--muted);font-size:10px;line-height:1.45}.transactionRememberMerchant.disabled{opacity:.55;cursor:default}
 @media(max-width:720px) {
   .transactionAccountOptions { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
