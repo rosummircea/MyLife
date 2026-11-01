@@ -6,7 +6,7 @@ import {EnableBankingApiError,enableBankingRequest} from './api'
 import {autoImportNewBankTransactions} from './auto-import'
 
 type Money={currency:string;amount:string}
-type Account={uid:string;name?:string;details?:string;cash_account_type?:string;currency?:string;psu_status?:string;account_id?:{iban?:string};all_account_ids?:Array<{identification?:string;scheme_name?:string}>}
+type Account={uid:string;name?:string;details?:string;product?:string;cash_account_type?:string;currency?:string;psu_status?:string;account_id?:{iban?:string};all_account_ids?:Array<{identification?:string;scheme_name?:string}>}
 type Balance={name:string;balance_amount:Money;balance_type:string}
 type BankTransaction={transaction_id?:string;entry_reference?:string;status?:string;booking_date?:string;value_date?:string;transaction_date?:string;credit_debit_indicator?:string;transaction_amount:Money;creditor?:{name?:string};debtor?:{name?:string};merchant_category_code?:string;remittance_information?:string[];note?:string;bank_transaction_code?:{description?:string}}
 type Session={status:string;aspsp:{name:string;country:string};access:{valid_until?:string};accounts:string[];accounts_data?:Array<{uid:string}>}
@@ -74,8 +74,17 @@ export async function syncEnableBankingSession(admin:SupabaseClient,externalSess
         transactionsForAccount(externalAccountId),
       ])
       const iban=details.account_id?.iban||details.all_account_ids?.find(item=>item.scheme_name==='IBAN')?.identification
-      const bookedFromBank=balanceOf(balances.balances??[],['CLBD','ITBD','VALU','OTHR','XPCD'])
-      const availableFromBank=balanceOf(balances.balances??[],['CLAV','ITAV','FWAV','OPAV','XPCD'])
+      const bankBalances=balances.balances??[]
+      const bookedFromBank=balanceOf(bankBalances,['CLBD','ITBD','VALU','OTHR','XPCD'])
+      // BT Mastercard Forte sends two XPCD balances with identical labels:
+      // a negative outstanding balance and a positive remaining card credit.
+      // The generic balanceOf() takes the first XPCD for both fields, which
+      // incorrectly displays the debt as the available amount.
+      const isBtForte=/transilvania/i.test(session.aspsp.name)&&/mastercard forte/i.test([details.name,details.details,details.product].join(' '))
+      const xpcdValues=bankBalances.filter(row=>row.balance_type==='XPCD').map(row=>finite(row.balance_amount.amount)).filter((value):value is number=>value!==null)
+      const btAvailable=isBtForte&&xpcdValues.some(value=>value<0)&&xpcdValues.some(value=>value>=0)
+        ? xpcdValues.find(value=>value>=0)??null : null
+      const availableFromBank=balanceOf(bankBalances,['CLAV','ITAV','FWAV','OPAV'])??btAvailable??balanceOf(bankBalances,['XPCD'])
       const mockBalance=session.aspsp.name==='Mock ASPSP'&&transactions.length?transactions.reduce((sum,transaction)=>{const amount=finite(transaction.transaction_amount?.amount)??0;return sum+(transaction.credit_debit_indicator==='DBIT'?-Math.abs(amount):Math.abs(amount))},0):null
       const booked=bookedFromBank??mockBalance
       const available=availableFromBank??booked
