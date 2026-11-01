@@ -19,6 +19,10 @@ function money(value: number) {
 function moneyWhole(value: number) {
   return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(value)
 }
+function signedMoneyWhole(value:number) {
+  const sign=value>0?'+':value<0?'−':''
+  return `${sign}${moneyWhole(Math.abs(value))}`
+}
 function reportAmountClass(value:number, kind:ReportKind) {
   return value === 0 ? 'reportMoneyNeutral' : kind === 'income' ? 'reportMoneyIncome' : 'reportMoneyExpense'
 }
@@ -74,6 +78,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
     catch{return 0}
   },[data,range.from,range.to])
+  const netTotal=incomeTotal-total
   const [budgetCardIndex,setBudgetCardIndex]=useState(0)
   const budgetCarouselRef=useRef<HTMLDivElement>(null)
   const showBudgetCarousel=kind==='expense'&&period==='Lună'&&!loading&&!!data&&!invalidRange&&!report.error
@@ -252,6 +257,11 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       {showBudgetCarousel&&<div className="reportBudgetCarousel"><div className="reportBudgetCarouselTrack" ref={budgetCarouselRef} onScroll={event=>setBudgetCardIndex(Math.max(0,Math.min(1,Math.round(event.currentTarget.scrollLeft/Math.max(1,event.currentTarget.clientWidth)))))}><div className="reportBudgetSlide"><section className="expenseTotalBudgetStatus" aria-label="Situația bugetului total">
         <div className="expenseTotalBudgetHeader"><div><span>BUGET TOTAL</span>{editingTotal?<div className="expenseTotalBudgetEditor"><label><input aria-label="Buget total lunar" inputMode="decimal" autoFocus value={totalDraft} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value))setTotalDraft(event.target.value)}}/><b>RON</b></label><div><button type="button" disabled={savingTotal} onClick={()=>void saveTotalBudget()}>{savingTotal?'Se salvează…':'Salvează'}</button><button type="button" onClick={()=>{setEditingTotal(false);setTotalSaveError('')}}>Renunță</button></div></div>:<strong>{moneyWhole(totalBudget)}</strong>}</div><div className="expenseTotalBudgetHeaderActions"><small>Cheltuit în total {moneyWhole(total)}</small>{!editingTotal&&<button type="button" onClick={()=>{setTotalDraft(String(totalBudget));setTotalSaveError('');setEditingTotal(true)}}>Editează bugetul total</button>}</div></div>
         {totalSaveError&&<p className="expenseTotalBudgetError" role="alert">{totalSaveError}</p>}
+        <dl className="expenseBudgetCashflow" aria-label="Situația financiară a lunii">
+          <div><dt>Venituri</dt><dd className="reportMoneyIncome">{signedMoneyWhole(incomeTotal)}</dd></div>
+          <div><dt>Cheltuieli</dt><dd className="reportMoneyExpense">{signedMoneyWhole(-total)}</dd></div>
+          <div><dt>Diferență</dt><dd className={netTotal>0?'reportMoneyIncome':netTotal<0?'reportMoneyExpense':'reportMoneyNeutral'}>{signedMoneyWhole(netTotal)}</dd></div>
+        </dl>
         <BudgetProgress compact spent={total} budget={totalBudget}/>
         {budgetDaysRemaining>0&&budgetRemaining>=0&&<div className="expenseTotalBudgetPace"><span>{budgetDaysRemaining} {budgetDaysRemaining===1?'zi rămasă':'zile rămase'}</span><i aria-hidden="true">·</i><strong>{moneyWhole(budgetDailyAvailable)}/zi</strong></div>}
       </section></div><div className="reportBudgetSlide"><section className="reportMonthlySnapshot" aria-label="Rezumatul financiar al lunii">

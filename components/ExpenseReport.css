@@ -183,6 +183,10 @@
 .expenseTotalBudgetHeader span{color:var(--muted);font-size:9px;font-weight:750;letter-spacing:.08em}
 .expenseTotalBudgetHeader strong{font-size:18px}
 .expenseTotalBudgetHeader small{color:var(--muted);font-size:10px}
+.expenseBudgetCashflow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0;padding:0}
+.expenseBudgetCashflow>div{min-width:0;padding:9px 10px;border:1px solid rgba(148,169,198,.13);border-radius:11px;background:rgba(6,15,27,.26)}
+.expenseBudgetCashflow dt{color:var(--muted);font-size:8px;font-weight:750;letter-spacing:.07em;text-transform:uppercase}
+.expenseBudgetCashflow dd{margin:4px 0 0;font-size:13px;font-weight:850;line-height:1.15;white-space:nowrap}
 .expenseTotalBudgetStatus .budgetProgress.compact{gap:6px}
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta{font-size:11px}
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressTrack{height:7px}
@@ -193,7 +197,7 @@
 .expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact .budgetProgressMeta b{font-weight:800;color:#67d8aa}
 .expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.warning .budgetProgressMeta b{color:#f4b75f}
 .expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.critical .budgetProgressMeta b,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta span,.expenseTotalBudgetStatus .budgetProgress.compact.over .budgetProgressMeta b{color:#ff7d91}
-@media(max-width:600px){.expenseTotalBudgetStatus{padding:14px 14px}.expenseTotalBudgetHeader strong{font-size:17px}.expenseTotalBudgetHeader{align-items:flex-start}.expenseTotalBudgetHeader small{text-align:right;max-width:45%}}
+@media(max-width:600px){.expenseTotalBudgetStatus{padding:14px 14px}.expenseTotalBudgetHeader strong{font-size:17px}.expenseTotalBudgetHeader{align-items:flex-start}.expenseTotalBudgetHeader small{text-align:right;max-width:45%}.expenseBudgetCashflow{gap:6px}.expenseBudgetCashflow>div{padding:8px 7px}.expenseBudgetCashflow dd{font-size:11px;letter-spacing:-.02em}}
 
 .expenseSubcategorySwatch{display:inline-block;width:30px;height:30px;border-radius:9px;flex-shrink:0}
 
