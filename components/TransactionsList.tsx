@@ -53,6 +53,16 @@ export default function TransactionsList({ accounts, transactions, categories, s
     if(event.key==='ArrowDown'&&index>=0&&index<transactions.length-1){event.preventDefault();onMove(id,transactions[index+1].id)}
   }
 
+  // The bank imports both legs of a household transfer. Keep both source records
+  // for reconciliation and account balances, but show only one row in the
+  // household feed. In an account-specific feed, keep the mirror only when
+  // its paired primary record is not part of the supplied list.
+  const transactionIds = new Set(transactions.map(tx => tx.id))
+  const visibleTransactions = transactions.filter(tx => {
+    if (tx.transaction_type !== 'transfer' || (tx.transfer_mirror !== true && tx.transfer_mirror !== 'true')) return true
+    return !!contextAccountId && (!tx.transfer_pair_id || !transactionIds.has(tx.transfer_pair_id))
+  })
+
   const categoriesById = new Map(categories.map(category => [category.id, category]))
   const allocations = new Map<string, SplitRow[]>()
   for (const split of splits) {
@@ -66,8 +76,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
     return {id:id??'uncategorized',root,label:!id?'Fără categorie':!category?'Categorie indisponibilă':category.parent_id?category.name:null}
   }
   return <div className="listPanel transactionList">
-    {!transactions.length && <div className="emptyState">{emptyMessage}</div>}
-    {transactions.map(tx => {
+    {!visibleTransactions.length && <div className="emptyState">{emptyMessage}</div>}
+    {visibleTransactions.map(tx => {
       const resolveAccount = (id: string | null | undefined, record: Transaction['source_account']): Account | null =>
         accounts.find(item => item.id === id) ?? (record ? {
           id: id ?? 'unavailable', account_type: 'unknown', opening_balance: 0,
