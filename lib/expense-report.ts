@@ -63,6 +63,24 @@ export function distributionGradient(items: { color: string; percent: number }[]
   }).join(', ')
 }
 
+export function includeBudgetedCategories(items:ExpenseCategory[],categories:CategoryRow[],budgetedIds:Iterable<string>){
+  const result=[...items]
+  const visibleIds=new Set(result.map(item=>item.id))
+  const categoryById=new Map(categories.map(category=>[category.id,category]))
+  for(const id of budgetedIds){
+    if(visibleIds.has(id))continue
+    const row=categoryById.get(id)
+    if(!row||row.kind!=='expense'||row.parent_id||!row.is_active)continue
+    const subcategories:ExpenseSubcategory[]=categories
+      .filter(child=>child.kind==='expense'&&child.parent_id===row.id&&child.is_active)
+      .map(child=>({id:child.id,name:child.name,amount:0,...categoryAppearance(child)}))
+      .sort((a,b)=>a.name.localeCompare(b.name,'ro'))
+    result.push({id:row.id,name:row.name,amount:0,percent:0,subcategories,...categoryAppearance(row)})
+    visibleIds.add(id)
+  }
+  return result.sort((a,b)=>b.amount-a.amount||a.name.localeCompare(b.name,'ro'))
+}
+
 export function buildExpenseReport(transactions: Transaction[], categories: CategoryRow[], splits: SplitRow[], range: DateRange, kind: ReportKind = 'expense') {
   const categoryRows = categories.filter((item) => item.kind === kind)
   const categoryById = new Map(categoryRows.map((item) => [item.id, item]))
