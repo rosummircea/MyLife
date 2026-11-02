@@ -58,23 +58,6 @@ import './MyLifeData.css'
 type AreaKey = 'documents' | 'finance' | 'insurance' | 'health' | 'auto' | 'homeLife' | 'travel' | 'family' | 'notes'
 type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transfers' | 'loans' | 'categories' | 'budgets'
 
-function visibleTransfers(transactions: Transaction[]): Transaction[] {
-  const transfers = transactions.filter(tx => tx.transaction_type === 'transfer')
-  return transfers.filter(tx => {
-    const reference = tx.description?.match(/REF:\s*([A-Z0-9]+)/i)?.[1]
-    if (!reference || !/Incasare OP/i.test(tx.description ?? '')) return true
-    return !transfers.some(other =>
-      other.id !== tx.id &&
-      other.account_id !== tx.account_id &&
-      other.amount === tx.amount &&
-      other.currency === tx.currency &&
-      /Plata OP/i.test(other.description ?? '') &&
-      other.description?.includes(reference) &&
-      Math.abs(new Date(other.transaction_date).getTime() - new Date(tx.transaction_date).getTime()) <= 86400000
-    )
-  })
-}
-
 type LifeArea = {
   key: AreaKey
   label: string
@@ -572,7 +555,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       {tab === 'categories' ? data ? <CategoriesWorkspace onCategoriesChange={onCategoriesChange} kind={categoryKind} onKindChange={setCategoryKind} data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă categoriile…</div> : tab === 'budgets' ? data ? <BudgetsWorkspace data={data} onSaved={onSaved}/> : <div className="emptyState">Se încarcă bugetele…</div> : tab === 'reports' ? <ExpenseReport data={data} loading={loading} onSelectTransaction={tx=>setDetailId(tx.id)} /> : tab === 'accounts' ? (
         <AccountsWorkspace accounts={accounts} selectedAccount={selectedAccount} onBack={()=>setAccountRecord(null)} onSelectTransaction={tx=>setDetailId(tx.id)} onAdjustAccount={account=>setCreating({mode:'adjustment',accountId:account.id})} loading={loading} onSelectAccount={openAccount} data={data} onSaved={onSaved}/>
       ) : tab === 'loans' ? <LoansWorkspace householdId={data?.source==='live' ? data.profile.householdId : null} accounts={accounts} onSaved={onSaved} onSelectTransaction={transactionId=>setDetailId(transactionId)}/> : tab === 'transfers' ? (
-        <><div className="sectionTitle transfersHeader"><span>{visibleTransfers(transactions).length} transferuri</span><div className="financeCreateAction"><button className="financePrimaryAction" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><span aria-hidden="true">+</span> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={visibleTransfers(transactions)} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
+        <><div className="sectionTitle transfersHeader"><span>{transactions.filter(tx=>tx.transaction_type==='transfer').length} transferuri</span><div className="financeCreateAction"><button className="financePrimaryAction" disabled={data?.source!=='live'} onClick={()=>setCreating({mode:'transfer'})}><span aria-hidden="true">+</span> Adaugă transfer</button></div></div>{loading ? <div className="emptyState">Se încarcă transferurile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} recurringRules={data?.recurringRules??[]} accounts={accounts} transactions={transactions.filter(tx=>tx.transaction_type==='transfer')} onSelect={tx=>setDetailId(tx.id)} emptyMessage="Nu există transferuri înregistrate."/>}</>
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
@@ -580,7 +563,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
           {selectedDay && <DailyTransactionSummary action={dayActions} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
           {!selectedDay && addTransactionAction}
           {orderError&&<div className="financeOrderError" role="alert">{orderError}</div>}
-          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} reorderMode={Boolean(reorderIds)} onMove={(draggedId,overId)=>setReorderIds(current=>current?moveTransactionId(current,draggedId,overId):current)} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} recurringRules={data?.recurringRules??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} reorderMode={Boolean(reorderIds)} onMove={(draggedId,overId)=>setReorderIds(current=>current?moveTransactionId(current,draggedId,overId):current)} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
         <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountRecord(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>

@@ -104,7 +104,7 @@ export default function AccountTransactions({ account, data, loading, onBack, on
       const monthLabel=new Date(group.month + '-01T12:00:00Z').toLocaleDateString('ro-RO', { month: 'long', year: 'numeric', timeZone: 'Europe/Bucharest' })
       return <section key={group.month} className="accountTransactionsMonth">
         <header><button type="button" className="accountTransactionsMonthToggle" aria-expanded={!collapsed} onClick={()=>toggleMonth(group.month)}><h3>{monthLabel}</h3><span>{group.transactions.length} tranzacții</span><ChevronDown size={18} aria-hidden="true"/></button></header>
-        {!collapsed&&<TransactionsList accounts={data?.accounts ?? []} transactions={group.transactions} categories={data?.categories ?? []} splits={data?.splits ?? []} contextAccountId={account.id} onSelect={onSelect}/>}
+        {!collapsed&&<TransactionsList accounts={data?.accounts ?? []} transactions={group.transactions} categories={data?.categories ?? []} splits={data?.splits ?? []} recurringRules={data?.recurringRules ?? []} contextAccountId={account.id} onSelect={onSelect}/>}
       </section>
     })}
   </section>

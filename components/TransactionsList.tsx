@@ -4,17 +4,18 @@ import Image from 'next/image'
 import CategoryIcon from './CategoryIcon'
 import { ArrowRight, Banknote, GripVertical, Landmark, UserRound, Repeat2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import type { Account, CategoryRow, SplitRow, Transaction } from '@/lib/mylife-data'
+import type { Account, CategoryRow, RecurringRule, SplitRow, Transaction } from '@/lib/mylife-data'
 import { accountBank, accountOwner } from '@/lib/account-display'
 import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true, reorderMode = false, onMove }: {
+export default function TransactionsList({ accounts, transactions, categories, splits, recurringRules = [], emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true, reorderMode = false, onMove }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
   splits: SplitRow[]
+  recurringRules?: RecurringRule[]
   emptyMessage?: string
   onSelect: (transaction: Transaction) => void
   focusedId?: string
@@ -64,6 +65,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
   })
 
   const categoriesById = new Map(categories.map(category => [category.id, category]))
+  const recurringByTransactionId = new Map(recurringRules.filter(rule=>rule.is_active).map(rule=>[rule.source_transaction_id,rule]))
   const allocations = new Map<string, SplitRow[]>()
   for (const split of splits) {
     const rows = allocations.get(split.transaction_id) ?? []
@@ -103,6 +105,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       const unseen = tx.unseen === true || tx.unseen === 'true'
       const forecast=tx.is_forecast===true
+      const recurringRule=recurringByTransactionId.get(tx.id)
+      const recurringLabel=recurringRule?.frequency==='weekly'?'Săptămânal':recurringRule?.frequency==='quarterly'?'La 3 luni':'Lunar'
       const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${forecast?'transactionRow-forecast':''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode||forecast?-1:0} aria-disabled={reorderMode||forecast||undefined} onClick={event => { if(!reorderMode&&!forecast){ onSelect(tx); if(event.detail>0)event.currentTarget.blur() } }}>
         {route ? <span className="transactionTransferAccounts">
           <AccountIdentity account={account} direction="Din contul"/>
@@ -113,6 +117,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
           {(tx.imported_from||tx.enable_banking_transaction_id)&&<span className="transactionImportedBadge">Importată din {tx.imported_from||'Revolut'}</span>}
+          {recurringRule&&<span className="transactionRecurringBadge" title={`Cheltuială recurentă · ${recurringLabel}`}><Repeat2 size={12} aria-hidden="true"/> Recurentă · {recurringLabel}</span>}
           {forecast&&<span className="transactionForecastBadge"><Repeat2 size={12}/> Cheltuială potențială</span>}
           {unseen&&<span className="transactionNewBadge">Nouă · deschide pentru detalii</span>}
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
