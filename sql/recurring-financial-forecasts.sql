@@ -7,9 +7,10 @@ alter table public.finance_recurring_rules
 alter table public.finance_recurring_rules
   add constraint finance_recurring_rules_forecast_months_check check (forecast_months between 0 and 12);
 
-create unique index if not exists finance_recurring_rules_source_transaction_uidx
-  on public.finance_recurring_rules(source_transaction_id)
-  where source_transaction_id is not null;
+alter table public.finance_recurring_rules
+  drop constraint if exists finance_recurring_rules_source_transaction_key;
+alter table public.finance_recurring_rules
+  add constraint finance_recurring_rules_source_transaction_key unique (source_transaction_id);
 create index if not exists finance_recurring_rules_household_active_idx
   on public.finance_recurring_rules(household_id,is_active);
 
