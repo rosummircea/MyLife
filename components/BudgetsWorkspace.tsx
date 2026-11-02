@@ -46,6 +46,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
   },[data.profile.householdId,data.source,month])
   const categoryBudgetTotal=categories.reduce((sum,category)=>sum+(Number(normalizeAmount(draft[category.id]??''))||0),0)
   const totalBudget=totalDraft.trim()===''?categoryBudgetTotal:Number(normalizeAmount(totalDraft))||0
+  const budgetReserve=totalBudget-categoryBudgetTotal
   const budgetedSpent=categories.reduce((sum,category)=>sum+(spentByCategory.get(category.id)??0),0)
   const remaining=totalBudget-budgetedSpent
   const copyPrevious=async()=>{
@@ -92,7 +93,7 @@ export default function BudgetsWorkspace({data,onSaved}:{data:MyLifeData;onSaved
       <button type="button" aria-label="Luna următoare" onClick={()=>setMonth(value=>shiftBudgetMonth(value,1))}><ChevronRight size={20}/></button>
     </div>
     <div className="budgetsSummary">
-      <div className="budgetTotalEditor"><span>Buget total</span><label><input aria-label="Buget total lunar" inputMode="decimal" placeholder={String(Math.round(categoryBudgetTotal))} value={totalDraft} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value)){setTotalDraft(event.target.value);setSaved(false)}}}/><b>RON</b></label><small>{totalDraft.trim()===''?'Automat: suma categoriilor':`Minim ${money(categoryBudgetTotal)}`}</small></div>
+      <div className="budgetTotalEditor"><span>Buget total</span><label><input aria-label="Buget total lunar" inputMode="decimal" placeholder={String(Math.round(categoryBudgetTotal))} value={totalDraft} onChange={event=>{if(/^\d*[.,]?\d{0,2}$/.test(event.target.value)){setTotalDraft(event.target.value);setSaved(false)}}}/><b>RON</b></label><small><span>{money(categoryBudgetTotal)} buget calculat</span>{totalDraft.trim()!==''&&budgetReserve>0&&<b>(+{money(budgetReserve)} rezervă)</b>}</small></div>
       <div><span>Cheltuit din bugete</span><strong>{money(budgetedSpent)}</strong></div>
       <div className={remaining<0?'negative':'positive'}><span>{remaining<0?'Depășire':'Disponibil'}</span><strong>{money(Math.abs(remaining))}</strong></div>
       <button type="button" onClick={()=>void copyPrevious()}><Copy size={15}/> Copiază luna precedentă</button>
