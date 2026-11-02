@@ -98,7 +98,8 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   },[showBudgetCarousel,budgetCardIndex])
   const categoryBudgetTotal=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetMonth=range.from.slice(0,7)
-  const potentialTotal=useMemo(()=>data&&period==='Lună'&&kind==='expense'?forecastTotal(recurringForecasts(data.recurringRules??[],data.transactions,bucharestDay(new Date())),budgetMonth,'RON')/100:0,[data,period,kind,budgetMonth])
+  const recurringPotentialTotal=useMemo(()=>data&&period==='Lună'&&kind==='expense'?forecastTotal(recurringForecasts(data.recurringRules??[],data.transactions,bucharestDay(new Date())),budgetMonth,'RON')/100:0,[data,period,kind,budgetMonth])
+  const potentialTotal=total+recurringPotentialTotal
   const [totalOverrides,setTotalOverrides]=useState<Record<string,number|null>>({})
   const [editingTotal,setEditingTotal]=useState(false)
   const [totalDraft,setTotalDraft]=useState('')
