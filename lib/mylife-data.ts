@@ -17,6 +17,7 @@ export type Account = {
 export type Transaction = {
   is_forecast?: boolean
   recurring_rule_id?: string | null
+  forecast_category_id?: string | null
   affects_balance?: boolean | string
   imported_from?: string | null
   enable_banking_transaction_id?: string | null
@@ -158,7 +159,7 @@ export async function loadMyLifeData(client: SupabaseClient): Promise<MyLifeData
       .order('month', { ascending: false }).order('category_id').range(from, to)),
     allRows<RecurringRule>((from, to) => client.from('finance_recurring_rules')
       .select('id,household_id,source_transaction_id,account_id,category_id,kind,name,expected_amount,currency,frequency,next_due_date,forecast_months,is_active')
-      .eq('household_id', hid).eq('is_active', true).eq('frequency', 'monthly')
+      .eq('household_id', hid).eq('is_active', true)
       .order('name').order('id').range(from, to)),
     allRows<DocumentRow>((from, to) => client.from('documents')
       .select('id,document_type,source_filename,mime_type,storage_path,issued_at,expires_at,issuing_country,issuing_authority,document_date,issuer,notes,extra').eq('user_id', auth.user.id)

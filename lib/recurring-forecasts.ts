@@ -4,50 +4,60 @@ import { bucharestDay } from './expense-report'
 export type ForecastTransaction = Transaction & {
   is_forecast: true
   recurring_rule_id: string
+  forecast_category_id: string | null
 }
 
 const normalized = (value: string | null | undefined) => (value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('ro').replace(/[^a-z0-9]+/g, ' ').trim()
 
-const monthAt = (month: string, offset: number) => {
+const isoDay = (date: Date) => date.toISOString().slice(0, 10)
+const parseDay = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00Z`)
+const monthEnd = (month: string, offset: number) => {
   const [year, number] = month.split('-').map(Number)
-  return new Date(Date.UTC(year, number - 1 + offset, 1)).toISOString().slice(0, 7)
+  return new Date(Date.UTC(year, number + offset, 0, 12))
 }
-
-const dayInMonth = (month: string, preferredDay: number) => {
-  const [year, number] = month.split('-').map(Number)
-  const lastDay = new Date(Date.UTC(year, number, 0)).getUTCDate()
-  return `${month}-${String(Math.min(preferredDay, lastDay)).padStart(2, '0')}`
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000)
+const addMonths = (date: Date, months: number) => {
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1, 12))
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0, 12)).getUTCDate()
+  target.setUTCDate(Math.min(date.getUTCDate(), last))
+  return target
 }
-
+const dayDistance = (left: string, right: string) => Math.abs(parseDay(left).getTime() - parseDay(right).getTime()) / 86400000
 const identity = (transaction: Transaction) => normalized(transaction.merchant || transaction.title || transaction.description)
 
 export function recurringForecasts(rules: RecurringRule[], transactions: Transaction[], today: string): ForecastTransaction[] {
   const currentMonth = today.slice(0, 7)
+  const windowStart = parseDay(`${currentMonth}-01`)
   const posted = transactions.filter(tx => (!tx.status || tx.status === 'posted') && tx.transaction_type === 'expense')
   const sourceById = new Map(transactions.map(tx => [tx.id, tx]))
   const forecasts: ForecastTransaction[] = []
 
   for (const rule of rules) {
-    if (!rule.is_active || rule.kind !== 'expense' || rule.frequency !== 'monthly') continue
+    if (!rule.is_active || rule.kind !== 'expense' || !['weekly', 'monthly', 'quarterly'].includes(rule.frequency)) continue
     const source = sourceById.get(rule.source_transaction_id)
     const expectedAmount = Number(rule.expected_amount ?? source?.amount)
     if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) continue
-    const dueDay = Number((rule.next_due_date ?? source?.transaction_date ?? `${today}T12:00:00Z`).slice(8, 10)) || 1
     const expectedIdentity = identity(source ?? { merchant: rule.name, title: rule.name, description: rule.name } as Transaction)
     const horizon = Math.max(0, Math.min(12, Number(rule.forecast_months) || 2))
+    const windowEnd = monthEnd(currentMonth, rule.frequency === 'quarterly' ? Math.max(horizon, 3) : horizon)
+    const fallbackDay = (source?.transaction_date ?? today).slice(0, 10)
+    let occurrence = parseDay(rule.next_due_date ?? fallbackDay)
+    const advance = (date: Date) => rule.frequency === 'weekly' ? addDays(date, 7) : addMonths(date, rule.frequency === 'quarterly' ? 3 : 1)
+    while (occurrence < windowStart) occurrence = advance(occurrence)
 
-    for (let offset = 0; offset <= horizon; offset++) {
-      const month = monthAt(currentMonth, offset)
+    while (occurrence <= windowEnd) {
+      const day = isoDay(occurrence)
+      const month = day.slice(0, 7)
       const fulfilled = posted.some(tx => {
-        if (tx.account_id !== rule.account_id || bucharestDay(new Date(tx.transaction_date)).slice(0, 7) !== month) return false
-        return expectedIdentity !== '' && identity(tx) === expectedIdentity
+        if (tx.account_id !== rule.account_id || expectedIdentity === '' || identity(tx) !== expectedIdentity) return false
+        const actualDay = bucharestDay(new Date(tx.transaction_date))
+        return rule.frequency === 'weekly' ? dayDistance(actualDay, day) <= 3 : actualDay.slice(0, 7) === month
       })
-      if (fulfilled) continue
-      const day = dayInMonth(month, dueDay)
-      forecasts.push({
-        id: `forecast:${rule.id}:${month}`,
+      if (!fulfilled) forecasts.push({
+        id: `forecast:${rule.id}:${day}`,
         recurring_rule_id: rule.id,
+        forecast_category_id: rule.category_id,
         is_forecast: true,
         transaction_type: 'expense',
         amount: expectedAmount,
@@ -60,6 +70,7 @@ export function recurringForecasts(rules: RecurringRule[], transactions: Transac
         status: 'forecast',
         affects_balance: false,
       })
+      occurrence = advance(occurrence)
     }
   }
   return forecasts.sort((a, b) => a.transaction_date.localeCompare(b.transaction_date) || a.id.localeCompare(b.id))
