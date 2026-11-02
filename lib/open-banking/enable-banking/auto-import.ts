@@ -76,17 +76,61 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   for(const transaction of candidates){
     const signedAmount=Number(transaction.amount)
     if(!Number.isFinite(signedAmount)||signedAmount===0)continue
+    const transferRule=signedAmount<0?rememberedTransfers.find(rule=>rule.source_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.source_match_text))):undefined
     const incomingRule=signedAmount>0?rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text))):undefined
     const existingImport=existingById.get(transaction.id)
     if(existingImport){
+      // A transfer rule can be learned after both bank legs were already imported.
+      // Reconcile them on the next refresh, keeping the debit as the canonical row.
+      if(transferRule&&existingImport.id===transaction.id){
+        let counterpart:BankTransaction|undefined
+        if(transferRule.counterpart_bank_account_id){
+          const {data:counterparts,error:counterpartError}=await admin.from('enable_banking_transactions')
+            .select('id,external_transaction_id,status,made_on,amount,currency,description,merchant_name,merchant_category_code,first_seen_at')
+            .eq('account_id',transferRule.counterpart_bank_account_id).eq('amount',Math.abs(signedAmount))
+            .gte('made_on',shiftedDay(transaction.made_on,-transferRule.date_tolerance_days)).lte('made_on',shiftedDay(transaction.made_on,transferRule.date_tolerance_days))
+          if(counterpartError)throw new Error(counterpartError.message)
+          const counterpartNeedle=normalized(transferRule.counterpart_match_text)
+          counterpart=((counterparts??[]) as BankTransaction[]).filter(candidate=>!counterpartNeedle||transactionText(candidate).includes(counterpartNeedle)).sort((a,b)=>Math.abs(new Date(a.made_on).getTime()-new Date(transaction.made_on).getTime())-Math.abs(new Date(b.made_on).getTime()-new Date(transaction.made_on).getTime()))[0]
+        }
+        let counterpartImport=counterpart?existingById.get(counterpart.id):undefined
+        if(counterpart&&!counterpartImport){
+          const {data:storedCounterpart,error:storedCounterpartError}=await admin.from('finance_transactions').select('id,import_metadata,transaction_type,account_id,transfer_account_id').eq('id',counterpart.id).eq('status','posted').maybeSingle()
+          if(storedCounterpartError)throw new Error(storedCounterpartError.message)
+          if(storedCounterpart){
+            const stored=storedCounterpart as ExistingImport
+            counterpartImport={id:stored.id,metadata:stored.import_metadata??{},transaction_type:stored.transaction_type,account_id:stored.account_id,transfer_account_id:stored.transfer_account_id}
+          }
+        }
+        if(counterpartImport&&counterpartImport.id!==existingImport.id&&counterpartImport.metadata.auto_imported===true){
+          const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',counterpartImport.id)
+          if(splitDeleteError)throw new Error(splitDeleteError.message)
+          const {error:counterpartDeleteError}=await admin.from('finance_transactions').delete().eq('id',counterpartImport.id)
+          if(counterpartDeleteError)throw new Error(counterpartDeleteError.message)
+        }
+        const bankIds=Array.from(new Set([...bankReferences(existingImport.metadata),transaction.id,...(counterpart?[counterpart.id]:[])]))
+        const metadata={...existingImport.metadata,title:null,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:counterpart?.id??null,transfer_rule_id:transferRule.id,categorization_source:'transfer_rule'}
+        if(existingImport.transaction_type!=='transfer'){
+          const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',existingImport.id)
+          if(splitDeleteError)throw new Error(splitDeleteError.message)
+        }
+        const {error:updateError}=await admin.from('finance_transactions').update({account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',existingImport.id).eq('status','posted')
+        if(updateError)throw new Error(updateError.message)
+        const value={id:existingImport.id,metadata,transaction_type:'transfer',account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id}
+        for(const bankId of bankIds)existingById.set(bankId,value)
+        imported++
+        continue
+      }
       // Some banks expose a card top-up credit before (or without) the matching
       // debit from the source bank. A remembered counterpart signature is enough
       // to turn that credit into the canonical transfer immediately.
-      if(incomingRule&&existingImport.id===transaction.id&&existingImport.transaction_type!=='transfer'){
+      if(incomingRule&&existingImport.id===transaction.id){
         const bankIds=Array.from(new Set([...bankReferences(existingImport.metadata),transaction.id]))
-        const metadata={...existingImport.metadata,title:existingImport.metadata.title??transaction.merchant_name??transaction.description??'Transfer bancar',enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
-        const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',existingImport.id)
-        if(splitDeleteError)throw new Error(splitDeleteError.message)
+        const metadata={...existingImport.metadata,title:null,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
+        if(existingImport.transaction_type!=='transfer'){
+          const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',existingImport.id)
+          if(splitDeleteError)throw new Error(splitDeleteError.message)
+        }
         const {error:updateError}=await admin.from('finance_transactions').update({account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',existingImport.id).eq('status','posted')
         if(updateError)throw new Error(updateError.message)
         const value={id:existingImport.id,metadata,transaction_type:'transfer',account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id}
@@ -103,7 +147,6 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
     const transactionType=signedAmount<0?'expense':'income'
     const merchant=transaction.merchant_name?.trim()||null
     const title=merchant||transaction.description?.trim()||`Tranzacție ${provider}`
-    const transferRule=signedAmount<0?rememberedTransfers.find(rule=>rule.source_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.source_match_text))):undefined
     if(transferRule){
       let counterpart:BankTransaction|undefined
       if(transferRule.counterpart_bank_account_id){
@@ -126,7 +169,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
         }
       }
       const bankIds=[transaction.id,...(counterpart?[counterpart.id]:[])]
-      const row={id:transaction.id,household_id:bankAccount.household_id,account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:counterpart?.id??null,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:transferRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
+      const row={id:transaction.id,household_id:bankAccount.household_id,account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title:null,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:counterpart?.id??null,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:transferRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
       const {error:insertError}=await admin.from('finance_transactions').insert(row)
       if(insertError){if(insertError.code==='23505')continue;throw new Error(insertError.message)}
       const value={id:transaction.id,metadata:row.import_metadata,transaction_type:'transfer',account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id}
@@ -154,7 +197,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
         }
         if(sourceImport){
           const bankIds=Array.from(new Set([...bankReferences(sourceImport.metadata),transaction.id]))
-          const metadata={...sourceImport.metadata,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
+          const metadata={...sourceImport.metadata,title:null,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:incomingRule.id,categorization_source:'transfer_rule'}
           if(sourceImport.transaction_type!=='transfer'){
             const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',sourceImport.id)
             if(splitDeleteError)throw new Error(splitDeleteError.message)
@@ -169,7 +212,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
         continue
       }
       const bankIds=[transaction.id]
-      const row={id:transaction.id,household_id:bankAccount.household_id,account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant:transaction.merchant_name?.trim()||null,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title:transaction.merchant_name?.trim()||transaction.description?.trim()||'Transfer bancar',affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:incomingRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
+      const row={id:transaction.id,household_id:bankAccount.household_id,account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id,created_by_person_id:person.id,transaction_type:'transfer',amount:Math.abs(signedAmount),currency:String(transaction.currency||financeAccount.currency).trim().toUpperCase(),transaction_date:`${transaction.made_on}T12:00:00+03:00`,merchant:transaction.merchant_name?.trim()||null,description:transaction.description,status:'posted',source:'manual',date_precision:'date',import_metadata:{title:null,affects_balance:true,imported_from:provider,enable_banking_transaction_id:transaction.id,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,enable_banking_external_transaction_id:transaction.external_transaction_id,enable_banking_account_id:bankAccount.id,enable_banking_status:transaction.status,transfer_rule_id:incomingRule.id,imported_at:now,auto_imported:true,unseen:true,categorization_source:'transfer_rule'}}
       const {error:insertError}=await admin.from('finance_transactions').insert(row)
       if(insertError){if(insertError.code==='23505')continue;throw new Error(insertError.message)}
       existingById.set(transaction.id,{id:transaction.id,metadata:row.import_metadata,transaction_type:'transfer',account_id:incomingRule.source_finance_account_id,transfer_account_id:incomingRule.destination_finance_account_id})
