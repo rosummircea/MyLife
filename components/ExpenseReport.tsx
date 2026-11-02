@@ -3,7 +3,7 @@
 import CategoryIcon from './CategoryIcon'
 import { CalendarRange, ChevronLeft, ChevronRight, ChevronsUp } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react'
-import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
+import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, includeBudgetedCategories, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
 import TransactionsList from './TransactionsList'
@@ -71,9 +71,10 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     data ? expenseContributionTransactions(data.transactions,data.categories,data.splits,range,{categoryId:item.id},kind).length : 0,
   ])),[categories,data,range.from,range.to,kind])
   const monthlyBudgets=useMemo(()=>{
-    const allowed=new Set((data?.categories??[]).filter(isBudgetCategory).map(category=>category.id))
+    const allowed=new Set((data?.categories??[]).filter(category=>category.kind==='expense'&&!category.parent_id&&category.is_active&&isBudgetCategory(category)).map(category=>category.id))
     return new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&allowed.has(row.category_id)&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)]))
   },[data?.budgets,data?.categories,kind,period,range.from])
+  const listedCategories=useMemo(()=>includeBudgetedCategories(categories,data?.categories??[],monthlyBudgets.keys()),[categories,data?.categories,monthlyBudgets])
   const incomeTotal=useMemo(()=>{
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
     catch{return 0}
@@ -277,8 +278,8 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
       </section></div></div><div className="reportBudgetDots"><button type="button" aria-label="Buget" aria-current={budgetCardIndex===0?'true':undefined} onClick={()=>{budgetCarouselRef.current?.scrollTo({left:0,behavior:'smooth'});setBudgetCardIndex(0)}}/><button type="button" aria-label="Rezumat" aria-current={budgetCardIndex===1?'true':undefined} onClick={()=>{const el=budgetCarouselRef.current;el?.scrollTo({left:el.clientWidth,behavior:'smooth'});setBudgetCardIndex(1)}}/></div></div>}
       <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
       <div className="expenseList">
-        {categories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
-        {categories.map((item) => {
+        {listedCategories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
+        {listedCategories.map((item) => {
           const expanded = selected === item.id
           const categoryBudget=monthlyBudgets.get(item.id)
           return (
