@@ -3,7 +3,7 @@ import { bucharestDay } from './expense-report'
 
 export function accountTransactionMonths(transactions: Transaction[], accountId: string) {
   const groups = new Map<string, Transaction[]>()
-  const rows = transactions.filter(tx => (!tx.status || tx.status === 'posted') &&
+  const rows = transactions.filter(tx => (!tx.status || ['posted','forecast'].includes(tx.status)) &&
     (tx.account_id === accountId || (tx.transaction_type === 'transfer' && tx.transfer_account_id === accountId)))
     .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime() || a.id.localeCompare(b.id))
   for (const tx of rows) {
