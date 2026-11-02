@@ -70,13 +70,15 @@ test('returns an empty report for an empty period', () => {
 test('adds every budgeted root category even with zero spending and leaves unbudgeted empty categories hidden',()=>{
   const home={...root,id:'home',name:'Casă'}
   const homeChild={...car,id:'rent',parent_id:home.id,name:'Chirie'}
+  const travel={...root,id:'travel',name:'Călătorii'}
   const emptyUnbudgeted={...root,id:'fun',name:'Divertisment'}
-  const spent=buildExpenseReport([tx('one',25)],[root,car,home,homeChild,emptyUnbudgeted],[split('one','one',root.id,25)],range).categories
-  const listed=includeBudgetedCategories(spent,[root,car,home,homeChild,emptyUnbudgeted],[home.id])
-  assert.deepEqual(listed.map(category=>category.id),[root.id,home.id])
+  const categoryRows=[root,car,home,homeChild,travel,emptyUnbudgeted]
+  const spent=buildExpenseReport([tx('one',25)],categoryRows,[split('one','one',root.id,25)],range).categories
+  const listed=includeBudgetedCategories(spent,categoryRows,new Map([[home.id,500],[travel.id,800]]))
+  assert.deepEqual(listed.map(category=>category.id),[root.id,travel.id,home.id])
   assert.equal(listed[1].amount,0)
   assert.equal(listed[1].percent,0)
-  assert.deepEqual(listed[1].subcategories.map(category=>[category.id,category.amount]),[[homeChild.id,0]])
+  assert.deepEqual(listed[2].subcategories.map(category=>[category.id,category.amount]),[[homeChild.id,0]])
 })
 test('rejects overallocated splits and a cyclic hierarchy instead of showing false totals', () => {
   assert.throws(() => buildExpenseReport([tx('one',10)], [root], [split('a','one',root.id,11)], range), /depășesc/)
