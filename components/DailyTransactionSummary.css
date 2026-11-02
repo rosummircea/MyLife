@@ -2,7 +2,7 @@
 .dailyTransactionSummary header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
 .dailyTransactionSummary h2 { font-size:20px; margin:0; }
 .dailyTransactionSummary header>span { font-size:11px; color:var(--muted); }
-.dailyTransactionSummary dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:rgba(255,255,255,.025); margin:0; }
+.dailyTransactionSummary dl { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:rgba(255,255,255,.025); margin:0; }.dailyTransactionSummary.monthly dl{grid-template-columns:repeat(4,minmax(0,1fr))}
 .dailyTransactionSummary dl>div { min-width:0; }
 .dailyTransactionSummary dt { font-size:11px; color:var(--muted); margin-bottom:7px; }
 .dailyTransactionSummary dd { margin:0; }
@@ -10,6 +10,7 @@
 .dailyTransactionSummary .dailyTransactionNegative { color:#ff8797; }
 .dailyTransactionSummary .dailyTransactionPositive { color:#6bddad; }
 .dailyTransactionSummary .dailyTransactionZero { color:var(--muted); }
+.dailyTransactionSummary .dailyTransactionPotential strong{color:#c4a7ff}.dailyTransactionSummary .dailyTransactionPotential dt{color:#b9a6e8}
 .dailyTransactionSummary p { color:var(--muted); font-size:10px; line-height:1.5; margin:8px 0 0; }
 @media(max-width:600px) {
   .dailyTransactionSummary h2 { font-size:18px; }
@@ -17,6 +18,7 @@
   .dailyTransactionSummary strong { font-size:14px; }
   .dailyTransactionSummary dt { font-size:10px; }
 }
+@media(max-width:480px){.dailyTransactionSummary.monthly dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:360px) { .dailyTransactionSummary strong { font-size:12px; } }
 
 .dailyTransactionHeaderWithAction .dailyTransactionHeading{min-width:0}.dailyTransactionHeading>span{display:block;font-size:11px;color:var(--muted);margin-top:4px}.dailyTransactionSummary .dailyTransactionHeaderWithAction{flex-wrap:nowrap;gap:12px}.dailyTransactionHeaderWithAction .financeCreateAction{margin:0;flex-shrink:0}.transactionAddLabelMobile{display:none}@media(max-width:600px){.transactionAddLabelDesktop{display:none}.transactionAddLabelMobile{display:inline}.dailyTransactionHeaderWithAction .financeCreateAction button{min-height:44px;padding:10px 12px}}

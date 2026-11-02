@@ -11,6 +11,7 @@ import BudgetProgress from './BudgetProgress'
 import { getSupabaseClient } from '@/lib/supabase'
 import {budgetPlanSummary,isBudgetCategory,isValidTotalBudget} from '@/lib/budgets'
 import { contributionBucketKey, expenseContributionTransactions } from '@/lib/expense-transactions'
+import {forecastTotal,recurringForecasts} from '@/lib/recurring-forecasts'
 import './ExpenseReport.css'
 
 function money(value: number) {
@@ -97,6 +98,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
   },[showBudgetCarousel,budgetCardIndex])
   const categoryBudgetTotal=[...monthlyBudgets.values()].reduce((sum,amount)=>sum+amount,0)
   const budgetMonth=range.from.slice(0,7)
+  const potentialTotal=useMemo(()=>data&&period==='Lună'&&kind==='expense'?forecastTotal(recurringForecasts(data.recurringRules??[],data.transactions,bucharestDay(new Date())),budgetMonth,'RON')/100:0,[data,period,kind,budgetMonth])
   const [totalOverrides,setTotalOverrides]=useState<Record<string,number|null>>({})
   const [editingTotal,setEditingTotal]=useState(false)
   const [totalDraft,setTotalDraft]=useState('')
@@ -261,6 +263,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
         <dl className="expenseBudgetCashflow" aria-label="Situația financiară a lunii">
           <div><dt>Venituri</dt><dd className="reportMoneyIncome">{signedMoneyWhole(incomeTotal)}</dd></div>
           <div><dt>Cheltuieli</dt><dd className="reportMoneyExpense">{signedMoneyWhole(-total)}</dd></div>
+          <div className="expenseBudgetPotential"><dt>Potențială cheltuială</dt><dd>{signedMoneyWhole(-potentialTotal)}</dd></div>
           <div><dt>Diferență</dt><dd className={netTotal>0?'reportMoneyIncome':netTotal<0?'reportMoneyExpense':'reportMoneyNeutral'}>{signedMoneyWhole(netTotal)}</dd></div>
         </dl>
         <BudgetProgress compact spent={total} budget={totalBudget}/>

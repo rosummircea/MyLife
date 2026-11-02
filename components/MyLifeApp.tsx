@@ -9,6 +9,7 @@ import ExpenseReport from '@/components/ExpenseReport'
 import TransactionsCalendar from '@/components/TransactionsCalendar'
 import { bucharestDay } from '@/lib/expense-report'
 import { moveTransactionId, sortDailyTransactions } from '@/lib/transaction-order'
+import { recurringForecasts } from '@/lib/recurring-forecasts'
 
 import {
   Activity,
@@ -490,14 +491,16 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
   useEffect(() => { setAccountRecord(null); setMobileMenuOpen(false) }, [mobileNavVersion])
   const [selectedDay, setSelectedDay] = useState<string | null>(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()))
   const [calendarMonth, setCalendarMonth] = useState(() => bucharestDay(target ? new Date(target.transaction_date) : new Date()).slice(0,7))
-  const monthlyTransactions = useMemo(() => transactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [transactions, calendarMonth])
+  const forecasts=useMemo(()=>recurringForecasts(data?.recurringRules??[],transactions,bucharestDay(new Date())),[data?.recurringRules,transactions])
+  const timelineTransactions=useMemo(()=>[...transactions,...forecasts],[transactions,forecasts])
+  const monthlyTransactions = useMemo(() => timelineTransactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [timelineTransactions, calendarMonth])
   const monthLabel = new Date(`${calendarMonth}-01T12:00:00Z`).toLocaleDateString('ro-RO', {month:'long',year:'numeric',timeZone:'UTC'})
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
   const [reorderIds,setReorderIds]=useState<string[]|null>(null)
   const [savingOrder,setSavingOrder]=useState(false)
   const [orderError,setOrderError]=useState('')
   useEffect(()=>{setReorderIds(null);setOrderError('')},[selectedDay])
-  const chronologicalDailyTransactions = useMemo(() => sortDailyTransactions(transactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay)), [transactions, selectedDay])
+  const chronologicalDailyTransactions = useMemo(() => sortDailyTransactions(timelineTransactions.filter((tx) => bucharestDay(new Date(tx.transaction_date)) === selectedDay)), [timelineTransactions, selectedDay])
   const dailyTransactions = useMemo(() => {
     if(!reorderIds)return chronologicalDailyTransactions
     const byId=new Map(chronologicalDailyTransactions.map(transaction=>[transaction.id,transaction]))
@@ -556,7 +559,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       ) : tab === 'transactions' ? (
         <>
           <DailyTransactionSummary monthly dateLabel={monthLabel} transactions={monthlyTransactions} loading={loading}/>
-          <TransactionsCalendar transactions={transactions} selectedDay={selectedDay} onSelect={setSelectedDay} month={calendarMonth} onMonthChange={month=>{setCalendarMonth(month);setSelectedDay(null)}}/>
+          <TransactionsCalendar transactions={timelineTransactions} selectedDay={selectedDay} onSelect={setSelectedDay} month={calendarMonth} onMonthChange={month=>{setCalendarMonth(month);setSelectedDay(null)}}/>
           {selectedDay && <DailyTransactionSummary action={dayActions} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
           {!selectedDay && addTransactionAction}
           {orderError&&<div className="financeOrderError" role="alert">{orderError}</div>}

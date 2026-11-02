@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import CategoryIcon from './CategoryIcon'
-import { ArrowRight, Banknote, GripVertical, Landmark, UserRound } from 'lucide-react'
+import { ArrowRight, Banknote, GripVertical, Landmark, UserRound, Repeat2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { Account, CategoryRow, SplitRow, Transaction } from '@/lib/mylife-data'
 import { accountBank, accountOwner } from '@/lib/account-display'
@@ -99,7 +99,8 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       const unseen = tx.unseen === true || tx.unseen === 'true'
-      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode?-1:0} aria-disabled={reorderMode||undefined} onClick={event => { if(!reorderMode){ onSelect(tx); if(event.detail>0)event.currentTarget.blur() } }}>
+      const forecast=tx.is_forecast===true
+      const row = <button type="button" className={`listRow transactionRow ${route ? 'transactionRow-transfer' : ''} ${unseen ? 'transactionRow-unseen' : ''} ${forecast?'transactionRow-forecast':''} ${focusedId === tx.id ? 'transactionFocused' : ''}`} id={`transaction-${tx.id}`} key={tx.id} tabIndex={reorderMode||forecast?-1:0} aria-disabled={reorderMode||forecast||undefined} onClick={event => { if(!reorderMode&&!forecast){ onSelect(tx); if(event.detail>0)event.currentTarget.blur() } }}>
         {route ? <span className="transactionTransferAccounts">
           <AccountIdentity account={account} direction="Din contul"/>
           <ArrowRight className="transactionTransferArrow" size={18} aria-hidden="true"/>
@@ -109,6 +110,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <strong className="transactionRowTitle">{title}</strong>
           <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
           {(tx.imported_from||tx.enable_banking_transaction_id)&&<span className="transactionImportedBadge">Importată din {tx.imported_from||'Revolut'}</span>}
+          {forecast&&<span className="transactionForecastBadge"><Repeat2 size={12}/> Cheltuială potențială</span>}
           {unseen&&<span className="transactionNewBadge">Nouă · deschide pentru detalii</span>}
           <span className="transactionRowCategories">{badges.length?badges.map(badge=><span className="transactionCategoryBadge" key={badge.id} style={{backgroundColor:badge.root?categoryAppearance(badge.root).color:'#8d98a8'}} title={badge.root?`${badge.root.name}${badge.label?' → '+badge.label:''}`:badge.label??undefined}>{badge.root&&<span className="transactionCategorySymbol" aria-hidden="true"><CategoryIcon category={badge.root}/></span>}<span className="transactionCategoryLabel">{badge.root?.name}{badge.root&&badge.label?' → ':''}{badge.label}</span></span>):tx.transaction_type==='transfer'?'Transfer între conturi':'Ajustare de sold'}</span>
           {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}

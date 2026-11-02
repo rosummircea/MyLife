@@ -1,12 +1,14 @@
 'use client'
 
-import {useEffect,useRef,useState, type ReactNode} from 'react'
+import {useEffect,useMemo,useRef,useState, type ReactNode} from 'react'
 import type { Account, MyLifeData, Transaction } from '@/lib/mylife-data'
 import { accountTransactionMonths } from '@/lib/account-transactions'
 import { accountAmounts } from '@/lib/account-display'
 import { ChevronDown } from 'lucide-react'
 import TransactionsList from './TransactionsList'
 import './AccountTransactions.css'
+import { recurringForecasts } from '@/lib/recurring-forecasts'
+import { bucharestDay } from '@/lib/expense-report'
 
 export default function AccountTransactions({ account, data, loading, onBack, onSelect, actions, management }: {
   actions?:ReactNode
@@ -17,7 +19,8 @@ export default function AccountTransactions({ account, data, loading, onBack, on
   onBack: () => void
   onSelect: (transaction: Transaction) => void
 }) {
-  const months = accountTransactionMonths(data?.transactions ?? [], account.id)
+  const forecasts=useMemo(()=>recurringForecasts(data?.recurringRules??[],data?.transactions??[],bucharestDay(new Date())),[data?.recurringRules,data?.transactions])
+  const months = accountTransactionMonths([...(data?.transactions ?? []),...forecasts], account.id)
   const { balance, color } = accountAmounts(account)
   const swipeStart = useRef<{x:number;y:number;at:number;axis:'x'|'y'|null;currentX:number;previousX:number;previousAt:number;lastAt:number}|null>(null)
   const swipeSurface = useRef<HTMLElement|null>(null)

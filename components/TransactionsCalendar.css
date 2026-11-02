@@ -29,5 +29,6 @@
 .transactionDayDot { width:6px; height:6px; border-radius:50%; background:#6bddad; }
 .transactionDayDot.outgoing { background:#ff7e91; }
 .transactionDayDot.transfer { background:#fff; box-shadow:0 0 0 1px rgba(255,255,255,.18); }
+.transactionDayDot.forecast { background:#c4a7ff; box-shadow:0 0 7px rgba(196,167,255,.55); }
 .transactionsCalendarDay.hasUnseen::after{content:"";position:absolute;top:0;right:0;width:0;height:0;border-top:15px solid #6bddad;border-left:15px solid transparent;filter:drop-shadow(0 0 5px rgba(107,221,173,.35))}
 @media (max-width: 420px) { .transactionsCalendarDay .transactionsCalendarMarkers { gap:3px; } }
