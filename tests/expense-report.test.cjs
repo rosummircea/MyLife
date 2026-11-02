@@ -9,7 +9,7 @@ const source = readFileSync(join(__dirname, '../lib/expense-report.ts'), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2017 } })
 const reportModule = { exports: {} }
 new Function('exports', 'require', 'module', compiled.outputText)(reportModule.exports, name=>{if(name==='./category-display'){const m={exports:{}};new Function('exports','require','module',ts.transpileModule(readFileSync(join(__dirname,'../lib/category-display.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(m.exports,require,m);return m.exports}return require(name)}, reportModule)
-const { buildExpenseReport, reportRange, bucharestDay, subcategoryDistribution } = reportModule.exports
+const { buildExpenseReport, includeBudgetedCategories, reportRange, bucharestDay, subcategoryDistribution } = reportModule.exports
 const range = { from: '2026-09-01', to: '2026-09-30' }
 const root = { id: 'transport', parent_id: null, name: 'Transport', kind: 'expense', is_active: true }
 const car = { id: 'car', parent_id: root.id, name: 'Mașină', kind: 'expense', is_active: true }
@@ -66,6 +66,17 @@ test('calculates calendar periods and preserves custom boundaries', () => {
 })
 test('returns an empty report for an empty period', () => {
   assert.deepEqual(buildExpenseReport([], [root, car], [], range), {categories:[],total:0,transactionCount:0,excludedCurrencies:0})
+})
+test('adds every budgeted root category even with zero spending and leaves unbudgeted empty categories hidden',()=>{
+  const home={...root,id:'home',name:'Casă'}
+  const homeChild={...car,id:'rent',parent_id:home.id,name:'Chirie'}
+  const emptyUnbudgeted={...root,id:'fun',name:'Divertisment'}
+  const spent=buildExpenseReport([tx('one',25)],[root,car,home,homeChild,emptyUnbudgeted],[split('one','one',root.id,25)],range).categories
+  const listed=includeBudgetedCategories(spent,[root,car,home,homeChild,emptyUnbudgeted],[home.id])
+  assert.deepEqual(listed.map(category=>category.id),[root.id,home.id])
+  assert.equal(listed[1].amount,0)
+  assert.equal(listed[1].percent,0)
+  assert.deepEqual(listed[1].subcategories.map(category=>[category.id,category.amount]),[[homeChild.id,0]])
 })
 test('rejects overallocated splits and a cyclic hierarchy instead of showing false totals', () => {
   assert.throws(() => buildExpenseReport([tx('one',10)], [root], [split('a','one',root.id,11)], range), /depășesc/)
