@@ -74,7 +74,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     const allowed=new Set((data?.categories??[]).filter(category=>category.kind==='expense'&&!category.parent_id&&category.is_active&&isBudgetCategory(category)).map(category=>category.id))
     return new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&allowed.has(row.category_id)&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)]))
   },[data?.budgets,data?.categories,kind,period,range.from])
-  const listedCategories=useMemo(()=>includeBudgetedCategories(categories,data?.categories??[],monthlyBudgets.keys()),[categories,data?.categories,monthlyBudgets])
+  const listedCategories=useMemo(()=>includeBudgetedCategories(categories,data?.categories??[],monthlyBudgets),[categories,data?.categories,monthlyBudgets])
   const incomeTotal=useMemo(()=>{
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
     catch{return 0}
