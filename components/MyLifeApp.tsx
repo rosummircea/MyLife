@@ -61,7 +61,7 @@ type FinanceTab = 'overview' | 'accounts' | 'transactions' | 'reports' | 'transf
 function visibleTransfers(transactions: Transaction[]): Transaction[] {
   const transfers = transactions.filter(tx => tx.transaction_type === 'transfer')
   return transfers.filter(tx => {
-    const reference = tx.description?.match(/REF:\\s*([A-Z0-9]+)/i)?.[1]
+    const reference = tx.description?.match(/REF:\s*([A-Z0-9]+)/i)?.[1]
     if (!reference || !/Incasare OP/i.test(tx.description ?? '')) return true
     return !transfers.some(other =>
       other.id !== tx.id &&
