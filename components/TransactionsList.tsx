@@ -85,7 +85,10 @@ export default function TransactionsList({ accounts, transactions, categories, s
         } : null)
       const account = resolveAccount(tx.account_id, tx.source_account)
       const destination = resolveAccount(tx.transfer_account_id, tx.destination_account)
-      const rows = allocations.get(tx.id) ?? []
+      const rows = [...(allocations.get(tx.id) ?? [])]
+      if(tx.is_forecast&&tx.forecast_category_id&&!rows.length){
+        rows.push({id:`forecast-split:${tx.id}`,transaction_id:tx.id,category_id:tx.forecast_category_id,amount:tx.amount})
+      }
       const badges = [...new Map(rows.map(split=>{const badge=categoryBadge(split.category_id);return [badge.id,badge] as const})).values()]
       if (tx.transaction_type === 'expense' || tx.transaction_type === 'income') {
         if (!rows.length || rows.reduce((sum, row) => sum + Math.round(Number(row.amount) * 100), 0) < Math.round(Number(tx.amount) * 100)) {

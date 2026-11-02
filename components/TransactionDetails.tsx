@@ -17,6 +17,9 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
   const [saving,setSaving]=useState(false)
   const existingRule=(data?.recurringRules??[]).find(rule=>rule.source_transaction_id===tx.id)
   const [recurring,setRecurring]=useState(Boolean(existingRule)),[recurringBusy,setRecurringBusy]=useState(false),[recurringError,setRecurringError]=useState('')
+  const [recurringOpen,setRecurringOpen]=useState(false)
+  const [recurringFrequency,setRecurringFrequency]=useState(existingRule?.frequency==='weekly'?'weekly':existingRule?.frequency==='quarterly'?'quarterly':'monthly')
+  const recurringBusyRef=useRef(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const seenRequestSent = useRef(false)
   useEffect(() => { dialog.current?.showModal() }, [])
@@ -47,22 +50,34 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
   const money = (amount: number | string) => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(Number(amount))
   const date = new Date(tx.transaction_date).toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest', ...(tx.date_precision === 'date' ? { day: 'numeric', month: 'long', year: 'numeric' } : {}) })
   const type = ({ expense: 'Cheltuială', income: 'Venit', transfer: 'Transfer' } as Record<string,string>)[tx.transaction_type] ?? tx.transaction_type
-  async function toggleRecurring(){
-    const client=getSupabaseClient();if(!client||!data||recurringBusy)return
-    setRecurringBusy(true);setRecurringError('')
+  const nextRecurringDue=(frequency:string)=>{
+    const source=new Date(tx.transaction_date)
+    if(frequency==='weekly')return new Date(source.getTime()+7*86400000).toISOString().slice(0,10)
+    const months=frequency==='quarterly'?3:1
+    const targetMonth=new Date(Date.UTC(source.getUTCFullYear(),source.getUTCMonth()+months,1))
+    const lastDay=new Date(Date.UTC(targetMonth.getUTCFullYear(),targetMonth.getUTCMonth()+1,0)).getUTCDate()
+    return new Date(Date.UTC(targetMonth.getUTCFullYear(),targetMonth.getUTCMonth(),Math.min(source.getUTCDate(),lastDay))).toISOString().slice(0,10)
+  }
+  async function saveRecurring(){
+    const client=getSupabaseClient();if(!client||!data||recurringBusyRef.current)return
+    recurringBusyRef.current=true;setRecurringBusy(true);setRecurringError('')
     try{
-      if(recurring){
-        const rule=(data.recurringRules??[]).find(item=>item.source_transaction_id===tx.id)
-        if(rule){const {error}=await client.from('finance_recurring_rules').delete().eq('id',rule.id);if(error)throw Error(error.message)}
-        setRecurring(false)
-      }else{
-        const sourceDay=new Date(tx.transaction_date),nextMonth=new Date(Date.UTC(sourceDay.getUTCFullYear(),sourceDay.getUTCMonth()+1,1)),nextMonthLast=new Date(Date.UTC(nextMonth.getUTCFullYear(),nextMonth.getUTCMonth()+1,0)).getUTCDate(),nextDue=new Date(Date.UTC(nextMonth.getUTCFullYear(),nextMonth.getUTCMonth(),Math.min(sourceDay.getUTCDate(),nextMonthLast))).toISOString().slice(0,10)
-        const {error}=await client.from('finance_recurring_rules').insert({household_id:data.profile.householdId,source_transaction_id:tx.id,account_id:tx.account_id??null,category_id:splits[0]?.category_id??null,kind:'expense',name:tx.title?.trim()||tx.merchant||tx.description||'Cheltuială recurentă',expected_amount:Number(tx.amount),currency:tx.currency.trim(),frequency:'monthly',next_due_date:nextDue,forecast_months:2,is_active:true})
-        if(error)throw Error(error.message)
-        setRecurring(true)
-      }
+      const primarySplit=[...splits].sort((a,b)=>Number(b.amount)-Number(a.amount))[0]
+      const payload={household_id:data.profile.householdId,source_transaction_id:tx.id,account_id:tx.account_id??null,category_id:primarySplit?.category_id??null,kind:'expense',name:tx.title?.trim()||tx.merchant||tx.description||'Cheltuială recurentă',expected_amount:Number(tx.amount),currency:tx.currency.trim(),frequency:recurringFrequency,next_due_date:nextRecurringDue(recurringFrequency),forecast_months:2,is_active:true}
+      const {error}=await client.from('finance_recurring_rules').upsert(payload,{onConflict:'source_transaction_id'})
+      if(error)throw Error(error.message)
+      setRecurring(true)
       onClose();onSaved()
-    }catch(error){setRecurringError(error instanceof Error?error.message:'Recurența nu a putut fi salvată.')}finally{setRecurringBusy(false)}
+    }catch(error){setRecurringError(error instanceof Error?error.message:'Recurența nu a putut fi salvată.')}finally{recurringBusyRef.current=false;setRecurringBusy(false)}
+  }
+  async function removeRecurring(){
+    const client=getSupabaseClient();if(!client||recurringBusyRef.current)return
+    recurringBusyRef.current=true;setRecurringBusy(true);setRecurringError('')
+    try{
+      const {error}=await client.from('finance_recurring_rules').delete().eq('source_transaction_id',tx.id)
+      if(error)throw Error(error.message)
+      setRecurring(false);setRecurringOpen(false);onClose();onSaved()
+    }catch(error){setRecurringError(error instanceof Error?error.message:'Recurența nu a putut fi oprită.')}finally{recurringBusyRef.current=false;setRecurringBusy(false)}
   }
   return <dialog ref={dialog} className="transactionDetails" aria-labelledby="transaction-details-title" onClose={onClose} onCancel={event=>{if(saving)event.preventDefault()}} onClick={event => { if (!saving && event.target === event.currentTarget) dialog.current?.close() }}>
     <header><div>{!editing&&<p>DETALII TRANZACȚIE</p>}<h2 id="transaction-details-title">{editing?'Editează tranzacția':tx.title?.trim() || (tx.transaction_type==='transfer' ? transferLabel(tx,data?.accounts??[]) : tx.merchant || tx.description || 'Tranzacție')}</h2></div><button type="button" aria-label="Închide detaliile tranzacției" disabled={saving} onClick={() => dialog.current?.close()}><X size={20}/></button></header>
@@ -73,7 +88,7 @@ export default function TransactionDetails({ transaction: tx, data, onClose, onO
     {tx.loan_id&&<p className="transactionLoanDetail"><HandCoins size={17}/>{tx.loan_kind==='repayment'?'Rambursare legată de împrumut':'Tranzacția inițială a împrumutului'}</p>}
     <p className="transactionDetailsEmpty">{tx.affects_balance===false||tx.affects_balance==='false'?'Nu afectează soldul actual':'Afectează soldul actual'}</p><dl><div><dt>Tip</dt><dd>{type}</dd></div><div><dt>Data</dt><dd>{date}</dd></div>{account && <div><dt>{tx.transaction_type==='transfer'?'Din contul':'Cont'}</dt><dd>{account.name}</dd></div>}{tx.transaction_type==='transfer' && <div><dt>În contul</dt><dd>{tx.destination_account?.name ?? data?.accounts.find(item=>item.id===tx.transfer_account_id)?.name ?? 'Cont destinație indisponibil'}</dd></div>}{tx.merchant && <div><dt>{tx.enable_banking_transaction_id||tx.imported_from?'Comerciant · date bancă':'Comerciant'}</dt><dd>{tx.merchant}</dd></div>}{tx.description && <div><dt>{tx.enable_banking_transaction_id||tx.imported_from?'Descriere originală · date bancă':'Descriere'}</dt><dd>{tx.description}</dd></div>}</dl>
     {splits.length > 0 && <section><h3>Categorii</h3>{splits.map(split => { const category = data?.categories.find(item => item.id === split.category_id); const parent = data?.categories.find(item => item.id === category?.parent_id); return <div className="transactionDetailsCategory" key={split.id}><span>{parent ? `${parent.name} → ` : ''}{category?.name ?? 'Fără categorie'}</span><strong>{money(split.amount)}</strong></div> })}</section>}
-    {tx.transaction_type==='expense'&&data?.source==='live'&&<section className="transactionRecurring"><div><Repeat2 size={19}/><span><strong>Cheltuială recurentă</strong><small>Previzionează luna curentă și următoarele două luni. Când apare plata reală, previziunea lunii dispare.</small></span></div><button type="button" role="switch" aria-checked={recurring} aria-label="Cheltuială recurentă" disabled={recurringBusy} onClick={()=>void toggleRecurring()}><span/></button>{recurringError&&<p role="alert">{recurringError}</p>}</section>}
+    {tx.transaction_type==='expense'&&data?.source==='live'&&<section className="transactionRecurring"><div className="transactionRecurringIntro"><Repeat2 size={19}/><span><strong>Cheltuială recurentă</strong><small>Previziunea păstrează contul, suma și categoria acestei tranzacții. Plata reală înlocuiește automat previziunea.</small></span></div><button type="button" className="transactionRecurringConfigure" aria-expanded={recurringOpen} disabled={recurringBusy} onClick={()=>{setRecurringOpen(open=>!open);setRecurringError('')}}>{recurring?'Editează':'Configurează'}</button>{recurringOpen&&<div className="transactionRecurringPanel"><span className="transactionRecurringLabel">Cât de des se repetă?</span><div className="transactionRecurringOptions" role="radiogroup" aria-label="Frecvența cheltuielii recurente">{([['weekly','Săptămânal'],['monthly','Lunar'],['quarterly','La 3 luni']] as const).map(([value,label])=><button key={value} type="button" role="radio" aria-checked={recurringFrequency===value} className={recurringFrequency===value?'selected':''} onClick={()=>setRecurringFrequency(value)}>{label}</button>)}</div><div className="transactionRecurringActions"><button type="button" className="transactionRecurringSave" disabled={recurringBusy} onClick={()=>void saveRecurring()}>{recurringBusy?'Se salvează…':'Salvează recurența'}</button>{recurring&&<button type="button" className="transactionRecurringRemove" disabled={recurringBusy} onClick={()=>void removeRecurring()}>Oprește recurența</button>}<button type="button" disabled={recurringBusy} onClick={()=>setRecurringOpen(false)}>Renunță</button></div></div>}{recurringError&&<p role="alert">{recurringError}</p>}</section>}
     <section><h3>Document asociat</h3>{tx.attachment_document_id ? document ? <button type="button" className="transactionDocumentLink" onClick={() => { onClose(); onOpenDocument(document.id) }}><FileText size={22}/><span><strong>{document.source_filename || document.document_type}</strong><small>{document.storage_path ? 'Vezi documentul și metadata' : 'Metadata salvată · fișier încă neatașat'}</small></span><ChevronRight size={18}/></button> : <p className="transactionDetailsEmpty">Documentul asociat nu este disponibil pentru acest cont.</p> : <p className="transactionDetailsEmpty">Nu există un document asociat acestei tranzacții.</p>}</section>
     <div className="transactionDetailsActions">
       <button type="button" className="transactionEditButton" disabled={data?.source!=='live'||!tx.updated_at} onClick={()=>setEditing(true)}>Editează tranzacția</button>
