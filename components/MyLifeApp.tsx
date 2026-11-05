@@ -504,7 +504,18 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
   const [transactionSearchTerm,setTransactionSearchTerm]=useState('')
   const [transactionSearchIndex,setTransactionSearchIndex]=useState(0)
   const [transactionSearchFocusedId,setTransactionSearchFocusedId]=useState<string|null>(null)
-  const normalizeTransactionSearch=useCallback((value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('ro-RO').trim(),[])
+  const normalizeTransactionSearch=useCallback((value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2212\u2012\u2013\u2014]/g,'-').toLocaleLowerCase('ro-RO').trim(),[])
+  const transactionAmountSearchText=useCallback((transaction:Transaction)=>{
+    const amount=Math.abs(Number(transaction.amount))
+    if(!Number.isFinite(amount))return ''
+    const currency=transaction.currency?.trim()||'RON'
+    const sign=transaction.transaction_type==='expense'?'-':transaction.transaction_type==='income'||transaction.transaction_type==='adjustment'?'+':''
+    const roAmount=new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(amount)
+    const internationalAmount=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(amount)
+    const rawAmount=String(amount)
+    const variants=[roAmount,`${roAmount} ${currency}`,internationalAmount,`${internationalAmount} ${currency}`,rawAmount,rawAmount.replace('.',',')]
+    return [...variants,...(sign?variants.map(value=>`${sign}${value}`):[])].join(' ')
+  },[])
   useEffect(()=>{
     const timer=window.setTimeout(()=>setTransactionSearchTerm(normalizeTransactionSearch(transactionSearchDraft)),350)
     return()=>window.clearTimeout(timer)
@@ -515,11 +526,11 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
       if(transaction.transaction_type==='transfer'&&(transaction.transfer_mirror===true||transaction.transfer_mirror==='true'))return false
       const source=accounts.find(account=>account.id===transaction.account_id)?.name??transaction.source_account?.name??''
       const destination=accounts.find(account=>account.id===transaction.transfer_account_id)?.name??transaction.destination_account?.name??''
-      const searchable=[transaction.title,transaction.merchant,transaction.description,source,destination,transaction.imported_from,transaction.amount,transaction.currency]
+      const searchable=[transaction.title,transaction.merchant,transaction.description,source,destination,transaction.imported_from,transactionAmountSearchText(transaction),transaction.currency]
         .filter(value=>value!==null&&value!==undefined).join(' ')
       return normalizeTransactionSearch(searchable).includes(transactionSearchTerm)
     })
-  },[accounts,monthlyTransactions,normalizeTransactionSearch,transactionSearchTerm])
+  },[accounts,monthlyTransactions,normalizeTransactionSearch,transactionAmountSearchText,transactionSearchTerm])
   const focusTransactionSearchResult=useCallback((index:number)=>{
     const result=transactionSearchResults[index]
     if(!result){setTransactionSearchFocusedId(null);return}

@@ -10,7 +10,7 @@ import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-const normalizeSearchText=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('ro-RO')
+const normalizeSearchText=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2212\u2012\u2013\u2014]/g,'-').toLocaleLowerCase('ro-RO')
 
 function searchRanges(text:string,term:string){
   const normalizedTerm=normalizeSearchText(term).trim()
@@ -150,8 +150,10 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
       const accountLabel=route||account?.name||'Cont indisponibil'
+      const formattedAmount=new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(displayedAmount)
+      const amountText=`${hasAmount&&outgoing?'−':hasAmount&&incoming?'+':''}${formattedAmount}`
       const activeHighlight=focusedId===tx.id?highlightTerm?.trim()||'':''
-      const visibleMatch=activeHighlight&&(searchRanges(title,activeHighlight).length||searchRanges(accountLabel,activeHighlight).length)
+      const visibleMatch=activeHighlight&&(searchRanges(title,activeHighlight).length||searchRanges(accountLabel,activeHighlight).length||searchRanges(amountText,activeHighlight).length)
       const hiddenMatchSource=!visibleMatch&&activeHighlight?[tx.title,tx.merchant,tx.description,destination?.name].find(value=>value&&searchRanges(value,activeHighlight).length):undefined
       const unseen = tx.unseen === true || tx.unseen === 'true'
       const forecast=tx.is_forecast===true
@@ -177,7 +179,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
           {showDate&&<span className="transactionRowDate">{new Date(tx.transaction_date).toLocaleDateString('ro-RO', { timeZone: 'Europe/Bucharest' })}</span>}
         </div>
         <strong className={`transactionRowAmount ${hasAmount&&outgoing ? 'transactionRowAmount-outgoing' : hasAmount&&incoming ? 'transactionRowAmount-incoming' : ''}`}>
-          {hasAmount&&outgoing ? '−' : hasAmount&&incoming ? '+' : ''}{new Intl.NumberFormat('ro-RO', { style: 'currency', currency: tx.currency.trim() }).format(displayedAmount)}
+          <HighlightedText text={amountText} term={activeHighlight}/>
           {contributionAmounts?.[tx.id] !== undefined && Math.round(contributionAmounts[tx.id]*100)!==Math.round(Number(tx.amount)*100) && <small className="transactionContributionTotal">din {new Intl.NumberFormat('ro-RO',{style:'currency',currency:tx.currency.trim()}).format(Number(tx.amount))}</small>}
         </strong>
       </button>
