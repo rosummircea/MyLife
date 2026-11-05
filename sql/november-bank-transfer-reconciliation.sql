@@ -13,7 +13,7 @@ insert into public.finance_bank_transfer_rules (
     'e1bd382d-f7bb-4a64-b54e-bcf823a353e7',
     'plata op intra - canal electronic;rulaj;andreea eliza rosu',
     'incasare op - canal electronic;rulaj;rosu mircea mihai',
-    1
+    3
   ),
   (
     '837b4c72-4e95-482a-89b9-b4203fcd3fb6',
@@ -23,7 +23,7 @@ insert into public.finance_bank_transfer_rules (
     '99089155-d148-4c6a-8ad9-8a6642737923',
     'revolut**',
     'top-up by *2075',
-    1
+    3
   )
 on conflict (household_id, source_bank_account_id, source_match_text) do update set
   counterpart_bank_account_id=excluded.counterpart_bank_account_id,
@@ -66,8 +66,9 @@ set account_id='f2ae1804-9d40-4cef-8630-7595788978b8',
 where id='5cf8a29a-d7e2-41b1-af94-4e6565d28fb4'
   and status='posted';
 
--- BT exposes the Revolut credit before its debit. The credit is the canonical
--- transfer until the source leg arrives; a later refresh will absorb that leg.
+-- BT can book the card debit a few days after Revolut exposes the credit. Keep
+-- the Revolut credit as the canonical row because it carries the operation date;
+-- a later refresh links the delayed BT leg to the same transfer.
 delete from public.finance_transaction_splits
 where transaction_id='9c10229f-8b43-47c6-85f4-571e406404fc';
 
