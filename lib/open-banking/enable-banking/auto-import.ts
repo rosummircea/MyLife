@@ -81,7 +81,9 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
     const existingImport=existingById.get(transaction.id)
     if(existingImport){
       // A transfer rule can be learned after both bank legs were already imported.
-      // Reconcile them on the next refresh, keeping the debit as the canonical row.
+      // Reconcile them on the next refresh. If the destination bank exposed its
+      // credit before the source bank booked the debit, preserve that earlier row
+      // so the transfer keeps the date on which it actually happened.
       if(transferRule&&existingImport.id===transaction.id){
         let counterpart:BankTransaction|undefined
         if(transferRule.counterpart_bank_account_id){
@@ -101,6 +103,22 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
             const stored=storedCounterpart as ExistingImport
             counterpartImport={id:stored.id,metadata:stored.import_metadata??{},transaction_type:stored.transaction_type,account_id:stored.account_id,transfer_account_id:stored.transfer_account_id}
           }
+        }
+        if(counterpart&&counterpartImport&&counterpartImport.id!==existingImport.id&&counterpartImport.metadata.auto_imported===true&&counterpart.made_on<transaction.made_on){
+          const bankIds=Array.from(new Set([...bankReferences(counterpartImport.metadata),...bankReferences(existingImport.metadata),transaction.id,counterpart.id]))
+          const metadata={...counterpartImport.metadata,title:null,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:transferRule.id,categorization_source:'transfer_rule'}
+          if(counterpartImport.transaction_type!=='transfer'){
+            const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',counterpartImport.id)
+            if(splitDeleteError)throw new Error(splitDeleteError.message)
+          }
+          const {error:counterpartUpdateError}=await admin.from('finance_transactions').update({account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',counterpartImport.id).eq('status','posted')
+          if(counterpartUpdateError)throw new Error(counterpartUpdateError.message)
+          const {error:duplicateArchiveError}=await admin.from('finance_transactions').update({status:'void',import_metadata:{...existingImport.metadata,duplicate_of:counterpartImport.id,deduplicated_at:now}}).eq('id',existingImport.id).eq('status','posted')
+          if(duplicateArchiveError)throw new Error(duplicateArchiveError.message)
+          const value={id:counterpartImport.id,metadata,transaction_type:'transfer',account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id}
+          for(const bankId of bankIds)existingById.set(bankId,value)
+          imported++
+          continue
         }
         if(counterpartImport&&counterpartImport.id!==existingImport.id&&counterpartImport.metadata.auto_imported===true){
           const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',counterpartImport.id)
@@ -159,13 +177,22 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
         counterpart=((counterparts??[]) as BankTransaction[]).filter(candidate=>!counterpartNeedle||transactionText(candidate).includes(counterpartNeedle)).sort((a,b)=>Math.abs(new Date(a.made_on).getTime()-new Date(transaction.made_on).getTime())-Math.abs(new Date(b.made_on).getTime()-new Date(transaction.made_on).getTime()))[0]
       }
       if(counterpart){
-        const {data:counterpartImport,error:counterpartImportError}=await admin.from('finance_transactions').select('id,import_metadata').eq('id',counterpart.id).eq('status','posted').maybeSingle()
+        const {data:counterpartImport,error:counterpartImportError}=await admin.from('finance_transactions').select('id,import_metadata,transaction_type,account_id,transfer_account_id').eq('id',counterpart.id).eq('status','posted').maybeSingle()
         if(counterpartImportError)throw new Error(counterpartImportError.message)
         if(counterpartImport&&((counterpartImport.import_metadata??{}) as Record<string,unknown>).auto_imported===true){
-          const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',counterpart.id)
-          if(splitDeleteError)throw new Error(splitDeleteError.message)
-          const {error:counterpartDeleteError}=await admin.from('finance_transactions').delete().eq('id',counterpart.id)
-          if(counterpartDeleteError)throw new Error(counterpartDeleteError.message)
+          const stored=counterpartImport as ExistingImport
+          const bankIds=Array.from(new Set([...bankReferences(stored.import_metadata??{}),transaction.id,counterpart.id]))
+          const metadata={...(stored.import_metadata??{}),title:null,enable_banking_transaction_ids:bankIds,enable_banking_counterpart_transaction_id:transaction.id,transfer_rule_id:transferRule.id,categorization_source:'transfer_rule'}
+          if(stored.transaction_type!=='transfer'){
+            const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',stored.id)
+            if(splitDeleteError)throw new Error(splitDeleteError.message)
+          }
+          const {error:counterpartUpdateError}=await admin.from('finance_transactions').update({account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id,transaction_type:'transfer',amount:Math.abs(signedAmount),import_metadata:metadata}).eq('id',stored.id).eq('status','posted')
+          if(counterpartUpdateError)throw new Error(counterpartUpdateError.message)
+          const value={id:stored.id,metadata,transaction_type:'transfer',account_id:transferRule.source_finance_account_id,transfer_account_id:transferRule.destination_finance_account_id}
+          for(const bankId of bankIds)existingById.set(bankId,value)
+          imported++
+          continue
         }
       }
       const bankIds=[transaction.id,...(counterpart?[counterpart.id]:[])]
