@@ -10,7 +10,52 @@ import {categoryRoot,categoryAppearance} from '@/lib/category-display'
 import { transferLabel } from '@/lib/transfers'
 import './TransactionsList.css'
 
-export default function TransactionsList({ accounts, transactions, categories, splits, recurringRules = [], emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, contextAccountId, contributionAmounts, showDate = true, reorderMode = false, onMove }: {
+const normalizeSearchText=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('ro-RO')
+
+function searchRanges(text:string,term:string){
+  const normalizedTerm=normalizeSearchText(term).trim()
+  if(!normalizedTerm)return []
+  let normalized=''
+  const positions:number[]=[]
+  for(let index=0;index<text.length;index++){
+    const part=normalizeSearchText(text[index])
+    normalized+=part
+    for(let offset=0;offset<part.length;offset++)positions.push(index)
+  }
+  const ranges:Array<[number,number]>=[]
+  let from=0
+  while(from<normalized.length){
+    const match=normalized.indexOf(normalizedTerm,from)
+    if(match<0)break
+    ranges.push([positions[match],(positions[match+normalizedTerm.length-1]??positions[match])+1])
+    from=match+normalizedTerm.length
+  }
+  return ranges
+}
+
+function HighlightedText({text,term}:{text:string;term?:string}){
+  const ranges=term?searchRanges(text,term):[]
+  if(!ranges.length)return <>{text}</>
+  const parts:React.ReactNode[]=[]
+  let cursor=0
+  ranges.forEach(([start,end],index)=>{
+    if(start>cursor)parts.push(text.slice(cursor,start))
+    parts.push(<mark className="transactionSearchHighlight" key={`${start}-${end}-${index}`}>{text.slice(start,end)}</mark>)
+    cursor=end
+  })
+  if(cursor<text.length)parts.push(text.slice(cursor))
+  return <>{parts}</>
+}
+
+function searchExcerpt(text:string,term:string){
+  const range=searchRanges(text,term)[0]
+  if(!range)return text
+  const start=Math.max(0,range[0]-46)
+  const end=Math.min(text.length,range[1]+64)
+  return `${start?'…':''}${text.slice(start,end)}${end<text.length?'…':''}`
+}
+
+export default function TransactionsList({ accounts, transactions, categories, splits, recurringRules = [], emptyMessage = 'Nu există tranzacții disponibile.', onSelect, focusedId, highlightTerm, contextAccountId, contributionAmounts, showDate = true, reorderMode = false, onMove }: {
   accounts: Account[]
   transactions: Transaction[]
   categories: CategoryRow[]
@@ -19,6 +64,7 @@ export default function TransactionsList({ accounts, transactions, categories, s
   emptyMessage?: string
   onSelect: (transaction: Transaction) => void
   focusedId?: string
+  highlightTerm?: string
   showDate?: boolean
   contextAccountId?: string
   contributionAmounts?: Record<string,number>
@@ -103,6 +149,10 @@ export default function TransactionsList({ accounts, transactions, categories, s
       const hasAmount = Math.abs(displayedAmount) > 0.000001
       const route = tx.transaction_type === 'transfer' ? transferLabel(tx, accounts) : null
       const title = tx.title?.trim() || route || tx.merchant || tx.description || 'Tranzacție'
+      const accountLabel=route||account?.name||'Cont indisponibil'
+      const activeHighlight=focusedId===tx.id?highlightTerm?.trim()||'':''
+      const visibleMatch=activeHighlight&&(searchRanges(title,activeHighlight).length||searchRanges(accountLabel,activeHighlight).length)
+      const hiddenMatchSource=!visibleMatch&&activeHighlight?[tx.title,tx.merchant,tx.description,destination?.name].find(value=>value&&searchRanges(value,activeHighlight).length):undefined
       const unseen = tx.unseen === true || tx.unseen === 'true'
       const forecast=tx.is_forecast===true
       const recurringRule=recurringByTransactionId.get(tx.id)
@@ -114,8 +164,9 @@ export default function TransactionsList({ accounts, transactions, categories, s
           <AccountIdentity account={destination} direction="În contul"/>
         </span> : <AccountIdentity account={account}/>}
         <div className="transactionRowInfo">
-          <strong className="transactionRowTitle">{title}</strong>
-          <span className="transactionRowAccount">{route || account?.name || 'Cont indisponibil'}</span>
+          <strong className="transactionRowTitle"><HighlightedText text={title} term={activeHighlight}/></strong>
+          <span className="transactionRowAccount"><HighlightedText text={accountLabel} term={activeHighlight}/></span>
+          {hiddenMatchSource&&<span className="transactionSearchSnippet"><span>Potrivire:</span> <HighlightedText text={searchExcerpt(hiddenMatchSource,activeHighlight)} term={activeHighlight}/></span>}
           {((tx.imported_from||tx.enable_banking_transaction_id)||recurringRule||forecast||unseen)&&<span className="transactionStatusBadges">
             {(tx.imported_from||tx.enable_banking_transaction_id)&&<span className="transactionImportedBadge">Importată din {tx.imported_from||'Revolut'}</span>}
             {recurringRule&&<span className="transactionRecurringBadge" title={`Cheltuială recurentă · ${recurringLabel}`}><Repeat2 size={12} aria-hidden="true"/> Recurentă · {recurringLabel}</span>}
