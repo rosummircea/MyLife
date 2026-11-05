@@ -39,6 +39,10 @@ import {
   Users,
   WalletCards,
   PiggyBank,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -496,6 +500,65 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
   const monthlyTransactions = useMemo(() => timelineTransactions.filter(tx => bucharestDay(new Date(tx.transaction_date)).startsWith(calendarMonth)), [timelineTransactions, calendarMonth])
   const monthLabel = new Date(`${calendarMonth}-01T12:00:00Z`).toLocaleDateString('ro-RO', {month:'long',year:'numeric',timeZone:'UTC'})
   useEffect(() => { if (target) document.getElementById(`transaction-${target.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [target])
+  const [transactionSearchDraft,setTransactionSearchDraft]=useState('')
+  const [transactionSearchTerm,setTransactionSearchTerm]=useState('')
+  const [transactionSearchIndex,setTransactionSearchIndex]=useState(0)
+  const [transactionSearchFocusedId,setTransactionSearchFocusedId]=useState<string|null>(null)
+  const normalizeTransactionSearch=useCallback((value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('ro-RO').trim(),[])
+  useEffect(()=>{
+    const timer=window.setTimeout(()=>setTransactionSearchTerm(normalizeTransactionSearch(transactionSearchDraft)),350)
+    return()=>window.clearTimeout(timer)
+  },[normalizeTransactionSearch,transactionSearchDraft])
+  const transactionSearchResults=useMemo(()=>{
+    if(!transactionSearchTerm)return []
+    return monthlyTransactions.filter(transaction=>{
+      if(transaction.transaction_type==='transfer'&&(transaction.transfer_mirror===true||transaction.transfer_mirror==='true'))return false
+      const source=accounts.find(account=>account.id===transaction.account_id)?.name??transaction.source_account?.name??''
+      const destination=accounts.find(account=>account.id===transaction.transfer_account_id)?.name??transaction.destination_account?.name??''
+      const searchable=[transaction.title,transaction.merchant,transaction.description,source,destination,transaction.imported_from,transaction.amount,transaction.currency]
+        .filter(value=>value!==null&&value!==undefined).join(' ')
+      return normalizeTransactionSearch(searchable).includes(transactionSearchTerm)
+    })
+  },[accounts,monthlyTransactions,normalizeTransactionSearch,transactionSearchTerm])
+  const focusTransactionSearchResult=useCallback((index:number)=>{
+    const result=transactionSearchResults[index]
+    if(!result){setTransactionSearchFocusedId(null);return}
+    setTransactionSearchIndex(index)
+    setTransactionSearchFocusedId(result.id)
+    setSelectedDay(bucharestDay(new Date(result.transaction_date)))
+  },[transactionSearchResults])
+  useEffect(()=>{
+    setTransactionSearchIndex(0)
+    if(transactionSearchTerm&&transactionSearchResults.length)focusTransactionSearchResult(0)
+    else setTransactionSearchFocusedId(null)
+  },[calendarMonth,focusTransactionSearchResult,transactionSearchResults,transactionSearchTerm])
+  useEffect(()=>{
+    if(!transactionSearchFocusedId)return
+    const timer=window.setTimeout(()=>document.getElementById(`transaction-${transactionSearchFocusedId}`)?.scrollIntoView({block:'center',behavior:'smooth'}),80)
+    return()=>window.clearTimeout(timer)
+  },[selectedDay,transactionSearchFocusedId])
+  const moveTransactionSearch=(direction:number)=>{
+    if(!transactionSearchResults.length)return
+    focusTransactionSearchResult((transactionSearchIndex+direction+transactionSearchResults.length)%transactionSearchResults.length)
+  }
+  const clearTransactionSearch=()=>{
+    setTransactionSearchDraft('')
+    setTransactionSearchTerm('')
+    setTransactionSearchIndex(0)
+    setTransactionSearchFocusedId(null)
+  }
+  const transactionSearch=(mobile=false)=><div className={`financeTransactionSearch ${mobile?'financeTransactionSearchMobile':''}`} role="search" aria-label="Caută în tranzacțiile lunii selectate">
+    <Search size={16} aria-hidden="true"/>
+    <input value={transactionSearchDraft} onChange={event=>setTransactionSearchDraft(event.target.value)} placeholder={`Caută în ${monthLabel}`} aria-label={`Caută în tranzacțiile din ${monthLabel}`}/>
+    {transactionSearchDraft&&<>
+      <span className={`financeTransactionSearchCount ${transactionSearchTerm&&!transactionSearchResults.length?'empty':''}`} aria-live="polite">{transactionSearchTerm?(transactionSearchResults.length?`${transactionSearchIndex+1}/${transactionSearchResults.length}`:'0 rezultate'):'…'}</span>
+      {transactionSearchResults.length>1&&<span className="financeTransactionSearchNavigation">
+        <button type="button" onClick={()=>moveTransactionSearch(-1)} aria-label="Rezultatul precedent"><ChevronLeft size={15}/></button>
+        <button type="button" onClick={()=>moveTransactionSearch(1)} aria-label="Rezultatul următor"><ChevronRight size={15}/></button>
+      </span>}
+      <button type="button" className="financeTransactionSearchClear" onClick={clearTransactionSearch} aria-label="Șterge căutarea"><X size={15}/></button>
+    </>}
+  </div>
   const [reorderIds,setReorderIds]=useState<string[]|null>(null)
   const [savingOrder,setSavingOrder]=useState(false)
   const [orderError,setOrderError]=useState('')
@@ -538,6 +601,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
   return (
     <section className="modulePage financeModule">
       <div className="financeMobileHeader"><h1>Finanțe</h1>{financeSettingsMenu}</div>
+      {tab==='transactions'&&transactionSearch(true)}
       <div className="subnav" aria-label="Submeniu Finanțe">
         <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
         <button className={tab === 'accounts' ? 'active' : ''} onClick={() => setTab('accounts')}>Conturi</button>
@@ -547,6 +611,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
         <button className={tab === 'categories' ? 'active' : ''} onClick={() => setTab('categories')}>Categorii</button>
         <button className={tab === 'budgets' ? 'active' : ''} onClick={() => setTab('budgets')}>Bugete</button>
         <button className={tab === 'reports' ? 'active' : ''} onClick={() => setTab('reports')}>Rapoarte</button>
+        {tab==='transactions'&&transactionSearch()}
         <button type="button" className="financeSettingsNav" aria-label="Setări Finanțe" title="Setări Finanțe"><Settings size={18}/></button>
       </div>
 
@@ -563,7 +628,7 @@ function FinanceModule({ data, loading, accounts, transactions, target, onOpenDo
           {selectedDay && <DailyTransactionSummary action={dayActions} dateLabel={selectedDayLabel} transactions={dailyTransactions} loading={loading}/>}
           {!selectedDay && addTransactionAction}
           {orderError&&<div className="financeOrderError" role="alert">{orderError}</div>}
-          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} recurringRules={data?.recurringRules??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={target?.id} reorderMode={Boolean(reorderIds)} onMove={(draggedId,overId)=>setReorderIds(current=>current?moveTransactionId(current,draggedId,overId):current)} emptyMessage="Nu există tranzacții în ziua selectată."/>}
+          {!selectedDay ? <div className="emptyState">Selectează o zi din calendar pentru a vedea tranzacțiile.</div> : loading ? <div className="emptyState" role="status">Se încarcă tranzacțiile…</div> : <TransactionsList categories={data?.categories??[]} splits={data?.splits??[]} recurringRules={data?.recurringRules??[]} accounts={accounts} transactions={dailyTransactions} showDate={false} onSelect={transaction => setDetailId(transaction.id)} focusedId={transactionSearchFocusedId??target?.id} reorderMode={Boolean(reorderIds)} onMove={(draggedId,overId)=>setReorderIds(current=>current?moveTransactionId(current,draggedId,overId):current)} emptyMessage="Nu există tranzacții în ziua selectată."/>}
         </>
       ) : (
         <FinanceOverview data={data} loading={loading} onAccounts={()=>{setAccountRecord(null);setTab('accounts')}} onLoans={()=>setTab('loans')} onReports={()=>setTab('reports')}/>
