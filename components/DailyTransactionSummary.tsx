@@ -19,7 +19,7 @@ export default function DailyTransactionSummary({ dateLabel, transactions, loadi
   return <section className={`dailyTransactionSummary ${monthly?'monthly':''}`} aria-label={monthly ? "Rezumatul lunii" : "Rezumatul zilei"}>
     <header className={action?'dailyTransactionHeaderWithAction':undefined}>{action?<><div className="dailyTransactionHeading"><h2>{dateLabel}</h2><span>{loading?'Se încarcă…':`${transactions.length} tranzacții`}</span></div>{action}</>:<><h2>{dateLabel}</h2><span>{loading?'Se încarcă…':`${transactions.length} tranzacții`}</span></>}</header>
     <dl>
-      {([{ key: 'outgoing', label: monthly ? 'Cheltuieli' : 'Ieșiri' }, { key: 'incoming', label: monthly ? 'Venituri' : 'Intrări' }, { key: 'net', label: 'Diferență' }] as const).map(metric => <div key={metric.key}>
+      {([{ key: 'incoming', label: monthly ? 'Venituri' : 'Intrări' }, { key: 'outgoing', label: monthly ? 'Cheltuieli' : 'Ieșiri' }, { key: 'net', label: 'Diferență' }] as const).map(metric => <div key={metric.key}>
         <dt>{metric.label}</dt>
         <dd>{loading ? <strong>—</strong> : totals.map(total => {
           const value = metric.key === 'outgoing' ? -total.outgoing : total[metric.key]
