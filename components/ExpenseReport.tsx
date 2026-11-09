@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerE
 import { buildExpenseReport, bucharestDay, reportRange, distributionGradient, includeBudgetedCategories, subcategoryDistribution, type ExpenseCategory, type ReportPeriod, type DateRange, type ReportKind } from '@/lib/expense-report'
 import type { MyLifeData, Transaction } from '@/lib/mylife-data'
 import ExpenseTrendChart from './ExpenseTrendChart'
+import BalanceReport from './BalanceReport'
 import TransactionsList from './TransactionsList'
 import BudgetProgress from './BudgetProgress'
 import { getSupabaseClient } from '@/lib/supabase'
@@ -43,6 +44,8 @@ function periodLabel(period:ReportPeriod,anchor:string,custom:DateRange){
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [showAllTransactions,setShowAllTransactions]=useState(false)
   const [kind,setKind]=useState<ReportKind>('expense')
+  const [reportView,setReportView]=useState<ReportKind|'balance'>('expense')
+  const [comparePrevious,setComparePrevious]=useState(true)
   const allTransactionsRef=useRef<HTMLDivElement>(null)
   const heroCarouselRef=useRef<HTMLDivElement>(null)
   const periodNavigatorRef=useRef<HTMLDivElement>(null)
@@ -179,8 +182,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     setPeriodDrag({offset:0,dragging:true})
     requestAnimationFrame(()=>requestAnimationFrame(()=>setPeriodDrag({offset:0,dragging:false})))
   }
-  const changeKind = (next:ReportKind) => {
-    setKind(next)
+  const changeKind = (next:ReportKind|'balance') => {
+    setReportView(next)
+    if(next!=='balance')setKind(next)
     setSelected(null)
     setShowAllTransactions(false)
     setOverviewBucket(null)
@@ -195,13 +199,51 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     requestAnimationFrame(()=>allTransactionsRef.current?.scrollIntoView({behavior:'smooth',block:'start'}))
   }
 
+  const balanceSidebar=<div className="reportSummary">
+    <span className="summaryLabel">Perioadă selectată</span>
+    <strong>{label}</strong>
+    <div className="periodSwitch reportSummaryPeriods" role="tablist" aria-label="Tipul perioadei" style={{'--period-index':(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).indexOf(period)} as CSSProperties}>
+      <span className="reportPeriodIndicator" aria-hidden="true"/>
+      {(['Zi','Săptămână','Lună','An','Custom'] as ReportPeriod[]).map((item) => <button type="button" role="tab" aria-selected={period===item} key={item} className={period === item ? 'active' : ''} onClick={() => { setPeriod(item); resetReportSelection() }}>{item === 'Custom' && <CalendarRange size={14}/>} {item}</button>)}
+    </div>
+    <div className="expensePeriodControls">
+      {period === 'Custom' ? <>
+        <label>De la<input type="date" value={customFrom} onChange={(event) => { if (event.target.value) { setCustomFrom(event.target.value); resetReportSelection() } }}/></label>
+        <label>Până la<input type="date" value={customTo} onChange={(event) => { if (event.target.value) { setCustomTo(event.target.value); resetReportSelection() } }}/></label>
+      </> : <div className="reportPeriodNavigator" role="group" aria-label={`Perioada ${label}`} tabIndex={0} onKeyDown={event=>{if(event.key==='ArrowLeft')animatePeriod(-1);if(event.key==='ArrowRight')animatePeriod(1)}}>
+        <button type="button" aria-label="Perioada precedentă" disabled={Boolean(pendingPeriodDirection)} onClick={()=>animatePeriod(-1)}><ChevronLeft size={20}/></button>
+        <div ref={periodNavigatorRef} className="reportPeriodViewport" onPointerDown={event=>{if(pendingPeriodDirection)return;periodSwipeStart.current={x:event.clientX,at:performance.now()};setPeriodDrag(current=>({...current,dragging:true}));event.currentTarget.setPointerCapture(event.pointerId)}} onPointerMove={event=>{if(!periodSwipeStart.current||pendingPeriodDirection)return;const width=periodNavigatorRef.current?.clientWidth??280;const distance=event.clientX-periodSwipeStart.current.x;setPeriodDrag({offset:Math.max(-width*.92,Math.min(width*.92,distance)),dragging:true})}} onPointerUp={finishPeriodSwipe} onPointerCancel={()=>{periodSwipeStart.current=null;setPeriodDrag({offset:0,dragging:false})}}>
+          <div className={`reportPeriodTrack ${periodDrag.dragging?'dragging':''}`} style={{transform:`translate3d(calc(-33.333333% + ${periodDrag.offset}px),0,0)`}} onTransitionEnd={finishPeriodAnimation}>
+            {([-1,0,1] as const).map(direction=><div className={`reportPeriodPanel ${direction===0?'current':''} ${direction===pendingPeriodDirection?'incoming':''}`} key={direction} aria-hidden={direction!==0}>
+              <span>{period==='An'?'An selectat':period==='Lună'?'Lună selectată':period==='Săptămână'?'Săptămână selectată':'Zi selectată'}</span>
+              <strong>{direction===0?label:periodLabel(period,shiftedAnchor(direction),{from:customFrom,to:customTo})}</strong>
+              <small>{direction===0?'Glisează pentru a schimba perioada':direction<0?'Perioada precedentă':'Perioada următoare'}</small>
+            </div>)}
+          </div>
+        </div>
+        <button type="button" aria-label="Perioada următoare" disabled={Boolean(pendingPeriodDirection)} onClick={()=>animatePeriod(1)}><ChevronRight size={20}/></button>
+      </div>}
+    </div>
+    <label className="balanceCompareToggle"><span>Compară cu perioada anterioară</span><input type="checkbox" checked={comparePrevious} onChange={event=>setComparePrevious(event.target.checked)}/><i aria-hidden="true"/></label>
+  </div>
+
+  if(reportView==='balance')return <div className="reportWrap">
+    <div className="reportKindToolbar"><div className="reportTypeSwitch" role="group" aria-label="Tipul raportului">
+      <button type="button" onClick={()=>changeKind('expense')}>Cheltuieli</button>
+      <button type="button" onClick={()=>changeKind('income')}>Venituri</button>
+      <button type="button" className="active" aria-pressed="true" onClick={()=>changeKind('balance')}>Balanță</button>
+    </div></div>
+    {loading||!data||invalidRange?<div className="balanceEmpty" role="status">{loading?'Se încarcă balanța…':invalidRange?'Data de început trebuie să fie înaintea datei de sfârșit.':'Conectează datele pentru a vedea balanța.'}</div>:<BalanceReport data={data} range={range} period={period} sidebar={balanceSidebar} comparePrevious={comparePrevious}/>}
+  </div>
+
 
   return (
     <div className="reportWrap">
       <div className="reportKindToolbar">
         <div className="reportTypeSwitch" role="group" aria-label="Tipul raportului">
-          <button type="button" className={kind==='expense'?'active':''} aria-pressed={kind==='expense'} onClick={()=>changeKind('expense')}>Cheltuieli</button>
-          <button type="button" className={kind==='income'?'active':''} aria-pressed={kind==='income'} onClick={()=>changeKind('income')}>Venituri</button>
+          <button type="button" className={reportView==='expense'?'active':''} aria-pressed={reportView==='expense'} onClick={()=>changeKind('expense')}>Cheltuieli</button>
+          <button type="button" className={reportView==='income'?'active':''} aria-pressed={reportView==='income'} onClick={()=>changeKind('income')}>Venituri</button>
+          <button type="button" aria-pressed="false" onClick={()=>changeKind('balance')}>Balanță</button>
         </div>
       </div>
       <div className="reportHero">
