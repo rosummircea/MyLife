@@ -19,8 +19,9 @@ function authorized(request:Request){
 export async function POST(request:Request){
   if(!authorized(request))return NextResponse.json({error:'Neautorizat.'},{status:401})
   try{
-    // One bank connection per invocation keeps slow providers isolated. The
-    // 15-minute cron naturally staggers every connection across the day.
+    // One connection per invocation keeps slow providers isolated. Sessions
+    // from the same bank are also spaced out so one customer's refresh does
+    // not consume the provider quota immediately before another customer's.
     const results=await refreshEnableBankingSessions(adminClient(),{continueOnError:true,maxSessions:1})
     const failed=results.filter(result=>!result.ok).length
     return NextResponse.json({ok:failed===0,synced:results.length-failed,failed})
