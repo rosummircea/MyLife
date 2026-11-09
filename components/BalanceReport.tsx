@@ -79,6 +79,7 @@ export default function BalanceReport({data,range,period,sidebar,comparePrevious
   const expenseTotal=result.expense.total
   const net=incomeTotal-expenseTotal
   const savingsRate=incomeTotal>0?net/incomeTotal*100:0
+  const barMaximum=Math.max(1,...incomeValues,...expenseValues)
   const cumulativeMaximum=Math.max(1,...incomeCumulative,...expenseCumulative)
   const balanceMinimum=Math.min(0,...balanceCumulative)
   const balanceMaximum=Math.max(0,...balanceCumulative)
@@ -103,7 +104,7 @@ export default function BalanceReport({data,range,period,sidebar,comparePrevious
       <section className="balanceComparison" aria-label="Venituri comparate cu cheltuieli">
         <header><h3>Venituri vs. cheltuieli</h3><div><span className="income">Venituri</span><span className="expense">Cheltuieli</span><span className="incomeLine">Venituri cumulative</span><span className="expenseLine">Cheltuieli cumulative</span></div></header>
         <div className="balanceMainPlot">
-          <div className="balanceAxis" aria-hidden="true"><span>{money(cumulativeMaximum)}</span><span>{money(cumulativeMaximum/2)}</span><span>0 RON</span></div>
+          <div className="balanceAxis" aria-hidden="true"><small>Lunar</small><span>{money(barMaximum)}</span><span>{money(barMaximum/2)}</span><span>0 RON</span></div>
           <div className="balancePlotArea">
             <svg className="balanceLines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <polyline className="income" points={linePoints(incomeCumulative,0,cumulativeMaximum)}/>
@@ -111,11 +112,12 @@ export default function BalanceReport({data,range,period,sidebar,comparePrevious
             </svg>
             <div className="balanceBars" style={{gridTemplateColumns:`repeat(${Math.max(1,incomeValues.length)},minmax(0,1fr))`}}>
               {result.income.points.map((point,index)=><div className="balanceBarGroup" key={point.key} title={`${point.fullLabel}: venituri ${money(point.amount)}, cheltuieli ${money(expenseValues[index]??0)}`}>
-                <div className="balanceBarTrack"><i className="income" style={{height:`${point.amount/cumulativeMaximum*100}%`}}/><i className="expense" style={{height:`${(expenseValues[index]??0)/cumulativeMaximum*100}%`}}/></div>
+                <div className="balanceBarTrack"><i className="income" style={{height:`${point.amount/barMaximum*100}%`}}/><i className="expense" style={{height:`${(expenseValues[index]??0)/barMaximum*100}%`}}/></div>
                 <span className={index%labelStep!==0&&index!==incomeValues.length-1?'hiddenLabel':''}>{point.label}</span>
               </div>)}
             </div>
           </div>
+          <div className="balanceAxis cumulative" aria-hidden="true"><small>Cumulat</small><span>{money(cumulativeMaximum)}</span><span>{money(cumulativeMaximum/2)}</span><span>0 RON</span></div>
         </div>
       </section>
       {sidebar}
