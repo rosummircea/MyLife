@@ -3,12 +3,14 @@ import 'server-only'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {syncEnableBankingSession} from './sync'
 
-type SessionRow={id:string;external_session_id:string;last_synced_at:string|null;last_error_message:string|null;updated_at:string}
+type SessionRow={id:string;external_session_id:string;provider_name:string|null;last_synced_at:string|null;last_error_message:string|null;updated_at:string}
 
 const BACKGROUND_REFRESH_INTERVAL_MS=6*60*60*1000
+const SAME_PROVIDER_SPACING_MS=2*60*60*1000
+const providerKey=(value:string|null)=>value?.trim().toLocaleLowerCase('ro-RO')||null
 
 export async function refreshEnableBankingSessions(admin:SupabaseClient,options:{userId?:string;sessionId?:string;continueOnError?:boolean;maxSessions?:number;respectInterval?:boolean}={}){
-  let query=admin.from('enable_banking_sessions').select('id,external_session_id,last_synced_at,last_error_message,updated_at').eq('status','AUTHORIZED')
+  let query=admin.from('enable_banking_sessions').select('id,external_session_id,provider_name,last_synced_at,last_error_message,updated_at').eq('status','AUTHORIZED')
   if(options.userId)query=query.eq('user_id',options.userId)
   if(options.sessionId)query=query.eq('id',options.sessionId)
   const {data,error}=await query
@@ -23,7 +25,17 @@ export async function refreshEnableBankingSessions(admin:SupabaseClient,options:
     const attemptedMs=attemptedAt?new Date(attemptedAt).getTime():0
     return {session,attemptedMs,nextRefreshAt:attemptedMs+BACKGROUND_REFRESH_INTERVAL_MS}
   }).sort((a,b)=>a.attemptedMs-b.attemptedMs)
-  const due=sessions.filter(item=>!respectInterval||!item.attemptedMs||item.nextRefreshAt<=now)
+  const due=sessions.filter(item=>!respectInterval||!item.attemptedMs||item.nextRefreshAt<=now).filter(item=>{
+    if(!respectInterval||options.sessionId)return true
+    const provider=providerKey(item.session.provider_name)
+    if(!provider)return true
+    return !sessions.some(other=>
+      other.session.id!==item.session.id&&
+      providerKey(other.session.provider_name)===provider&&
+      other.attemptedMs>item.attemptedMs&&
+      other.attemptedMs+SAME_PROVIDER_SPACING_MS>now
+    )
+  })
   const selected=typeof options.maxSessions==='number'?due.slice(0,Math.max(0,options.maxSessions)):due
   const results=[]
   for(const {session} of selected){
