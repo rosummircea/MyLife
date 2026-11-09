@@ -2,6 +2,7 @@ import 'server-only'
 
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {merchantKey,type CategoryCandidate} from './categorization'
+import {inferInternalCreditTransfer,type LinkedBankFinanceAccount} from './internal-credit-transfer'
 
 type BankTransaction={id:string;external_transaction_id:string;status:string|null;made_on:string;amount:number|string;currency:string;description:string|null;merchant_name:string|null;merchant_category_code:string|null;first_seen_at:string}
 type Rule={merchant_key:string;transaction_type:string;category_id:string}
@@ -70,14 +71,29 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   const learned=new Map(((rules??[]) as Rule[]).filter(rule=>activeCategoryIds.has(rule.category_id)).map(rule=>[`${rule.transaction_type}:${rule.merchant_key}`,rule.category_id]))
   const uncategorized=new Map(availableCategories.filter(category=>category.is_active&&merchantKey(category.name)==='necategorizat').map(category=>[category.kind,category.id]))
   const rememberedTransfers=(transferRules??[]) as TransferRule[]
+  const {data:linkedBankAccounts,error:linkedBankAccountsError}=await admin.from('enable_banking_accounts')
+    .select('id,finance_account_id').eq('household_id',bankAccount.household_id).not('finance_account_id','is',null)
+  if(linkedBankAccountsError)throw new Error(linkedBankAccountsError.message)
+  const linkedFinanceIds=Array.from(new Set((linkedBankAccounts??[]).flatMap(account=>account.finance_account_id?[account.finance_account_id]:[])))
+  const {data:linkedFinanceAccounts,error:linkedFinanceAccountsError}=linkedFinanceIds.length
+    ?await admin.from('finance_accounts').select('id,account_type,owner_person_id,currency,is_active').in('id',linkedFinanceIds).eq('household_id',bankAccount.household_id)
+    :{data:[],error:null}
+  if(linkedFinanceAccountsError)throw new Error(linkedFinanceAccountsError.message)
+  const financeById=new Map((linkedFinanceAccounts??[]).filter(account=>account.is_active!==false).map(account=>[account.id,account]))
+  const linkedAccounts:LinkedBankFinanceAccount[]=(linkedBankAccounts??[]).flatMap(account=>{
+    const finance=account.finance_account_id?financeById.get(account.finance_account_id):undefined
+    return finance?[{bankAccountId:account.id,financeAccountId:finance.id,accountType:finance.account_type,ownerPersonId:finance.owner_person_id,currency:finance.currency}]:[]
+  })
   const now=new Date().toISOString(),provider=providerName(bankAccount.session)
   let imported=0
 
   for(const transaction of candidates){
     const signedAmount=Number(transaction.amount)
     if(!Number.isFinite(signedAmount)||signedAmount===0)continue
-    const transferRule=signedAmount<0?rememberedTransfers.find(rule=>rule.source_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.source_match_text))):undefined
-    const incomingRule=signedAmount>0?rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text))):undefined
+    const inferredTransfer=inferInternalCreditTransfer(bankAccount.id,signedAmount,String(transaction.currency||financeAccount.currency),transactionText(transaction),linkedAccounts)
+    const inferredRule:TransferRule|undefined=inferredTransfer?{id:'implicit-credit-repayment',source_bank_account_id:inferredTransfer.sourceBankAccountId,counterpart_bank_account_id:inferredTransfer.destinationBankAccountId,source_finance_account_id:inferredTransfer.sourceFinanceAccountId,destination_finance_account_id:inferredTransfer.destinationFinanceAccountId,source_match_text:'',counterpart_match_text:null,date_tolerance_days:3}:undefined
+    const transferRule=signedAmount<0?(rememberedTransfers.find(rule=>rule.source_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.source_match_text)))??(inferredRule?.source_bank_account_id===bankAccount.id?inferredRule:undefined)):undefined
+    const incomingRule=signedAmount>0?(rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text)))??(inferredRule?.counterpart_bank_account_id===bankAccount.id?inferredRule:undefined)):undefined
     const existingImport=existingById.get(transaction.id)
     if(existingImport){
       // A transfer rule can be learned after both bank legs were already imported.
