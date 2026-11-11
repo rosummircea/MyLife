@@ -72,7 +72,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   const uncategorized=new Map(availableCategories.filter(category=>category.is_active&&merchantKey(category.name)==='necategorizat').map(category=>[category.kind,category.id]))
   const rememberedTransfers=(transferRules??[]) as TransferRule[]
   const {data:linkedBankAccounts,error:linkedBankAccountsError}=await admin.from('enable_banking_accounts')
-    .select('id,finance_account_id').eq('household_id',bankAccount.household_id).not('finance_account_id','is',null)
+    .select('id,finance_account_id,session:enable_banking_sessions!session_id(provider_name)').eq('household_id',bankAccount.household_id).not('finance_account_id','is',null)
   if(linkedBankAccountsError)throw new Error(linkedBankAccountsError.message)
   const linkedFinanceIds=Array.from(new Set((linkedBankAccounts??[]).flatMap(account=>account.finance_account_id?[account.finance_account_id]:[])))
   const {data:linkedFinanceAccounts,error:linkedFinanceAccountsError}=linkedFinanceIds.length
@@ -82,7 +82,7 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
   const financeById=new Map((linkedFinanceAccounts??[]).filter(account=>account.is_active!==false).map(account=>[account.id,account]))
   const linkedAccounts:LinkedBankFinanceAccount[]=(linkedBankAccounts??[]).flatMap(account=>{
     const finance=account.finance_account_id?financeById.get(account.finance_account_id):undefined
-    return finance?[{bankAccountId:account.id,financeAccountId:finance.id,accountType:finance.account_type,ownerPersonId:finance.owner_person_id,currency:finance.currency}]:[]
+    return finance?[{bankAccountId:account.id,financeAccountId:finance.id,accountType:finance.account_type,ownerPersonId:finance.owner_person_id,currency:finance.currency,providerName:providerName(account.session)}]:[]
   })
   const now=new Date().toISOString(),provider=providerName(bankAccount.session)
   let imported=0
@@ -91,7 +91,12 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
     const signedAmount=Number(transaction.amount)
     if(!Number.isFinite(signedAmount)||signedAmount===0)continue
     const inferredTransfer=inferInternalCreditTransfer(bankAccount.id,signedAmount,String(transaction.currency||financeAccount.currency),transactionText(transaction),linkedAccounts)
-    const inferredRule:TransferRule|undefined=inferredTransfer?{id:'implicit-credit-repayment',source_bank_account_id:inferredTransfer.sourceBankAccountId,counterpart_bank_account_id:inferredTransfer.destinationBankAccountId,source_finance_account_id:inferredTransfer.sourceFinanceAccountId,destination_finance_account_id:inferredTransfer.destinationFinanceAccountId,source_match_text:'',counterpart_match_text:null,date_tolerance_days:3}:undefined
+    let inferredRule:TransferRule|undefined=inferredTransfer?{id:'implicit-credit-repayment',source_bank_account_id:inferredTransfer.sourceBankAccountId,counterpart_bank_account_id:inferredTransfer.destinationBankAccountId,source_finance_account_id:inferredTransfer.sourceFinanceAccountId,destination_finance_account_id:inferredTransfer.destinationFinanceAccountId,source_match_text:inferredTransfer.sourceMatchText,counterpart_match_text:inferredTransfer.counterpartMatchText,date_tolerance_days:3}:undefined
+    if(inferredTransfer?.rememberRule){
+      const {data:rememberedRule,error:rememberError}=await admin.from('finance_bank_transfer_rules').upsert({household_id:bankAccount.household_id,source_bank_account_id:inferredTransfer.sourceBankAccountId,counterpart_bank_account_id:inferredTransfer.destinationBankAccountId,source_finance_account_id:inferredTransfer.sourceFinanceAccountId,destination_finance_account_id:inferredTransfer.destinationFinanceAccountId,source_match_text:inferredTransfer.sourceMatchText,counterpart_match_text:inferredTransfer.counterpartMatchText,date_tolerance_days:3,updated_at:now},{onConflict:'household_id,source_bank_account_id,source_match_text'}).select('id,source_bank_account_id,counterpart_bank_account_id,source_finance_account_id,destination_finance_account_id,source_match_text,counterpart_match_text,date_tolerance_days').single()
+      if(rememberError)throw new Error(rememberError.message)
+      inferredRule=rememberedRule as TransferRule
+    }
     const transferRule=signedAmount<0?(rememberedTransfers.find(rule=>rule.source_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.source_match_text)))??(inferredRule?.source_bank_account_id===bankAccount.id?inferredRule:undefined)):undefined
     const incomingRule=signedAmount>0?(rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text)))??(inferredRule?.counterpart_bank_account_id===bankAccount.id?inferredRule:undefined)):undefined
     const existingImport=existingById.get(transaction.id)
