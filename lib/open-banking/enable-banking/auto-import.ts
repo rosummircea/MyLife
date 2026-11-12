@@ -101,6 +101,33 @@ export async function autoImportNewBankTransactions(admin:SupabaseClient,bankAcc
     const incomingRule=signedAmount>0?(rememberedTransfers.find(rule=>rule.counterpart_bank_account_id===bankAccount.id&&transactionText(transaction).includes(normalized(rule.counterpart_match_text)))??(inferredRule?.counterpart_bank_account_id===bankAccount.id?inferredRule:undefined)):undefined
     const existingImport=existingById.get(transaction.id)
     if(existingImport){
+            // Older versions treated every generic \"Plata OP intra\" as a repayment
+      // whenever the owner had exactly one credit card. Restore those false
+      // positives to expenses once the stricter repayment signal no longer
+      // recognizes them. A learned merchant category is still respected.
+      if(existingImport.id===transaction.id&&existingImport.transaction_type==='transfer'&&existingImport.metadata.transfer_rule_id==='implicit-credit-repayment'&&!transferRule&&signedAmount<0){
+        const merchant=transaction.merchant_name?.trim()||null
+        const title=merchant||transaction.description?.trim()||`Tranzacție ${provider}`
+        const key=merchantKey(merchant||transaction.description)
+        const learnedCategoryId=learned.get(`expense:${key}`)
+        const categoryId=learnedCategoryId??uncategorized.get('expense')??null
+        const metadata:Record<string,unknown>={...existingImport.metadata,title,categorization_source:learnedCategoryId?'learned':'uncategorized',corrected_false_transfer_at:now}
+        delete metadata.transfer_rule_id
+        delete metadata.enable_banking_counterpart_transaction_id
+        const {error:splitDeleteError}=await admin.from('finance_transaction_splits').delete().eq('transaction_id',existingImport.id)
+        if(splitDeleteError)throw new Error(splitDeleteError.message)
+        const {error:updateError}=await admin.from('finance_transactions').update({account_id:financeAccount.id,transfer_account_id:null,transaction_type:'expense',amount:Math.abs(signedAmount),merchant,description:transaction.description,import_metadata:metadata}).eq('id',existingImport.id).eq('status','posted')
+        if(updateError)throw new Error(updateError.message)
+        if(categoryId){
+          const {error:splitError}=await admin.from('finance_transaction_splits').insert({transaction_id:existingImport.id,category_id:categoryId,amount:Math.abs(signedAmount)})
+          if(splitError)throw new Error(splitError.message)
+        }
+        const value={id:existingImport.id,metadata,transaction_type:'expense',account_id:financeAccount.id,transfer_account_id:null}
+        existingById.set(transaction.id,value)
+        imported++
+        continue
+      }
+
       // A transfer rule can be learned after both bank legs were already imported.
       // Reconcile them on the next refresh. If the destination bank exposed its
       // credit before the source bank booked the debit, preserve that earlier row
