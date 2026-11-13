@@ -2,8 +2,14 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 function load(file){const mod={exports:{}};new Function('exports','require','module',ts.transpileModule(fs.readFileSync(path.join(__dirname,'../lib/'+file+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(mod.exports,require,mod);return mod.exports}
 const {transferLabel}=load('transfers'),{remaining,loanTotals,validateLoan,createLoan,repayLoan}=load('loans')
 test('transfer uses explicit source and destination regardless of merchant',()=>{assert.equal(transferLabel({account_id:'a',transfer_account_id:'b',merchant:'Wrong'},[{id:'a',name:'George Mircea'},{id:'b',name:'Revolut Andreea'}]),'George Mircea → Revolut Andreea');assert.match(transferLabel({account_id:'a'},[]),/destinație indisponibil/)})
-const given={id:'1',household_id:'h',direction:'given',amount:'1000.10',repaid_amount:'200.05',currency:'RON',counterparty:'Ana',loan_date:'2026-09-17',purpose:null,notes:null}
+const given={id:'1',household_id:'h',direction:'given',amount:'1000.10',repaid_amount:'200.05',currency:'RON',counterparty:'Ana',loan_date:'2026-09-17',purpose:null,notes:null,account_id:'account-1',transaction_id:null,repayments:[]}
 test('remaining totals separate directions and currencies and preserve cents',()=>{const loans=[given,{...given,id:'2',currency:'EUR',amount:100,repaid_amount:100},{...given,id:'3',direction:'received',amount:500,repaid_amount:50}];assert.equal(remaining(given),800.05);assert.deepEqual(loanTotals(loans,'given'),{RON:80005,EUR:0});assert.deepEqual(loanTotals(loans,'received'),{RON:45000})})
 test('invalid loan amounts, missing person and impossible dates are rejected',()=>{for(const changes of [{amount:0},{amount:-1},{amount:'1.001'},{counterparty:' '},{loan_date:'2026-02-30'}])assert.throws(()=>validateLoan({...given,...changes}));assert.equal(validateLoan({...given,counterparty:' Ana '}).counterparty,'Ana')})
 test('no loan creation without authenticated user',async()=>{await assert.rejects(createLoan({auth:{getUser:async()=>({data:{user:null},error:null})},from(){throw Error('unexpected write')}},'h',given),/Sesiunea/)})
-test('repayments cannot exceed outstanding loan',async()=>{await assert.rejects(repayLoan({},given,800.06),/cel mult/);await assert.rejects(repayLoan({},given,-1),/pozitivă/)})
+test('repayment requires an existing transaction and only links it to the loan',async()=>{
+  await assert.rejects(repayLoan({},given,{transaction_id:''}),/Alege tranzacția/)
+  const calls=[]
+  const client={auth:{getUser:async()=>({data:{user:{id:'u'}},error:null})},rpc:async(name,args)=>{calls.push([name,args]);return {data:given,error:null}}}
+  await repayLoan(client,given,{transaction_id:'transaction-1'})
+  assert.deepEqual(calls,[['finance_link_loan_repayment',{p_loan_id:'1',p_transaction_id:'transaction-1'}]])
+})
