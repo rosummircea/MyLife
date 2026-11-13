@@ -7,3 +7,9 @@
 .loanRepayments button span { color:var(--muted); font-size:11px; }
 .loanRepayments button strong { font-size:12px; white-space:nowrap; }
 .loansTransactionLink { width:100%; margin-top:12px; }
+.loansRepaymentIntro>strong { display:block; margin-bottom:4px; font-size:13px; }.loansRepaymentIntro p { margin:0; }
+.loansCandidateList { display:grid; gap:8px; max-height:330px; overflow:auto; padding:2px; }
+.loansWorkspace .loansCandidate { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:64px; padding:12px; text-align:left; background:#111f30; }
+.loansCandidate>span { display:grid; gap:5px; min-width:0; }.loansCandidate strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }.loansCandidate small { color:var(--muted); font-size:10px; line-height:1.45; }.loansCandidate>b { flex:none; font-size:12px; white-space:nowrap; }
+.loansWorkspace .loansCandidate.isSelected { border-color:#65d7c5; background:rgba(59,190,166,.13); box-shadow:0 0 0 1px rgba(101,215,197,.24); }
+.loansEmptyCandidates { margin:0; padding:14px; border:1px dashed var(--line); border-radius:11px; color:var(--muted); font-size:11px; line-height:1.55; }.loansRepaymentActions { display:flex; flex-wrap:wrap; gap:8px; }
