@@ -2,7 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type LoanRepayment={id:string;loan_id:string;transaction_id:string;account_id:string;amount:number|string;repayment_date:string;created_at:string;account:{name:string}|null}
 export type Loan = {id:string;household_id:string;direction:'given'|'received';counterparty:string;amount:number|string;currency:string;loan_date:string;purpose:string|null;notes:string|null;repaid_amount:number|string;transaction_id:string|null;created_at:string;repayments:LoanRepayment[]}
 export type LoanInput = Pick<Loan,'direction'|'counterparty'|'amount'|'currency'|'loan_date'|'purpose'|'notes'> & {account_id:string}
-export type RepaymentInput={amount:string;account_id:string;repayment_date:string}
+export type RepaymentInput={transaction_id:string}
+export type RepaymentCandidate={id:string;account_id:string;account_name:string;amount:number|string;currency:string;transaction_date:string;title:string;description:string|null;imported_from:string|null}
 export function remaining(loan:Loan) {return Math.max(0,Math.round(Number(loan.amount)*100)-Math.round(Number(loan.repaid_amount)*100))/100}
 export function loanTotals(loans:Loan[],direction:Loan['direction']) {return loans.filter(loan=>loan.direction===direction).reduce<Record<string,number>>((totals,loan)=>{const currency=loan.currency.trim();totals[currency]=(totals[currency]??0)+Math.round(remaining(loan)*100);return totals},{})}
 export function validateLoan(input:LoanInput) {
@@ -26,11 +27,13 @@ export async function createLoan(client:SupabaseClient,householdId:string,input:
   const clean=validateLoan(input);const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user)throw Error('Sesiunea a expirat. Reconectează contul.')
   const {data,error}=await client.rpc('finance_create_loan_with_transaction',{p_household_id:householdId,p_direction:clean.direction,p_counterparty:clean.counterparty,p_amount:clean.amount,p_currency:clean.currency,p_day:clean.loan_date,p_account_id:clean.account_id,p_purpose:clean.purpose,p_notes:clean.notes});if(error)throw Error(error.message);return {...data,repayments:[]} as Loan
 }
-export async function repayLoan(client:SupabaseClient,loan:Loan,input:RepaymentInput):Promise<Loan> {
-  const amount=Number(input.amount.replace(',','.'))
-  const cents=Math.round(amount*100);if(!Number.isFinite(cents)||cents<=0||cents>Math.round(remaining(loan)*100)||Math.abs(amount*100-cents)>0.00001)throw Error('Rambursarea trebuie să fie pozitivă și cel mult egală cu suma rămasă.')
-  if(!input.account_id)throw Error('Alege contul tranzacției.')
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(input.repayment_date)||Number.isNaN(Date.parse(input.repayment_date))||new Date(input.repayment_date).toISOString().slice(0,10)!==input.repayment_date)throw Error('Completează data rambursării.')
+export async function loadRepaymentCandidates(client:SupabseClient,loanId:string):Promise<RepaymentCandidate[]> {
   const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user)throw Error('Sesiunea a expirat.')
-  const {data,error}=await client.rpc('finance_repay_loan_with_transaction',{p_loan_id:loan.id,p_amount:cents/100,p_day:input.repayment_date,p_account_id:input.account_id});if(error)throw Error(error.message);return {...data,repayments:loan.repayments} as Loan
+  const {data,error}=await client.rpc('finance_loan_repayment_candidates',{p_loan_id:loanId});if(error)throw Error(error.message)
+  return (data??[]) as RepaymentCandidate[]
+}
+export async function repayLoan(client:SupabaseClient,loan:Loan,input:RepaymentInput):Promise<Loan> {
+  if(!input.transaction_id)throw Error('Alege tranzacția care reprezintă rambursarea.')
+  const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user)throw Error('Sesiunea a expirat.')
+  const {data,error}=await client.rpc('finance_link_loan_repayment',{p_loan_id:loan.id,p_transaction_id:input.transaction_id});if(error)throw Error(error.message);return {...data,repayments:loan.repayments} as Loan
 }
