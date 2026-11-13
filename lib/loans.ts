@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+SupabaseClientimport type { SupabaseClient } from '@supabase/supabase-js'
 export type LoanRepayment={id:string;loan_id:string;transaction_id:string;account_id:string;amount:number|string;repayment_date:string;created_at:string;account:{name:string}|null}
 export type Loan = {id:string;household_id:string;direction:'given'|'received';counterparty:string;amount:number|string;currency:string;loan_date:string;purpose:string|null;notes:string|null;repaid_amount:number|string;transaction_id:string|null;created_at:string;repayments:LoanRepayment[]}
 export type LoanInput = Pick<Loan,'direction'|'counterparty'|'amount'|'currency'|'loan_date'|'purpose'|'notes'> & {account_id:string}
