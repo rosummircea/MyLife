@@ -24,6 +24,7 @@ export default function LoansWorkspace({householdId,accounts,onSaved,onSelectTra
   const [repayment,setRepayment]=useState<({id:string}&RepaymentInput)|null>(null)
   const [repaymentCandidates,setRepaymentCandidates]=useState<RepaymentCandidate[]>([])
   const [repaymentLoading,setRepaymentLoading]=useState(false)
+  const [repaymentSearch,setRepaymentSearch]=useState('')
 
   useEffect(()=>{
     let cancelled=false
@@ -37,14 +38,19 @@ export default function LoansWorkspace({householdId,accounts,onSaved,onSelectTra
 
   const firstAccount=(currency:string)=>eligibleAccounts(accounts,currency)[0]?.id??''
   const openLoanForm=()=>{const fresh=emptyInput();fresh.account_id=firstAccount(fresh.currency);setInput(fresh);setShowForm(true)}
-  const closeRepayment=()=>{setRepayment(null);setRepaymentCandidates([]);setRepaymentLoading(false)}
-  const openRepayment=async(loan:Loan)=>{
-    const client=getSupabaseClient();if(!client)return
-    setRepayment({id:loan.id,transaction_id:''});setRepaymentCandidates([]);setRepaymentLoading(true);setError('')
-    try{setRepaymentCandidates(await loadRepaymentCandidates(client,loan.id))}
-    catch(error){setError(error instanceof Error?error.message:'Tranzacțiile nu au putut fi încărcate.')}
-    finally{setRepaymentLoading(false)}
-  }
+  const closeRepayment=()=>{setRepayment(null);setRepaymentSearch('');setRepaymentCandidates([]);setRepaymentLoading(false)}
+  const openRepayment=(loan:Loan)=>{setRepayment({id:loan.id,transaction_id:''});setRepaymentSearch('');setRepaymentCandidates([]);setError('')}
+
+  useEffect(()=>{
+    if(!repayment)return
+    let cancelled=false
+    const timer=window.setTimeout(()=>{
+      const client=getSupabaseClient();if(!client)return
+      setRepaymentLoading(true)
+      loadRepaymentCandidates(client,repayment.id,repaymentSearch).then(data=>{if(!cancelled)setRepaymentCandidates(data)}).catch(error=>{if(!cancelled)setError(error instanceof Error?error.message:'Tranzacțiile nu au putut fi încărcate.')}).finally(()=>{if(!cancelled)setRepaymentLoading(false)})
+    },repaymentSearch.trim()?250:0)
+    return()=>{cancelled=true;window.clearTimeout(timer)}
+  },[repayment?.id,repaymentSearch])
 
   async function save(){
     const client=getSupabaseClient();if(!client||!householdId)return
@@ -103,7 +109,8 @@ export default function LoansWorkspace({householdId,accounts,onSaved,onSelectTra
           {loan.repayments.length>0&&<div className="loanRepayments"><strong>Rambursări</strong>{[...loan.repayments].sort((a,b)=>b.repayment_date.localeCompare(a.repayment_date)).map(item=><button type="button" key={item.id} onClick={()=>onSelectTransaction(item.transaction_id)}><span>{new Date(item.repayment_date+'T12:00:00Z').toLocaleDateString('ro-RO',{timeZone:'UTC'})} · {item.account?.name??'Cont'}</span><strong>{direction==='received'?'−':'+'}{money(Number(item.amount),loan.currency)}</strong></button>)}</div>}
           {remaining(loan)>0&&(repayment?.id===loan.id?<form className="loansRepayment" onSubmit={event=>{event.preventDefault();void repay(loan)}}>
             <div className="loansRepaymentIntro"><strong>Alege tranzacția rambursării</strong><p className="loansHint">Suma, contul și data sunt preluate din tranzacția existentă. Nu se creează o tranzacție nouă și soldul nu este afectat încă o dată.</p></div>
-            {repaymentLoading?<p className="loansHint" role="status">Se caută tranzacțiile compatibile…</p>:repaymentCandidates.length?<div className="loansCandidateList" role="radiogroup" aria-label="Tranzacția rambursării">{repaymentCandidates.map(candidate=><button className={repayment.transaction_id===candidate.id?'loansCandidate isSelected':'loansCandidate'} type="button" role="radio" aria-checked={repayment.transaction_id===candidate.id} key={candidate.id} onClick={()=>setRepayment({...repayment,transaction_id:candidate.id})}><span><strong>{candidate.title}</strong><small>{new Date(candidate.transaction_date).toLocaleDateString('ro-RO',{timeZone:'Europe/Bucharest'})} · {candidate.account_name}{candidate.imported_from?` · Importată din ${candidate.imported_from}`:''}</small></span><b>{direction==='received'?'−':'+'}{money(Number(candidate.amount),candidate.currency)}</b></button>)}</div>:<p className="loansEmptyCandidates">Nu există încă o tranzacție compatibilă. Actualizează conturile după ce plata apare în bancă.</p>}
+            {(repaymentCandidates.length>0||repaymentSearch.length>0)&&<div className="loansCandidateSearch"><span aria-hidden="true">⌕</span><input type="search" value={repaymentSearch} onChange={event=>{setRepaymentSearch(event.target.value);setRepaymentCandidates([]);setRepaymentLoading(true)}} placeholder="Caută comerciant, descriere, cont sau sumă" aria-label="Caută tranzacția rambursării"/><small>{repaymentLoading?'Se caută…':`${repaymentCandidates.length} rezultate`}</small>{repaymentSearch&&<button type="button" aria-label="Șterge căutarea" onClick={()=>setRepaymentSearch('')}>×</button>}</div>}
+            {repaymentLoading?<p className="loansHint" role="status">Se caută tranzacțiile compatibile…</p>:repaymentCandidates.length?<div className="loansCandidateList" role="radiogroup" aria-label="Tranzacția rambursării">{repaymentCandidates.map(candidate=><button className={repayment.transaction_id===candidate.id?'loansCandidate isSelected':'loansCandidate'} type="button" role="radio" aria-checked={repayment.transaction_id===candidate.id} key={candidate.id} onClick={()=>setRepayment({...repayment,transaction_id:candidate.id})}><span><strong>{candidate.title}</strong><small>{new Date(candidate.transaction_date).toLocaleDateString('ro-RO',{timeZone:'Europe/Bucharest'})} · {candidate.account_name}{candidate.imported_from?` · Importată din ${candidate.imported_from}`:''}</small></span><b>{direction==='received'?'−':'+'}{money(Number(candidate.amount),candidate.currency)}</b></button>)}</div>:repaymentSearch?<p className="loansEmptyCandidates">Nu am găsit tranzacții compatibile pentru căutarea aceasta. Încearcă numele comerciantului, contul, descrierea sau suma.</p>:<p className="loansEmptyCandidates">Nu există încă o tranzacție compatibilă. Actualizează conturile după ce plata apare în bancă.</p>}
             <div className="loansRepaymentActions"><button disabled={saving||repaymentLoading||!repayment.transaction_id} type="submit">{saving?'Se leagă…':'Leagă tranzacția de rambursare'}</button><button disabled={saving} type="button" onClick={closeRepayment}>Renunță</button></div>
           </form>:<button disabled={saving} type="button" onClick={()=>openRepayment(loan)}>Notează rambursare</button>)}
         </article>)}
