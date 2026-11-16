@@ -85,7 +85,9 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     if(budgetA===undefined&&budgetB!==undefined)return 1
     if(budgetA!==undefined&&budgetB===undefined)return -1
     if(budgetA===undefined&&budgetB===undefined)return b.amount-a.amount||a.name.localeCompare(b.name,'ro')
-    return (budgetA!-a.amount)-(budgetB!-b.amount)||b.amount-a.amount||a.name.localeCompare(b.name,'ro')
+    const remainingPercentA=budgetA===0?(a.amount>0?Number.NEGATIVE_INFINITY:0):(budgetA!-a.amount)/budgetA!*100
+    const remainingPercentB=budgetB===0?(b.amount>0?Number.NEGATIVE_INFINITY:0):(budgetB!-b.amount)/budgetB!*100
+    return remainingPercentA-remainingPercentB||b.amount-a.amount||a.name.localeCompare(b.name,'ro')
   }),[categorySort,listedCategories,monthlyBudgets])
   const incomeTotal=useMemo(()=>{
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
@@ -330,7 +332,7 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           <div><span>Încasat</span><strong className="reportMoneyIncome">{moneyWhole(incomeTotal)}</strong></div>
         </div>
       </section></div></div><div className="reportBudgetDots"><button type="button" aria-label="Buget" aria-current={budgetCardIndex===0?'true':undefined} onClick={()=>{budgetCarouselRef.current?.scrollTo({left:0,behavior:'smooth'});setBudgetCardIndex(0)}}/><button type="button" aria-label="Rezumat" aria-current={budgetCardIndex===1?'true':undefined} onClick={()=>{const el=budgetCarouselRef.current;el?.scrollTo({left:el.clientWidth,behavior:'smooth'});setBudgetCardIndex(1)}}/></div></div>}
-      <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><div className="reportCategoryListActions">{kind==='expense'&&period==='Lună'&&monthlyBudgets.size>0&&<div className="reportCategorySortWrap"><span>Ordonează după</span><div className="reportCategorySort" role="group" aria-label="Ordonează categoriile după"><button type="button" aria-pressed={categorySort==='spending'} onClick={()=>setCategorySort('spending')}>Cheltuieli</button><button type="button" aria-pressed={categorySort==='budgetRemaining'} onClick={()=>setCategorySort('budgetRemaining')}>Buget rămas</button></div></div>}<button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div></div>
+      <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><div className="reportCategoryListActions">{kind==='expense'&&period==='Lună'&&monthlyBudgets.size>0&&<div className="reportCategorySortWrap"><span>Ordonează după</span><div className="reportCategorySort" role="group" aria-label="Ordonează categoriile după"><button type="button" aria-pressed={categorySort==='spending'} onClick={()=>setCategorySort('spending')}>Cheltuieli</button><button type="button" aria-pressed={categorySort==='budgetRemaining'} onClick={()=>setCategorySort('budgetRemaining')}>% rămas</button></div></div>}<button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div></div>
       <div className="expenseList">
         {orderedCategories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
         {orderedCategories.map((item) => {
