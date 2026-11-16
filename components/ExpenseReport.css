@@ -244,6 +244,8 @@
 .expenseCollapseAllButton:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.045)}
 .expenseCollapseAllButton:disabled{opacity:.38;cursor:default}
 .expenseCollapseAllButton:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.reportListTitle{align-items:center;gap:14px}.reportListTitle h2{margin:0}.reportCategoryListActions{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0}.reportCategorySortWrap{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.reportCategorySortWrap>span{color:var(--muted);font-size:10px}.reportCategorySort{display:flex;gap:3px;padding:3px;border:1px solid rgba(148,169,198,.16);border-radius:11px;background:rgba(5,13,24,.42)}.reportCategorySort button{min-height:30px;padding:6px 10px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:10px;font-weight:700;cursor:pointer}.reportCategorySort button[aria-pressed="true"]{background:linear-gradient(145deg,#79b4ff,#72e1c5);color:#07101c}.reportCategorySort button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}.reportCategorySortWrap small{flex-basis:100%;margin-left:auto;color:#f4b75f;font-size:9px;text-align:right}
+@media(max-width:700px){.reportListTitle{align-items:flex-start;flex-wrap:wrap}.reportCategoryListActions{width:100%;justify-content:space-between;flex-wrap:wrap}.reportCategorySortWrap{gap:5px}.reportCategorySortWrap small{margin-left:0;text-align:left}}
 
 
 .reportMoneyExpense{color:#ff8797!important}
