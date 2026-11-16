@@ -27,9 +27,9 @@ export async function createLoan(client:SupabaseClient,householdId:string,input:
   const clean=validateLoan(input);const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user)throw Error('Sesiunea a expirat. Reconectează contul.')
   const {data,error}=await client.rpc('finance_create_loan_with_transaction',{p_household_id:householdId,p_direction:clean.direction,p_counterparty:clean.counterparty,p_amount:clean.amount,p_currency:clean.currency,p_day:clean.loan_date,p_account_id:clean.account_id,p_purpose:clean.purpose,p_notes:clean.notes});if(error)throw Error(error.message);return {...data,repayments:[]} as Loan
 }
-export async function loadRepaymentCandidates(client:SupabaseClient,loanId:string):Promise<RepaymentCandidate[]> {
+export async function loadRepaymentCandidates(client:SupabaseClient,loanId:string,search=''):Promise<RepaymentCandidate[]> {
   const {data:auth,error:authError}=await client.auth.getUser();if(authError||!auth.user)throw Error('Sesiunea a expirat.')
-  const {data,error}=await client.rpc('finance_loan_repayment_candidates',{p_loan_id:loanId});if(error)throw Error(error.message)
+  const {data,error}=await client.rpc('finance_loan_repayment_candidates',{p_loan_id:loanId,p_search:search.trim()||null});if(error)throw Error(error.message)
   return (data??[]) as RepaymentCandidate[]
 }
 export async function repayLoan(client:SupabaseClient,loan:Loan,input:RepaymentInput):Promise<Loan> {
