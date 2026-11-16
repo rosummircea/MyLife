@@ -8,6 +8,7 @@
 .loanRepayments button strong { font-size:12px; white-space:nowrap; }
 .loansTransactionLink { width:100%; margin-top:12px; }
 .loansRepaymentIntro>strong { display:block; margin-bottom:4px; font-size:13px; }.loansRepaymentIntro p { margin:0; }
+.loansCandidateSearch { display:flex; align-items:center; gap:9px; min-width:0; padding:0 11px; border:1px solid var(--line); border-radius:11px; background:#101d2c; color:var(--muted); }.loansCandidateSearch>span { flex:none; font-size:23px; line-height:1; }.loansWorkspace .loansCandidateSearch input { min-height:44px; padding:9px 0; border:0; outline:0; background:transparent; }.loansCandidateSearch small { flex:none; font-size:10px; white-space:nowrap; }.loansWorkspace .loansCandidateSearch button { flex:none; min-height:30px; padding:3px 8px; border:0; background:transparent; font-size:18px; color:var(--muted); }
 .loansCandidateList { display:grid; gap:8px; max-height:330px; overflow:auto; padding:2px; }
 .loansWorkspace .loansCandidate { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:64px; padding:12px; text-align:left; background:#111f30; }
 .loansCandidate>span { display:grid; gap:5px; min-width:0; }.loansCandidate strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }.loansCandidate small { color:var(--muted); font-size:10px; line-height:1.45; }.loansCandidate>b { flex:none; font-size:12px; white-space:nowrap; }
