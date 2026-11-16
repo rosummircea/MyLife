@@ -44,6 +44,7 @@ function periodLabel(period:ReportPeriod,anchor:string,custom:DateRange){
 export default function ExpenseReport({ data, loading, onSelectTransaction }: { data: MyLifeData | null; loading: boolean; onSelectTransaction:(transaction:Transaction)=>void }) {
   const [showAllTransactions,setShowAllTransactions]=useState(false)
   const [kind,setKind]=useState<ReportKind>('expense')
+  const [categorySort,setCategorySort]=useState<'spending'|'budgetRemaining'>('spending')
   const [reportView,setReportView]=useState<ReportKind|'balance'>('expense')
   const [comparePrevious,setComparePrevious]=useState(true)
   const allTransactionsRef=useRef<HTMLDivElement>(null)
@@ -79,6 +80,13 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
     return new Map((data?.budgets??[]).filter(row=>kind==='expense'&&period==='Lună'&&allowed.has(row.category_id)&&row.month.slice(0,7)===range.from.slice(0,7)&&row.currency.trim()==='RON').map(row=>[row.category_id,Number(row.amount)]))
   },[data?.budgets,data?.categories,kind,period,range.from])
   const listedCategories=useMemo(()=>includeBudgetedCategories(categories,data?.categories??[],monthlyBudgets),[categories,data?.categories,monthlyBudgets])
+  const orderedCategories=useMemo(()=>categorySort==='spending'?listedCategories:[...listedCategories].sort((a,b)=>{
+    const budgetA=monthlyBudgets.get(a.id),budgetB=monthlyBudgets.get(b.id)
+    if(budgetA===undefined&&budgetB!==undefined)return 1
+    if(budgetA!==undefined&&budgetB===undefined)return -1
+    if(budgetA===undefined&&budgetB===undefined)return b.amount-a.amount||a.name.localeCompare(b.name,'ro')
+    return (budgetA!-a.amount)-(budgetB!-b.amount)||b.amount-a.amount||a.name.localeCompare(b.name,'ro')
+  }),[categorySort,listedCategories,monthlyBudgets])
   const incomeTotal=useMemo(()=>{
     try{return buildExpenseReport(data?.transactions??[],data?.categories??[],data?.splits??[],range,'income').total}
     catch{return 0}
@@ -322,10 +330,10 @@ export default function ExpenseReport({ data, loading, onSelectTransaction }: { 
           <div><span>Încasat</span><strong className="reportMoneyIncome">{moneyWhole(incomeTotal)}</strong></div>
         </div>
       </section></div></div><div className="reportBudgetDots"><button type="button" aria-label="Buget" aria-current={budgetCardIndex===0?'true':undefined} onClick={()=>{budgetCarouselRef.current?.scrollTo({left:0,behavior:'smooth'});setBudgetCardIndex(0)}}/><button type="button" aria-label="Rezumat" aria-current={budgetCardIndex===1?'true':undefined} onClick={()=>{const el=budgetCarouselRef.current;el?.scrollTo({left:el.clientWidth,behavior:'smooth'});setBudgetCardIndex(1)}}/></div></div>}
-      <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div>
+      <div className="sectionTitle reportListTitle"><h2>{kind==='income'?'Venituri':'Cheltuieli'} pe categorii</h2><div className="reportCategoryListActions">{kind==='expense'&&period==='Lună'&&monthlyBudgets.size>0&&<div className="reportCategorySortWrap"><span>Ordonează după</span><div className="reportCategorySort" role="group" aria-label="Ordonează categoriile după"><button type="button" aria-pressed={categorySort==='spending'} onClick={()=>setCategorySort('spending')}>Cheltuieli</button><button type="button" aria-pressed={categorySort==='budgetRemaining'} onClick={()=>setCategorySort('budgetRemaining')}>Buget rămas</button></div>{categorySort==='budgetRemaining'&&<small>Cel mai puțin disponibil, primele</small>}</div>}<button type="button" className="expenseCollapseAllButton" disabled={!selected&&!showAllTransactions} onClick={()=>{setSelected(null);setShowAllTransactions(false)}}><ChevronsUp size={15}/> Restrânge tot</button></div></div>
       <div className="expenseList">
-        {listedCategories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
-        {listedCategories.map((item) => {
+        {orderedCategories.length === 0 && <div className="emptyState">Nu există {kind==='income'?'venituri':'cheltuieli'} în RON în perioada selectată.</div>}
+        {orderedCategories.map((item) => {
           const expanded = selected === item.id
           const categoryBudget=monthlyBudgets.get(item.id)
           return (
